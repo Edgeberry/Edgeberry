@@ -13,7 +13,7 @@ import { Client } from "azure-iot-device";
 import { Mqtt } from "azure-iot-device-mqtt";
 import { EventEmitter } from "events";
 
-// types
+/* Types */
 export type AzureConnectionParameters = {
     hostName: string;                       // Name of the host to connect to (e.g. myIoTHub.azure-devices.net)
     deviceId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
@@ -23,10 +23,17 @@ export type AzureConnectionParameters = {
     privateKey?: string;                    // for X.509 authentication
 }
 
+export type AzureClientStatus = {
+    connected?: boolean;
+    provisioning?: boolean;
+}
+
 
 export class AzureClient extends EventEmitter {
     // Azure IoT Hub connection parameters
     private connectionParameters:AzureConnectionParameters|null = null;
+    // Azure IoT Hub connection status
+    private clientStatus:AzureClientStatus = { connected: false, provisioning:false };
     // The Azure IoT Hub client object
     private client:any|null = null;
 
@@ -105,12 +112,32 @@ export class AzureClient extends EventEmitter {
         });
     }
 
-    // Azure IoT client event handlers
-    private clientConnectHandler(){}
+    /* Azure IoT client event handlers */
+    private clientConnectHandler(){
+        this.clientStatus.connected = true;
+        this.emit( 'connected' );
+        this.emit( 'status', this.clientStatus );
+    }
 
-    private clientDisconnectHandler(){}
+    private clientDisconnectHandler(){
+        // Emit the disconnected status
+        this.clientStatus.connected = false;
+        this.emit( 'disconnected' );
+        this.emit( 'status', this.clientStatus );
 
-    private clientErrorHandler( error:any ){}
+        // Attempt to reconnect
+        try{
+            this.client.open();
+        } catch(err){
+            // Todo: do something with the error state
+        }
+    }
 
-    private clientMessageHandler( message:any ){}
+    private clientErrorHandler( error:any ){
+        this.emit( 'error', error );
+    }
+
+    private clientMessageHandler( message:any ){
+        this.emit( 'message', message );
+    }
 }
