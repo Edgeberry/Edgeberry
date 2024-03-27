@@ -31,6 +31,8 @@
     "typescript": "^5.4.3"
   },
   "dependencies": {
+    "azure-iot-device": "^1.18.3",
+    "azure-iot-device-mqtt": "^1.16.3",
     "express": "^4.19.2"
   }
 }
