@@ -79,8 +79,8 @@ export class AzureClient extends EventEmitter {
             // Check if the parameters are correct
             if( parameters.authenticationType === 'sas' && typeof(parameters.sharedAccessKey) !== 'string' )
             return reject('sas authentication requires a shared access key');
-            if( parameters.authenticationType === 'x509' && (typeof(parameters.certificate ) !== 'string') || typeof(parameters.privateKey) !== 'string')
-            return reject('X.509 authentication requires a certificate and private key file');
+            if( parameters.authenticationType === 'x509' && (typeof(parameters.certificate ) !== 'string' || typeof(parameters.privateKey) !== 'string'))
+            return reject('X.509 authentication requires a certificate and private key');
             // Set the connection parameters
             this.connectionParameters = parameters;
             return resolve(true);
@@ -213,7 +213,7 @@ export class AzureClient extends EventEmitter {
             // Check if the parameters are correct
             if( parameters.authenticationType === 'sas' && typeof(parameters.registrationKey) !== 'string' )
             return reject('Device provisioning with sas authentication requires a shared access key');
-            if( parameters.authenticationType === 'x509' && (typeof(parameters.certificate ) !== 'string') || typeof(parameters.privateKey) !== 'string')
+            if( parameters.authenticationType === 'x509' && (typeof(parameters.certificate ) !== 'string' || typeof(parameters.privateKey) !== 'string'))
             return reject('Device provisioning with X.509 authentication requires a certificate and private key');
             // Set the DPS parameters
             this.provisioningParameters = parameters;
@@ -287,7 +287,7 @@ export class AzureClient extends EventEmitter {
                 // Register the client with the Device Provisioning Service
                 registrationClient.register((error, result)=>{
                     if( error ) return reject( error );
-                    if( !result?.assignedHub || result.deviceId ) return reject('No assigned hub or device ID in provisioning service result');
+                    if( !result?.assignedHub || !result?.deviceId ) return reject('No assigned hub or device ID in provisioning service result');
                     connectionParameters.hostName = result.assignedHub;
                     connectionParameters.deviceId = result.deviceId;
 
