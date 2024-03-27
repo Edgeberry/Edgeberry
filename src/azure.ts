@@ -12,7 +12,6 @@
 import { Client } from "azure-iot-device";
 import { Mqtt } from "azure-iot-device-mqtt";
 import { EventEmitter } from "events";
-import { readFileSync } from "fs";
 
 // types
 export type AzureConnectionParameters = {
@@ -20,8 +19,8 @@ export type AzureConnectionParameters = {
     deviceId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
     authenticationType: string;             // The authentication type (e.g. 'sas', 'x509')
     sharedAccessKey?: string;               // For Shared Key authentication
-    certificateFile?: string;               // For X.509 authentication
-    privateKeyFile?: string;                // for X.509 authentication
+    certificate?: string;                   // For X.509 authentication
+    privateKey?: string;                    // for X.509 authentication
 }
 
 
@@ -42,7 +41,7 @@ export class AzureClient extends EventEmitter {
             // Check if the parameters are correct
             if( parameters.authenticationType === 'sas' && typeof(parameters.sharedAccessKey) !== 'string' )
             return reject('sas authentication requires a shared access key');
-            if( parameters.authenticationType === 'x509' && (typeof(parameters.certificateFile ) !== 'string') || typeof(parameters.privateKeyFile) !== 'string')
+            if( parameters.authenticationType === 'x509' && (typeof(parameters.certificate ) !== 'string') || typeof(parameters.privateKey) !== 'string')
             return reject('X.509 authentication requires a certificate and private key file');
             // Set the connection parameters
             this.connectionParameters = parameters;
@@ -61,7 +60,7 @@ export class AzureClient extends EventEmitter {
                 switch(this.connectionParameters.authenticationType){
                     // With X.509 certificates authentication
                     case 'x509':    // Check the required X.509 parameters
-                                    if( this.connectionParameters.authenticationType === 'x509' && (typeof(this.connectionParameters.certificateFile ) !== 'string') || typeof(this.connectionParameters.privateKeyFile) !== 'string')
+                                    if( this.connectionParameters.authenticationType === 'x509' && ( typeof(this.connectionParameters.certificate) !== 'string') || typeof(this.connectionParameters.privateKey) !== 'string')
                                     return reject('X.509 authentication parameters incomplete');
                                     // Create the Azure IoT Hub client
                                     this.client = Client.fromConnectionString(  'HostName='+this.connectionParameters.hostName+
@@ -70,8 +69,8 @@ export class AzureClient extends EventEmitter {
                                                                                 , Mqtt);
                                     // Set the X.509 parameters
                                     this.client.setOptions({
-                                        cert: readFileSync( this.connectionParameters.certificateFile ).toString(),
-                                        key: readFileSync( this.connectionParameters.privateKeyFile ).toString()
+                                        cert: this.connectionParameters.certificate,
+                                        key: this.connectionParameters.privateKey
                                     });
                                     break;
                     // With Shared Key authentication
