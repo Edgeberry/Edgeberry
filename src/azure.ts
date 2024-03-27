@@ -19,6 +19,7 @@ import { ProvisioningDeviceClient, RegistrationResult } from "azure-iot-provisio
 import { SymmetricKeySecurityClient } from "azure-iot-security-symmetric-key";
 import { EventEmitter } from "events";
 import * as crypto from 'crypto';
+import { X509Security } from "azure-iot-security-x509";
 
 /* Types for Azure IoT Hub */
 export type AzureConnectionParameters = {
@@ -244,12 +245,22 @@ export class AzureClient extends EventEmitter {
 
             try{
                 switch( this.provisioningParameters.authenticationType ){
-                    case 'x509':    // TODO
-                                    return reject('X.509 provisioning not implementend');
+                    case 'x509':    if( typeof(this.provisioningParameters.certificate) !== 'string' || typeof(this.provisioningParameters.privateKey) !== 'string')
+                                    return reject('Provisioning with X.509 authentication requires a certificate and a private key');
+                                    // The authentication method for the connection will also be X.509 certificates
+                                    connectionParameters.authenticationType = 'x509';
+                                    // TODO: individual or group?
+                                    connectionParameters.privateKey = this.provisioningParameters.privateKey;
+                                    connectionParameters.certificate = this.provisioningParameters.certificate;
+                                    // Create the security client for X.509 authentication
+                                    var provisioningSecurityClient:any = new X509Security( this.provisioningParameters.registrationId,{
+                                                                                                                                    cert: this.provisioningParameters.certificate,
+                                                                                                                                    key: this.provisioningParameters.privateKey
+                                                                                                                                });
                                     break;
 
                     /* Symmetric Key */
-                    case 'sas':     if( typeof(this.provisioningParameters.registrationKey) !== 'string' ) return reject('Provisioning with symmetric key requires a registration key');
+                    case 'sas':     if( typeof(this.provisioningParameters.registrationKey) !== 'string' ) return reject('Provisioning with symmetric key authentication requires a registration key');
                                     // The authentication method for the connection will also be symmetric keys
                                     connectionParameters.authenticationType = 'sas';
                                     // If it's a group key, create individual key, otherwise just copy the shared access key
@@ -290,7 +301,7 @@ export class AzureClient extends EventEmitter {
                         })
                         .catch((err)=>{
                             return reject(err);
-                        })
+                        });
                 });
 
             } catch( err ){
