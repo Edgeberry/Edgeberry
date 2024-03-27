@@ -35,8 +35,20 @@ sshpass -p ${PASSWORD} ssh ${USER}@${HOST} "mkdir ~/temp"
 
 
 # Copy project to the device
-sshpass -p ${PASSWORD} scp -r . ${USER}@${HOST}:temp/
+sshpass -p ${PASSWORD} scp -r ./* ${USER}@${HOST}:temp/
 
 # Todo: installation steps on remote device (as root)
+sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
+
+sudo su
+mkdir /opt/Edge_Gateway
+
+mv ./temp/* /opt/Edge_Gateway
+
+cd /opt/Edge_Gateway
+npm install --dev
+npm run build
+
+EOF
 
 exit 0;
