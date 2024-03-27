@@ -6,6 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc; cp -r src/public build/",
+    "deploy": "bash ./deploy.sh",
     "dev": "nodemon --watch src src/index.ts"
   },
   "repository": {
