@@ -56,6 +56,11 @@ export class AzureClient extends EventEmitter {
         })
     }
 
+    /* Get the Azure IoT Hub connection parameters */
+    public getConnectionParameters():AzureConnectionParameters|null{
+        return this.connectionParameters;
+    }
+
     /* Connect to the Azure IoT Hub using the connection settings */
     public async connect():Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
