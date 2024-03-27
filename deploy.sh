@@ -49,14 +49,14 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
 sudo su
 mkdir /opt/Edge_Gateway
 
-mv ./temp/* /opt/Edge_Gateway
+cp -r ./temp/* /opt/Edge_Gateway
 #rm -rf ./temp
 
 cd /opt/Edge_Gateway
-npm install --dev
+npm install --include=dev
 npm run build
 
-ps -ef | grep "pm2: Edge_Gateway" | grep -v grep
+# Todo: (re)start application
 
 EOF
 
