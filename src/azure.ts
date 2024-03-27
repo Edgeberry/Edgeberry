@@ -142,13 +142,12 @@ export class AzureClient extends EventEmitter {
             }
 
             // Send the message
-            this.client.sendEvent( newMessage )
-                .then(()=>{
-                    resolve(true);
-                })
-                .catch((error:Error)=>{
-                    reject(error);
-                });
+            try{
+                this.client.sendEvent( newMessage );
+                resolve( true );
+            } catch( err ){
+                reject( err );
+            }
         });
     } 
 
