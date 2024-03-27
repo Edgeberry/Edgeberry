@@ -1,0 +1,32 @@
+{
+  "name": "edge_gateway",
+  "version": "1.0.0",
+  "description": "Edge device for managing cloud connection, connecting sensors/actuators and do basic data processing",
+  "main": "build/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc; cp -r src/public build/",
+    "dev": "nodemon --watch src src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SpuQ/Edge_Gateway.git"
+  },
+  "keywords": [
+    "iot",
+    "edge",
+    "gateway"
+  ],
+  "author": "Sanne 'SpuQ' Santens",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SpuQ/Edge_Gateway/issues"
+  },
+  "homepage": "https://github.com/SpuQ/Edge_Gateway#readme",
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.3"
+  }
+}
