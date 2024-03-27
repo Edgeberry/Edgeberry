@@ -9,7 +9,7 @@
  *      https://github.com/Azure/azure-iot-sdk-node/tree/main/provisioning/device/samples
  */
 
-import { Client } from "azure-iot-device";
+import { Client, Message } from "azure-iot-device";
 import { Mqtt } from "azure-iot-device-mqtt";
 import { EventEmitter } from "events";
 
@@ -28,6 +28,15 @@ export type AzureClientStatus = {
     provisioning?: boolean;
 }
 
+export type AzureMessage = {
+    data: string;
+    properties?: AzureMessageProperty[];
+}
+
+export type AzureMessageProperty = {
+    key: string;
+    value: string;
+}
 
 export class AzureClient extends EventEmitter {
     // Azure IoT Hub connection parameters
@@ -116,6 +125,32 @@ export class AzureClient extends EventEmitter {
             }
         });
     }
+
+    /* Send message */
+    public sendMessage( message:AzureMessage ):Promise<string|boolean>{
+        return new Promise((resolve, reject)=>{
+            // Reject the message if no client is initialized
+            if( !this.client ) return reject('No Azure IoT Hub client');
+
+            // Create the new message
+            let newMessage = new Message( message.data );
+            // Add the properties, if any
+            if( message.properties ){
+                message.properties.forEach( (property:AzureMessageProperty) =>{
+                    newMessage.properties.add( property.key, property.value );
+                });
+            }
+
+            // Send the message
+            this.client.sendEvent( newMessage )
+                .then(()=>{
+                    resolve(true);
+                })
+                .catch((error:Error)=>{
+                    reject(error);
+                });
+        });
+    } 
 
     /* Azure IoT client event handlers */
     private clientConnectHandler(){
