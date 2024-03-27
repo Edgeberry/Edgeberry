@@ -7,13 +7,20 @@
  *  Azure SDK examples:
  *      https://github.com/Azure/azure-iot-sdk-node/tree/main/device/samples/typescript
  *      https://github.com/Azure/azure-iot-sdk-node/tree/main/provisioning/device/samples
+ * 
+ *  Microsoft IoT Hub documentation:
+ *      https://learn.microsoft.com/en-us/azure/iot-hub/
  */
 
 import { Client, Message } from "azure-iot-device";
 import { Mqtt } from "azure-iot-device-mqtt";
+import { Mqtt as DPSMqtt } from "azure-iot-provisioning-device-mqtt";
+import { ProvisioningDeviceClient, RegistrationResult } from "azure-iot-provisioning-device";
+import { SymmetricKeySecurityClient } from "azure-iot-security-symmetric-key";
 import { EventEmitter } from "events";
+import * as crypto from 'crypto';
 
-/* Types */
+/* Types for Azure IoT Hub */
 export type AzureConnectionParameters = {
     hostName: string;                       // Name of the host to connect to (e.g. myIoTHub.azure-devices.net)
     deviceId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
@@ -38,9 +45,23 @@ export type AzureMessageProperty = {
     value: string;
 }
 
+/* Types for Azure Device Provisioning Service */
+export type AzureDPSParameters = {
+    hostName: string;
+    idScope: string;
+    registrationId: string;
+    authenticationType: string;
+    individual?: boolean;
+    registrationKey?: string;
+    certificate?: string;
+    privateKey?: string;
+}
+
 export class AzureClient extends EventEmitter {
     // Azure IoT Hub connection parameters
     private connectionParameters:AzureConnectionParameters|null = null;
+    // Azure Device Provisioning Service for IoT Hub parameters
+    private provisioningParameters:AzureDPSParameters|null = null;
     // Azure IoT Hub connection status
     private clientStatus:AzureClientStatus = { connected: false, provisioning:false };
     // The Azure IoT Hub client object
@@ -178,5 +199,103 @@ export class AzureClient extends EventEmitter {
 
     private clientMessageHandler( message:any ){
         this.emit( 'message', message );
+    }
+
+    /*
+     *  Device Provisioning Service
+     *  for Azure IoT Hub
+     */
+
+    /* Update the parameters for the Device Provisioning Service */
+    public updateProvisioningParameters( parameters:AzureDPSParameters ):Promise<string|boolean>{
+        return new Promise<string|boolean>((resolve, reject)=>{
+            // Check if the parameters are correct
+            if( parameters.authenticationType === 'sas' && typeof(parameters.registrationKey) !== 'string' )
+            return reject('Device provisioning with sas authentication requires a shared access key');
+            if( parameters.authenticationType === 'x509' && (typeof(parameters.certificate ) !== 'string') || typeof(parameters.privateKey) !== 'string')
+            return reject('Device provisioning with X.509 authentication requires a certificate and private key');
+            // Set the DPS parameters
+            this.provisioningParameters = parameters;
+            return resolve(true);
+        });
+    }
+
+    /* Get the parameters for the Device Provisioning Service */
+    public getProvisioningParameters():AzureDPSParameters|null{
+        return this.provisioningParameters;
+    }
+
+    /* Provison the Azure IoT client using the Device Provisioning Service */
+    public provision():Promise<string|boolean>{
+        return new Promise<string|boolean>((resolve, reject)=>{
+            // Emit the provisioning status
+            this.clientStatus.provisioning = true;
+            this.emit('status', this.clientStatus );
+
+            // Make a new Azure IoT Client Connection Parameters object
+            let connectionParameters:AzureConnectionParameters = {
+                hostName: '',
+                deviceId: '',
+                authenticationType:''
+            };
+
+            // Make sure the provisioning parameters are set before we continue
+            if( !this.provisioningParameters ) return reject('Provisioning parameters not set');
+
+            try{
+                switch( this.provisioningParameters.authenticationType ){
+                    case 'x509':    // TODO
+                                    return reject('X.509 provisioning not implementend');
+                                    break;
+
+                    /* Symmetric Key */
+                    case 'sas':     if( typeof(this.provisioningParameters.registrationKey) !== 'string' ) return reject('Provisioning with symmetric key requires a registration key');
+                                    // The authentication method for the connection will also be symmetric keys
+                                    connectionParameters.authenticationType = 'sas';
+                                    // If it's a group key, create individual key, otherwise just copy the shared access key
+                                    connectionParameters.sharedAccessKey = this.provisioningParameters.individual?connectionParameters.sharedAccessKey:crypto.createHmac('SHA256', Buffer.from(this.provisioningParameters.registrationKey, 'base64'))
+                                                                                                                                                                .update( this.provisioningParameters.registrationId, 'utf8')
+                                                                                                                                                                .digest( 'base64');
+                                    // Check whether the Shared Access Key is present
+                                    if(!connectionParameters.sharedAccessKey) return reject('Something went wrong with the shared access key');
+                                    // Create the security client for Symmetric Key authentication
+                                    var provisioningSecurityClient:any = new SymmetricKeySecurityClient( this.provisioningParameters.registrationId, connectionParameters.sharedAccessKey );
+                                    break;
+
+                    /* No sensable value */
+                    default:        return reject('Invalid authentication type '+this.provisioningParameters.authenticationType+' for Device Provisioning Service');
+                                    break;
+                }
+                // Create the registration client
+                let registrationClient = ProvisioningDeviceClient.create( this.provisioningParameters.hostName,
+                                                                          this.provisioningParameters.idScope,
+                                                                          new DPSMqtt(),
+                                                                          provisioningSecurityClient
+                                                                        );
+
+                // Register the client with the Device Provisioning Service
+                registrationClient.register((error, result)=>{
+                    if( error ) return reject( error );
+                    if( !result?.assignedHub || result.deviceId ) return reject('No assigned hub or device ID in provisioning service result');
+                    connectionParameters.hostName = result.assignedHub;
+                    connectionParameters.deviceId = result.deviceId;
+
+                    // Update the Azure IoT Hub connection parameters
+                    this.updateConnectionParameters( connectionParameters )
+                        .then(()=>{
+                            // End the provisioning operation. We're done.
+                            this.clientStatus.provisioning = false;
+                            this.emit('status', this.clientStatus );
+                            resolve(true);
+                        })
+                        .catch((err)=>{
+                            return reject(err);
+                        })
+                });
+
+            } catch( err ){
+                return reject( err );
+            }
+        });
     }
 }
