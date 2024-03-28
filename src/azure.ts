@@ -95,6 +95,8 @@ export class AzureClient extends EventEmitter {
     /* Connect to the Azure IoT Hub using the connection settings */
     public async connect():Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
+            this.emit('connecting');
+
             // Make sure the connection parameters are set before we continue
             if( !this.connectionParameters ) return reject('Connection parameters not set');
 
@@ -232,6 +234,7 @@ export class AzureClient extends EventEmitter {
             // Emit the provisioning status
             this.clientStatus.provisioning = true;
             this.emit('status', this.clientStatus );
+            this.emit('provisioning');
 
             // Make a new Azure IoT Client Connection Parameters object
             let connectionParameters:AzureConnectionParameters = {
@@ -297,14 +300,17 @@ export class AzureClient extends EventEmitter {
                             // End the provisioning operation. We're done.
                             this.clientStatus.provisioning = false;
                             this.emit('status', this.clientStatus );
+                            this.emit('provisioned');
                             resolve(true);
                         })
                         .catch((err)=>{
+                            this.emit('error', 'Failed to update Connection parameters from Provisioning Service')
                             return reject(err);
                         });
                 });
 
             } catch( err ){
+                this.emit('error', 'Failed to provision: '+err);
                 return reject( err );
             }
         });
