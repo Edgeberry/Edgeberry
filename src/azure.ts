@@ -220,6 +220,13 @@ export class AzureClient extends EventEmitter {
     }
 
     /*
+     *  Direct Methods
+     */
+    public registerDirectMethod( name:string, method:Function ){
+        this.directMethods.push( {name:name, function:method} );
+    }
+
+    /*
      *  Device State management
      */
 
