@@ -215,6 +215,28 @@ export class AzureClient extends EventEmitter {
     }
 
     /*
+     *  Device State management
+     */
+
+    /* Update the (reported) device state for a specific property */
+    public updateState( key:string, value:string ):Promise<string|boolean>{
+        return new Promise<string|boolean>(async (resolve, reject)=>{
+            // If no client is initialized, don't even bother
+            if( !this.client ) return reject('No Azure IoT Hub Client initialized');
+
+            try{
+                // Get the Device Twin
+                const twin = await this.client.getTwin();
+                // Update the state in the Device Twin
+                const state = JSON.parse('"{"'+key+'":"'+value+'"}');
+                twin.properties.reported.update( state );
+            } catch( err ){
+                return reject(err);
+            }
+        });
+    }
+
+    /*
      *  Device Provisioning Service
      *  for Azure IoT Hub
      */
