@@ -50,13 +50,14 @@ sudo su
 mkdir /opt/Edge_Gateway
 
 cp -r ./temp/* /opt/Edge_Gateway
-#rm -rf ./temp
+rm -rf ./temp
 
 cd /opt/Edge_Gateway
-npm install --include=dev
-npm run build
+npm install --include=dev --verbose
+npm run build --verbose
 
 # Todo: (re)start application
+pm2 restart Edge_Gateway
 
 EOF
 

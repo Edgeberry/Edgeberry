@@ -23,14 +23,21 @@ const port = settings?.interface?.port?settings.interface.port:3000     // defau
 app.use(express.json());        // JSON API
 
 // Serve the public directory and a static HTML index file
-app.use(express.static( __dirname+'/public'));
-app.get('/', (req:any, res:any)=>{
-    return res.sendFile('index.html');
-});
+/*
+app.use('/static', express.static(path.join(__dirname, '../client/build//static')));
+app.get('*', function(req, res) {
+  res.sendFile('index.html', {root: path.join(__dirname, '../../client/build/')});
+});*/
 
 // API routes
 import connectivityRoutes from './routes/connectivity';
 app.use('/api/connectivity', connectivityRoutes );
+
+app.use(express.static( __dirname+'/public/'));
+app.get('*', (req:any, res:any)=>{
+    return res.sendFile('index.html',{ root: __dirname+'/public' });
+});
+
 
 // Start the webserver
 app.listen( port, ()=>{ console.log('\x1b[32mEdge Gateway UI server running on port '+port+'\x1b[30m')});
