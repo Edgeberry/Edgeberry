@@ -15,7 +15,7 @@
 import { Client, Message } from "azure-iot-device";
 import { Mqtt } from "azure-iot-device-mqtt";
 import { Mqtt as DPSMqtt } from "azure-iot-provisioning-device-mqtt";
-import { ProvisioningDeviceClient, RegistrationResult } from "azure-iot-provisioning-device";
+import { ProvisioningDeviceClient } from "azure-iot-provisioning-device";
 import { SymmetricKeySecurityClient } from "azure-iot-security-symmetric-key";
 import { EventEmitter } from "events";
 import * as crypto from 'crypto';
@@ -46,6 +46,11 @@ export type AzureMessageProperty = {
     value: string;
 }
 
+export type AzureDirectMethod = {
+    name: string;
+    function: Function;
+}
+
 /* Types for Azure Device Provisioning Service */
 export type AzureDPSParameters = {
     hostName: string;
@@ -67,7 +72,8 @@ export class AzureClient extends EventEmitter {
     private clientStatus:AzureClientStatus = { connected: false, provisioning:false };
     // The Azure IoT Hub client object
     private client:any|null = null;
-
+    // Direct Methods
+    private directMethods:AzureDirectMethod[] = [];
 
     constructor(){
         super();
@@ -138,6 +144,11 @@ export class AzureClient extends EventEmitter {
                 this.client.on('disconnect', ()=>this.clientDisconnectHandler());
                 this.client.on('error', (error:any)=>this.clientErrorHandler(error));
                 this.client.on('message', (message:any)=>this.clientMessageHandler(message));
+
+                // Subscribe direct methods list
+                this.directMethods.forEach( (directMethod:AzureDirectMethod)=>{
+                    this.client.onDeviceMethod( directMethod.name, directMethod.function );
+                });
 
                 // Open the Azure IoT Hub connection
                 this.client.open();
