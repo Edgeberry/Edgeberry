@@ -15,13 +15,13 @@ router.get('/azure/connectionparameters', (req:any, res:any)=>{
 });
 
 /* Update the Azure IoT Hub connection parameters */
-router.post('/azure/connectionparameters', (req:any, res:any)=>{
+router.post('/azure/connectionparameters', async(req:any, res:any)=>{
     if( typeof(req.body.parameters) !== 'object' )
     return res.status(401).send({message:'No parameters'});
     
     try{
-        cloud.updateConnectionParameters( req.body.parameters );
-        return res.send({message:'Connection parameters successfuly updated'})
+        await cloud.updateConnectionParameters( req.body.parameters );
+        return res.send({message:'Connection parameters successfully updated'})
     } catch(err){
         return res.status(500).send({message:err});
     }
