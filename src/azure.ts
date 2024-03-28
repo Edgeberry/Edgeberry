@@ -26,19 +26,19 @@ export type AzureConnectionParameters = {
     hostName: string;                       // Name of the host to connect to (e.g. myIoTHub.azure-devices.net)
     deviceId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
     authenticationType: string;             // The authentication type (e.g. 'sas', 'x509')
-    sharedAccessKey?: string;               // For Shared Key authentication
+    sharedAccessKey?: string;               // For Symmetric Key authentication
     certificate?: string;                   // For X.509 authentication
     privateKey?: string;                    // for X.509 authentication
 }
 
 export type AzureClientStatus = {
-    connected?: boolean;
-    provisioning?: boolean;
+    connected?: boolean;                    // Azure IoT Hub connection status
+    provisioning?: boolean;                 // Azure DPS provisioning activity
 }
 
 export type AzureMessage = {
-    data: string;
-    properties?: AzureMessageProperty[];
+    data: string;                           // The data should be a buffer?
+    properties?: AzureMessageProperty[];    // key/value pair properties
 }
 
 export type AzureMessageProperty = {
@@ -47,33 +47,28 @@ export type AzureMessageProperty = {
 }
 
 export type AzureDirectMethod = {
-    name: string;
-    function: Function;
+    name: string;                           // The registration name of the method
+    function: Function;                     // The function that is called when the method is invoked
 }
 
 /* Types for Azure Device Provisioning Service */
 export type AzureDPSParameters = {
-    hostName: string;
-    idScope: string;
-    registrationId: string;
-    authenticationType: string;
-    individual?: boolean;
-    registrationKey?: string;
-    certificate?: string;
-    privateKey?: string;
+    hostName: string;                       // The hostname of the DPS (e.g. global.azure-devices-provisioning.net)
+    idScope: string;                        // DPS instance identifier
+    registrationId: string;                 // Unique identifier of this device to register with the DPS
+    authenticationType: string;             // Type of authentication: Symmetric Key (sas), X.509 Certificate (x509) or Trusted Platform (tpm)
+    individual?: boolean;                   // Individual or group authentication
+    registrationKey?: string;               // For Symmetric Key authentication
+    certificate?: string;                   // For X.509 authentication
+    privateKey?: string;                    // For X.509 authentication
 }
 
 export class AzureClient extends EventEmitter {
-    // Azure IoT Hub connection parameters
-    private connectionParameters:AzureConnectionParameters|null = null;
-    // Azure Device Provisioning Service for IoT Hub parameters
-    private provisioningParameters:AzureDPSParameters|null = null;
-    // Azure IoT Hub connection status
-    private clientStatus:AzureClientStatus = { connected: false, provisioning:false };
-    // The Azure IoT Hub client object
-    private client:any|null = null;
-    // Direct Methods
-    private directMethods:AzureDirectMethod[] = [];
+    private connectionParameters:AzureConnectionParameters|null = null;                 // Azure IoT Hub connection parameters
+    private provisioningParameters:AzureDPSParameters|null = null;                      // Azure Device Provisioning Service for IoT Hub parameters
+    private clientStatus:AzureClientStatus = { connected: false, provisioning:false };  // Azure IoT Hub connection status
+    private client:any|null = null;                                                     // The Azure IoT Hub client object
+    private directMethods:AzureDirectMethod[] = [];                                     // Direct Methods
 
     constructor(){
         super();
@@ -124,8 +119,8 @@ export class AzureClient extends EventEmitter {
                                         key: this.connectionParameters.privateKey
                                     });
                                     break;
-                    // With Shared Key authentication
-                    case 'sas':     // Check the required Shared Key parameters
+                    // With Symmetric Key authentication
+                    case 'sas':     // Check the required Symmetric Key parameters
                                     if( this.connectionParameters.authenticationType === 'sas' && typeof(this.connectionParameters.sharedAccessKey) !== 'string' )
                                     return reject('sas authentication parameters incomplete');
                                     // Create the Azure IoT Hub client
