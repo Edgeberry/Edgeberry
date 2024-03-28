@@ -134,6 +134,11 @@ export class AzureClient extends EventEmitter {
                                                                               , Mqtt);
                                     break;
 
+                    // With Trusted Platform Module
+                    case 'tpm':     return reject('Connecting with Trusted Platform Module not implemented.');
+                                    break;
+
+                    // None of the above, not supported
                     default:        return reject('Invalid authentication type in connection parameters');
                                     break;
                 }
@@ -280,6 +285,8 @@ export class AzureClient extends EventEmitter {
 
             try{
                 switch( this.provisioningParameters.authenticationType ){
+
+                    /* X.509 Certificate */
                     case 'x509':    if( typeof(this.provisioningParameters.certificate) !== 'string' || typeof(this.provisioningParameters.privateKey) !== 'string')
                                     return reject('Provisioning with X.509 authentication requires a certificate and a private key');
                                     // The authentication method for the connection will also be X.509 certificates
@@ -306,6 +313,10 @@ export class AzureClient extends EventEmitter {
                                     if(!connectionParameters.sharedAccessKey) return reject('Something went wrong with the shared access key');
                                     // Create the security client for Symmetric Key authentication
                                     var provisioningSecurityClient:any = new SymmetricKeySecurityClient( this.provisioningParameters.registrationId, connectionParameters.sharedAccessKey );
+                                    break;
+
+                    /* Trusted Platform Module */
+                    case 'tpm':     return reject('Provisioning with Trusted Platform Module not implemented.');
                                     break;
 
                     /* No sensable value */
