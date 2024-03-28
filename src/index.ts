@@ -6,17 +6,7 @@ import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
 import express from 'express';
 
-const app = express();
-
-// Serve the public directory and a static HTML index file
-app.use(express.static( __dirname+'/public'));
-app.get('/', (req:any, res:any)=>{
-    return res.sendFile('index.html');
-});
-
-app.listen( 8080, ()=>{ console.log('\x1b[32mEdge Gateway UI server running on port 8080\x1b[30m')});
-
-/* Azure IoT Hub Connection */
+/* Use Settings from file */
 try{
     console.log('\x1b[30mReading settings from settings file...\x1b[37m');
     var settings = JSON.parse(readFileSync('settings.json').toString());
@@ -25,9 +15,27 @@ try{
     console.error('\x1b[31mCould not read settings file! \x1b[37m');
     // ToDo: create settings file?
 }
-console.log(settings);
 
-const cloud = new AzureClient();
+/* Express Web/API server */
+const app = express();
+const port = settings?.interface?.port?settings.interface.port:3000     // default webui port: 3000
+
+// Serve the public directory and a static HTML index file
+app.use(express.static( __dirname+'/public'));
+app.get('/', (req:any, res:any)=>{
+    return res.sendFile('index.html');
+});
+
+// API routes
+import connectivityRoutes from './routes/connectivity';
+app.use('/api/connectivity', connectivityRoutes );
+
+// Start the webserver
+app.listen( port, ()=>{ console.log('\x1b[32mEdge Gateway UI server running on port '+port+'\x1b[30m')});
+
+
+/* Azure IoT Hub Connection */
+export const cloud = new AzureClient();
 
 async function initialize(){
     try{
@@ -46,7 +54,7 @@ async function initialize(){
     }
 }
 
-initialize();
+//initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
