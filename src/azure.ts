@@ -1,8 +1,12 @@
 /*
- *  Azure
- *  We're using Azure for our first cloud connection.
+ *  Azure IoT Client
+ *
+ *  The Azure IoT Client class serves as a comprehensive interface for managing device operations within the Azure IoT ecosystem.
+ *  It encapsulates functionalities for device provisioning from Azure Device Provisioning Service (DPS), establishing secure
+ *  connections to Azure IoT Hub, and facilitating bidirectional communication by sending and receiving messages, and providing
+ *  invokable cloud-to-device direct methods.
  * 
- *  Copyright 2024  Sanne 'SpuQ' Santens
+ *  Copyright 2024 Sanne 'SpuQ' Santens
  * 
  *  Azure SDK examples:
  *      https://github.com/Azure/azure-iot-sdk-node/tree/main/device/samples/typescript
