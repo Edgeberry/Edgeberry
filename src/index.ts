@@ -20,6 +20,8 @@ try{
 const app = express();
 const port = settings?.interface?.port?settings.interface.port:3000     // default webui port: 3000
 
+app.use(express.json());        // JSON API
+
 // Serve the public directory and a static HTML index file
 app.use(express.static( __dirname+'/public'));
 app.get('/', (req:any, res:any)=>{

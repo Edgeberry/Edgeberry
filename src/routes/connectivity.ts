@@ -11,7 +11,7 @@ const router = Router();
 
 /* Get the Azure IoT Hub connection parameters */
 router.get('/azure/connectionparameters', (req:any, res:any)=>{
-    return res.send( cloud.getConnectionParameters );
+    return res.send( cloud.getConnectionParameters() );
 });
 
 /* Update the Azure IoT Hub connection parameters */
