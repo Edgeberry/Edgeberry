@@ -258,7 +258,7 @@ export class AzureClient extends EventEmitter {
         return new Promise<string|boolean>((resolve, reject)=>{
             // Check if the parameters are correct
             if( parameters.authenticationType === 'sas' && typeof(parameters.registrationKey) !== 'string' )
-            return reject('Device provisioning with sas authentication requires a shared access key');
+            return reject('Device provisioning with sas authentication requires a registration key');
             if( parameters.authenticationType === 'x509' && (typeof(parameters.certificate ) !== 'string' || typeof(parameters.privateKey) !== 'string'))
             return reject('Device provisioning with X.509 authentication requires a certificate and private key');
             // Set the DPS parameters

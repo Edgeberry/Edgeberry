@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/SpuQ/Edge_Gateway#readme",
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.11.30",
     "nodemon": "^3.1.0",
@@ -38,6 +39,7 @@
     "azure-iot-provisioning-device-mqtt": "^1.8.1",
     "azure-iot-security-symmetric-key": "^1.8.2",
     "azure-iot-security-x509": "^1.8.2",
+    "cors": "^2.8.5",
     "express": "^4.19.2"
   }
 }

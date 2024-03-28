@@ -5,6 +5,7 @@
 import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
 import express from 'express';
+const cors = require('cors');
 
 /* Use Settings from file */
 try{
@@ -21,18 +22,14 @@ const app = express();
 const port = settings?.interface?.port?settings.interface.port:3000     // default webui port: 3000
 
 app.use(express.json());        // JSON API
+app.use(cors({origin:'*'}));    // Cross-origin references
 
-// Serve the public directory and a static HTML index file
-/*
-app.use('/static', express.static(path.join(__dirname, '../client/build//static')));
-app.get('*', function(req, res) {
-  res.sendFile('index.html', {root: path.join(__dirname, '../../client/build/')});
-});*/
 
 // API routes
 import connectivityRoutes from './routes/connectivity';
 app.use('/api/connectivity', connectivityRoutes );
 
+// Serve the public directory and a static HTML index file
 app.use(express.static( __dirname+'/public/'));
 app.get('*', (req:any, res:any)=>{
     return res.sendFile('index.html',{ root: __dirname+'/public' });
@@ -63,7 +60,7 @@ async function initialize(){
     }
 }
 
-//initialize();
+initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{

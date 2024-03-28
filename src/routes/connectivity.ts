@@ -16,14 +16,14 @@ router.get('/azure/connectionparameters', (req:any, res:any)=>{
 
 /* Update the Azure IoT Hub connection parameters */
 router.post('/azure/connectionparameters', async(req:any, res:any)=>{
-    if( typeof(req.body.parameters) !== 'object' )
+    if( typeof(req.body) !== 'object' )
     return res.status(401).send({message:'No parameters'});
     
     try{
-        await cloud.updateConnectionParameters( req.body.parameters );
+        await cloud.updateConnectionParameters( req.body );
         return res.send({message:'Connection parameters successfully updated'})
-    } catch(err){
-        return res.status(500).send({message:err});
+    } catch(err:any){
+        return res.status(500).send({message:err.toString()});
     }
 });
 
@@ -36,8 +36,8 @@ router.post('/azure/sendmessage', async(req:any, res:any)=>{
     try{
         await cloud.sendMessage( req.body.message );
         return res.send({message:'Message sent'})
-    } catch(err){
-        return res.status(500).send({message:err});
+    } catch(err:any){
+        return res.status(500).send({message:err.toString()});
     }
 });
 
@@ -48,14 +48,14 @@ router.get('/azure/provisioningparameters', (req:any, res:any)=>{
 
 /* Update the Azure Device Provisioning Service for IoT Hub provisioning parameters */
 router.post('/azure/provisioningparameters', async(req:any, res:any)=>{
-    if( typeof(req.body.parameters) !== 'object' )
+    if( typeof(req.body) !== 'object' )
     return res.status(401).send({message:'No parameters'});
     
     try{
-        await cloud.updateConnectionParameters( req.body.parameters );
+        await cloud.updateProvisioningParameters( req.body );
         return res.send({message:'Provisioning parameters successfully updated'})
-    } catch(err){
-        return res.status(500).send({message:err});
+    } catch(err:any){
+        return res.status(500).send({message:err.toString()});
     }
 });
 
