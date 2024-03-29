@@ -8,6 +8,7 @@ import { execSync } from "child_process";
 let primary:boolean=true;
 let blinkInterval:any = null;
 
+// Set Status indication on the LED
 export function setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string ){
     // Clear the previous state
     if( blinkInterval ) clearInterval( blinkInterval );
@@ -29,6 +30,26 @@ export function setStatusLed( color:string, blink?:boolean|number, secondaryColo
         primary = !primary;
 
     }, (typeof(blink)==='number'?blink:600));
+}
+
+// Set status indication on the buzzer
+// long | short | twice
+export function beepBuzzer( status:string ){
+    switch(status){
+        // Short beep
+        case 'short':   setTimeout(()=>{setBuzzerState('off')},100);
+                        setBuzzerState('on');
+                        break;
+        // Long beep
+        case 'long':    setTimeout(()=>{setBuzzerState('off')},400);
+                        setBuzzerState('on');
+                        break;
+        case 'twice':   break;
+
+        // Turn buzzer off
+        default:        setBuzzerState('off');
+                        break;
+    }
 }
 
 
@@ -76,6 +97,22 @@ function setLedColor( color:string ){
                             break;
         }
     } catch(err){
+        // Todo: do something with this error
+    }
+}
 
+// Set the buzzer on/off
+function setBuzzerState( state:string ){
+    try{
+        switch( state ){
+            // On
+            case 'on':  execSync('pinctrl set 5 dh >/dev/null 2>&1');
+                        break;
+            // Off (for anything else)
+            default:    execSync('pinctrl set 5 dl >/dev/null 2>&1');
+                        break;
+        }
+    } catch(err){
+        // Todo: do something with this error
     }
 }

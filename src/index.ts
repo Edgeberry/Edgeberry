@@ -5,7 +5,7 @@
 import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
 import express from 'express';
-import { setStatusLed } from "./hardware";
+import { beepBuzzer, setStatusLed } from "./hardware";
 
 const cors = require('cors');
 
@@ -78,6 +78,7 @@ cloud.on('disconnected', ()=>{
 });
 
 cloud.on('provisioning', ()=>{
+    beepBuzzer('long');
     setStatusLed( 'orange', 70 );
     console.log('\x1b[30mProvisioning the Azure IoT Client... \x1b[37m');
 });
@@ -88,6 +89,7 @@ cloud.on('provisioned', ()=>{
 
 cloud.on('connecting', ()=>{
     setStatusLed( 'green', 70, 'orange' );
+    beepBuzzer('short');
     console.log('\x1b[30mConnecting to Azure IoT Hub... \x1b[37m');
 });
 
