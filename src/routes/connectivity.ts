@@ -27,6 +27,17 @@ router.post('/azure/connectionparameters', async(req:any, res:any)=>{
     }
 });
 
+
+/* (Re)connect the device */
+router.post('/azure/connect', async(req:any, res:any)=>{
+    try{
+        await cloud.connect();
+        return res.send({message:'Connecting device'});
+    } catch(err:any){
+        return res.status(500).send({message:err.toString()});
+    }
+});
+
 /* Send a message to Azure IoT Hub */
 router.post('/azure/sendmessage', async(req:any, res:any)=>{
     // Check the required parameters
@@ -54,6 +65,16 @@ router.post('/azure/provisioningparameters', async(req:any, res:any)=>{
     try{
         await cloud.updateProvisioningParameters( req.body );
         return res.send({message:'Provisioning parameters successfully updated'})
+    } catch(err:any){
+        return res.status(500).send({message:err.toString()});
+    }
+});
+
+/* (Re)provision the device */
+router.post('/azure/provision', async(req:any, res:any)=>{
+    try{
+        await cloud.provision();
+        return res.send({message:'Provisioning device'});
     } catch(err:any){
         return res.status(500).send({message:err.toString()});
     }

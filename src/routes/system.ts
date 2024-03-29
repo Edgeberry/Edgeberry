@@ -36,7 +36,6 @@ router.get('/application/info', async(req:any, res:any)=>{
     }
 });
 
-
 /* Update the system application */
 router.post('/application/update', async(req:any, res:any)=>{
     try{
