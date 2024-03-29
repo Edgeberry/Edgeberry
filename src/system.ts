@@ -1,15 +1,48 @@
 /*
+ *  System
+ *  Interaction with system-related features.
+ */
+import { execSync } from "child_process";
+
+// Get the SSID of the current WLAN connection
+export async function system_getWirelessSSID(){
+    try{
+        const ssid = execSync(`iwgetid | awk -F '"' '{print $2}'` ).toString().split('\n')[0];
+        return ssid;
+    } catch(err){
+        return 'Error: '+err;
+    }
+}
+
+// Get the IP address of the WLAN connection
+export async function system_getWirelessAddress( networkInterface:string ){
+    try{
+        const ipAddress = execSync(`ifconfig ${networkInterface} | awk -F ' *|:' '/inet /{print $3}'`).toString().split('\n')[0];
+        return ipAddress;
+    } catch(err){
+        return 'Error: '+err;
+    }
+}
+
+
+
+
+
+/*
  *  Hardware
+ *  Hardware features connected to the I/O of the Linux system;
+ *  a buzzer and a LED. 'Cause everything is better with a buzzer
+ *  and a LED connected to it. In the end, us electronics engineers,
+ *  we do it for the "tsjeeptsjeep" and the "bleepbleep", right?
  */
 
-import { execSync } from "child_process";
 
 // For the blinking logic
 let primary:boolean=true;
 let blinkInterval:any = null;
 
 // Set Status indication on the LED
-export function setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string ){
+export function system_setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string ){
     // Clear the previous state
     if( blinkInterval ) clearInterval( blinkInterval );
     setLedColor('off');
@@ -34,7 +67,7 @@ export function setStatusLed( color:string, blink?:boolean|number, secondaryColo
 
 // Set status indication on the buzzer
 // long | short | twice
-export function beepBuzzer( status:string ){
+export function system_beepBuzzer( status:string ){
     switch(status){
         // Short beep
         case 'short':   setTimeout(()=>{setBuzzerState('off')},100);

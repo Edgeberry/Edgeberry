@@ -5,7 +5,7 @@
 import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
 import express from 'express';
-import { beepBuzzer, setStatusLed } from "./hardware";
+import { system_beepBuzzer, system_getWirelessAddress, system_getWirelessSSID, system_setStatusLed } from "./system";
 
 const cors = require('cors');
 
@@ -42,7 +42,7 @@ app.get('*', (req:any, res:any)=>{
 app.listen( port, ()=>{ console.log('\x1b[32mEdge Gateway UI server running on port '+port+'\x1b[30m')});
 
 // Blink the status LED orange
-setStatusLed( 'orange', true );
+system_setStatusLed( 'orange', true );
 
 /* Azure IoT Hub Connection */
 export const cloud = new AzureClient();
@@ -68,18 +68,18 @@ initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
-    setStatusLed( 'green', true );
+    system_setStatusLed( 'green', true );
     let connectionParameters = cloud.getConnectionParameters();
     console.log('\x1b[32mConnected to Azure IoT Hub: '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');
 });
 
 cloud.on('disconnected', ()=>{
-    setStatusLed( 'green', true, 'orange' );
+    system_setStatusLed( 'green', true, 'orange' );
 });
 
 cloud.on('provisioning', ()=>{
-    beepBuzzer('long');
-    setStatusLed( 'orange', 70 );
+    system_beepBuzzer('long');
+    system_setStatusLed( 'orange', 70 );
     console.log('\x1b[30mProvisioning the Azure IoT Client... \x1b[37m');
 });
 
@@ -88,8 +88,8 @@ cloud.on('provisioned', ()=>{
 });
 
 cloud.on('connecting', ()=>{
-    setStatusLed( 'green', 70, 'orange' );
-    beepBuzzer('short');
+    system_setStatusLed( 'green', 70, 'orange' );
+    system_beepBuzzer('short');
     console.log('\x1b[30mConnecting to Azure IoT Hub... \x1b[37m');
 });
 
@@ -100,3 +100,10 @@ cloud.on('error', (error)=>{
 cloud.on('warning', (warning)=>{
     console.error('\x1b[33mAzure: '+warning+'\x1b[37m');
 });
+
+
+async function getWirelessConfiguration(){
+    console.log('IP address: '+ await system_getWirelessAddress('wlan0'));
+    console.log('SSID: '+ await system_getWirelessSSID());
+}
+getWirelessConfiguration();
