@@ -66,7 +66,7 @@ async function initialize(){
     }
 }
 
-// initialize();
+//initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
@@ -102,10 +102,3 @@ cloud.on('error', (error)=>{
 cloud.on('warning', (warning)=>{
     console.error('\x1b[33mAzure: '+warning+'\x1b[37m');
 });
-
-
-async function getWirelessConfiguration(){
-    console.log('IP address: '+ await system_getWirelessAddress('wlan0'));
-    console.log('SSID: '+ await system_getWirelessSSID());
-}
-getWirelessConfiguration();

@@ -2,7 +2,7 @@
  *  REST API: System Routes
  */
 import { Router } from "express";
-import { system_getApplicationVersion, system_getWirelessAddress, system_getWirelessSSID } from "../system";
+import { system_getApplicationVersion, system_getWirelessAddress, system_getWirelessSSID, system_restart } from "../system";
 const router = Router();
 
 /* Network */
@@ -22,6 +22,8 @@ router.get('/network/settings', async(req:any, res:any)=>{
 });
 
 /*  System Application */
+
+/* Get the system application info */
 router.get('/application/info', async(req:any, res:any)=>{
     try{
         const info = {
@@ -34,4 +36,15 @@ router.get('/application/info', async(req:any, res:any)=>{
     }
 });
 
+/* System */
+
+/* Reboot the system */
+router.post('/reboot', (req:any, res:any)=>{
+    try{
+            system_restart(2000);
+            return res.send({message:'Restarting system'});
+    } catch( err ){
+        return res.static(500).send({message:err});
+    }
+});
 export default router;
