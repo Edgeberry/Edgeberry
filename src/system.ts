@@ -2,7 +2,13 @@
  *  System
  *  Interaction with system-related features.
  */
-import { execSync } from "child_process";
+import { exec, execSync } from "child_process";
+
+
+/*
+ *  Networking
+ *  Everything related to the networking interfaces
+ */
 
 // Get the SSID of the current WLAN connection
 export async function system_getWirelessSSID(){
@@ -25,6 +31,27 @@ export async function system_getWirelessAddress( networkInterface:string ){
 }
 
 
+/*
+ *  Power
+ *  Shutdown, reboot, ...
+ */
+
+// Reboot the system
+export async function system_restart( timeoutMs?:number ){
+    try{
+        if(!timeoutMs){
+            // Reboot Now
+            execSync(`shutdown -r now`);
+        }
+        else{
+            // Reboot after timeout 
+            setTimeout(()=>{exec(`shutdown -r now`)},timeoutMs);
+        }
+        return '';
+    } catch(err){
+        return 'Error: '+err;
+    }
+}
 
 
 
