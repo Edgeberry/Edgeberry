@@ -54,6 +54,11 @@ export async function system_restart( timeoutMs?:number ){
     }
 }
 
+/*
+ *  System Application
+ *  Basically this app
+ */
+
 // Get system application version
 export async function system_getApplicationVersion(){
     try{
@@ -64,6 +69,15 @@ export async function system_getApplicationVersion(){
     }
 }
 
+// Get system application version
+export async function system_updateApplication(){
+    try{
+        // Todo
+        return 'todo'
+    } catch(err){
+        return 'Error: '+err;
+    }
+}
 
 
 /*

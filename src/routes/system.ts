@@ -2,7 +2,7 @@
  *  REST API: System Routes
  */
 import { Router } from "express";
-import { system_getApplicationVersion, system_getWirelessAddress, system_getWirelessSSID, system_restart } from "../system";
+import { system_getApplicationVersion, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "../system";
 const router = Router();
 
 /* Network */
@@ -32,6 +32,16 @@ router.get('/application/info', async(req:any, res:any)=>{
         return res.send(info);
     }
     catch( err ){
+        return res.static(500).send({message:err});
+    }
+});
+
+
+/* Update the system application */
+router.post('/application/update', async(req:any, res:any)=>{
+    try{
+            return res.send({message:await system_updateApplication()});
+    } catch( err ){
         return res.static(500).send({message:err});
     }
 });
