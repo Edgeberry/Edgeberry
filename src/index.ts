@@ -5,6 +5,8 @@
 import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
 import express from 'express';
+import { setStatusLed } from "./hardware";
+
 const cors = require('cors');
 
 /* Use Settings from file */
@@ -39,6 +41,8 @@ app.get('*', (req:any, res:any)=>{
 // Start the webserver
 app.listen( port, ()=>{ console.log('\x1b[32mEdge Gateway UI server running on port '+port+'\x1b[30m')});
 
+// Blink the status LED orange
+setStatusLed( 'orange', true );
 
 /* Azure IoT Hub Connection */
 export const cloud = new AzureClient();
@@ -64,11 +68,17 @@ initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
+    setStatusLed( 'green', true );
     let connectionParameters = cloud.getConnectionParameters();
     console.log('\x1b[32mConnected to Azure IoT Hub: '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');
 });
 
+cloud.on('disconnected', ()=>{
+    setStatusLed( 'green', true, 'orange' );
+});
+
 cloud.on('provisioning', ()=>{
+    setStatusLed( 'orange', 70 );
     console.log('\x1b[30mProvisioning the Azure IoT Client... \x1b[37m');
 });
 
@@ -77,6 +87,7 @@ cloud.on('provisioned', ()=>{
 });
 
 cloud.on('connecting', ()=>{
+    setStatusLed( 'green', 70, 'orange' );
     console.log('\x1b[30mConnecting to Azure IoT Hub... \x1b[37m');
 });
 
