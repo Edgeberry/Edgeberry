@@ -29,7 +29,9 @@ app.use(cors({origin:'*'}));    // Cross-origin references
 
 // API routes
 import connectivityRoutes from './routes/connectivity';
+import systemRoutes from './routes/system';
 app.use('/api/connectivity', connectivityRoutes );
+app.use('/api/system', systemRoutes );
 
 // Serve the public directory and a static HTML index file
 app.use(express.static( __dirname+'/public/'));
@@ -64,7 +66,7 @@ async function initialize(){
     }
 }
 
-initialize();
+// initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{

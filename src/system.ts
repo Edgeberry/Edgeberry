@@ -3,6 +3,7 @@
  *  Interaction with system-related features.
  */
 import { exec, execSync } from "child_process";
+import { readFileSync } from "fs";
 
 
 /*
@@ -48,6 +49,16 @@ export async function system_restart( timeoutMs?:number ){
             setTimeout(()=>{exec(`shutdown -r now`)},timeoutMs);
         }
         return '';
+    } catch(err){
+        return 'Error: '+err;
+    }
+}
+
+// Get system application version
+export async function system_getApplicationVersion(){
+    try{
+        const npmPackage = JSON.parse(readFileSync('package.json').toString());
+        return npmPackage.version;
     } catch(err){
         return 'Error: '+err;
     }
