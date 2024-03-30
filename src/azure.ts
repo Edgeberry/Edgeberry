@@ -304,15 +304,19 @@ export class AzureClient extends EventEmitter {
             this.emit('status', this.clientStatus );
             this.emit('provisioning');
 
+            // Make sure the provisioning parameters are set before we continue
+            if( !this.provisioningParameters ){
+                this.emit('error', 'Provisioning failed: no provisioning parameters');
+                this.clientStatus.provisioning = false;
+                return reject('Provisioning parameters not set');
+            }
+
             // Make a new Azure IoT Client Connection Parameters object
             let connectionParameters:AzureConnectionParameters = {
                 hostName: '',
                 deviceId: '',
                 authenticationType:''
             };
-
-            // Make sure the provisioning parameters are set before we continue
-            if( !this.provisioningParameters ) return reject('Provisioning parameters not set');
 
             try{
                 switch( this.provisioningParameters.authenticationType ){
@@ -380,7 +384,9 @@ export class AzureClient extends EventEmitter {
                             resolve(true);
                         })
                         .catch((err)=>{
-                            this.emit('error', 'Failed to update Connection parameters from Provisioning Service')
+                            this.clientStatus.provisioning = false;
+                            this.clientStatus.provisioned = false;
+                            this.emit('error', 'Failed to update Connection parameters from Provisioning Service');
                             return reject(err);
                         });
                 });
