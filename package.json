@@ -1,6 +1,6 @@
 {
   "name": "edge_gateway",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Edge device for managing cloud connection, connecting sensors/actuators and do basic data processing",
   "main": "build/index.js",
   "scripts": {
