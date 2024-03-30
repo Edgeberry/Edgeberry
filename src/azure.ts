@@ -306,8 +306,8 @@ export class AzureClient extends EventEmitter {
 
             // Make sure the provisioning parameters are set before we continue
             if( !this.provisioningParameters ){
-                this.emit('error', 'Provisioning failed: no provisioning parameters');
                 this.clientStatus.provisioning = false;
+                this.emit('error', 'Provisioning failed: no provisioning parameters');
                 return reject('Provisioning parameters not set');
             }
 
