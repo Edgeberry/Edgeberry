@@ -37,12 +37,14 @@ router.get('/application/info', async(req:any, res:any)=>{
 });
 
 /* Update the system application */
-router.post('/application/update', async(req:any, res:any)=>{
-    try{
-            return res.send({message:await system_updateApplication()});
-    } catch( err ){
-        return res.static(500).send({message:err});
-    }
+router.post('/application/update', (req:any, res:any)=>{
+    system_updateApplication()
+        .then((message)=>{
+            return res.send({message:message});
+        })
+        .catch((err)=>{
+            return res.static(500).send({message:err});
+        });
 });
 
 /* System */

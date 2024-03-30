@@ -70,15 +70,42 @@ export async function system_getApplicationVersion(){
 }
 
 // Get system application version
-export async function system_updateApplication(){
-    try{
-        // Todo
-        return 'todo'
-    } catch(err){
-        return 'Error: '+err;
-    }
-}
+export function system_updateApplication():Promise<string>{
+    return new Promise<string>((resolve, reject)=>{
+        try{
+            const URL = "https://github.com/SpuQ/Edge_Gateway/archive/refs/heads/main.tar.gz"
+            const TOKEN = "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"
+            const TMPDIR = "/tmp/Edge_Gateway"
+            const APPNAME = "Edge_Gateway"
 
+            exec(`
+                        mkdir -p ${TMPDIR}
+                        wget --header="Authorization: token ${TOKEN}" -O ${TMPDIR}/${APPNAME}.tar.gz ${URL}
+                        if [ $? -ne 0 ]; then
+                            echo "Download failed, exit."
+                            exit 1;
+                        fi
+                        tar -zxf ${TMPDIR}/${APPNAME}.tar.gz --directory /opt/${APPNAME} --strip-components 1
+                        if [$? -ne 0 ]; then
+                            echo "Untar failed, exit."
+                            exit 1;
+                        fi
+                        cd /opt/${APPNAME}
+                        npm install --save-dev
+                        npm run build
+                        rm -rf ${TMPDIR}
+                        #pm2 restart $APPNAME
+                        exit 0;
+            `,(err)=>{
+                if(err) return reject('Error: '+err);
+                setTimeout(()=>{exec(`pm2 restart ${APPNAME}`)},1000);
+                return resolve('Application updated, restarting now');
+            });
+        } catch(err){
+            return reject('Error: '+err);
+        }
+    });
+}
 
 /*
  *  Hardware

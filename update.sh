@@ -4,8 +4,8 @@
 #   Update application
 #
 
-URL=
-TOKEN=
+URL=https://github.com/SpuQ/Edge_Gateway/archive/refs/head/main.tar.gz
+TOKEN=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
 TMPDIR=/tmp/Edge_Gateway
 APPNAME=Edge_Gateway
 
