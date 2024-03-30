@@ -73,7 +73,10 @@ router.post('/azure/provisioningparameters', async(req:any, res:any)=>{
 /* (Re)provision the device */
 router.post('/azure/provision', async(req:any, res:any)=>{
     try{
+        // Provision Azure IoT Hub client
         await cloud.provision();
+        // Connect Azure IoT Hub Client client
+        await cloud.connect();
         return res.send({message:'Provisioning device'});
     } catch(err:any){
         return res.status(500).send({message:err.toString()});

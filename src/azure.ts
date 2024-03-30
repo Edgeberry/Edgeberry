@@ -97,10 +97,24 @@ export class AzureClient extends EventEmitter {
         return this.connectionParameters;
     }
 
+    /* Disconnect the Azure IoT Hub client */
+    private disconnect(){
+        if(this.client ){
+            // Close the connection
+            this.client.close();
+            // Remove all the registered event listeners
+            this.client.removeAllListeners();
+            // Annihilate the client
+            this.client = null;
+        }
+    }
+
     /* Connect to the Azure IoT Hub using the connection settings */
     public async connect():Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
             this.emit('connecting');
+            // Disconnect the client first
+            this.disconnect();
 
             // Make sure the connection parameters are set before we continue
             if( !this.connectionParameters ) return reject('Connection parameters not set');
