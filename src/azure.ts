@@ -36,8 +36,10 @@ export type AzureConnectionParameters = {
 }
 
 export type AzureClientStatus = {
+    connecting?:boolean;                    // Azure IoT Hub connecting activity
     connected?: boolean;                    // Azure IoT Hub connection status
     provisioning?: boolean;                 // Azure DPS provisioning activity
+    provisioned?: boolean;                  // Azure DPS provisioning status
 }
 
 export type AzureMessage = {
@@ -78,6 +80,10 @@ export class AzureClient extends EventEmitter {
         super();
     }
 
+    public getClientStatus(){
+        return this.clientStatus;
+    }
+
     /* Update the Azure IoT Hub connection parameters */
     public async updateConnectionParameters( parameters:AzureConnectionParameters ):Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
@@ -112,7 +118,9 @@ export class AzureClient extends EventEmitter {
     /* Connect to the Azure IoT Hub using the connection settings */
     public async connect():Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
+            this.clientStatus.connecting = true;
             this.emit('connecting');
+
             // Disconnect the client first
             this.disconnect();
 
@@ -170,10 +178,13 @@ export class AzureClient extends EventEmitter {
 
                 // Open the Azure IoT Hub connection
                 this.client.open();
-
+                this.clientStatus.connecting = false;
                 // If we got here, everything went fine
                 return resolve(true);
             } catch(err){
+                this.clientStatus.connecting = false;
+                // Retry connecting in 2 seconds ...
+                setTimeout(()=>{this.connect()},2000);
                 return reject(err);
             }
         });
@@ -216,10 +227,8 @@ export class AzureClient extends EventEmitter {
         this.clientStatus.connected = false;
         this.emit( 'disconnected' );
         this.emit( 'status', this.clientStatus );
-
-        // Attempt to reconnect
         try{
-            this.client.open();
+            setTimeout(()=>{this.client.open()},2000);
         } catch(err){
             // Todo: do something with the error state
         }
@@ -291,6 +300,7 @@ export class AzureClient extends EventEmitter {
         return new Promise<string|boolean>((resolve, reject)=>{
             // Emit the provisioning status
             this.clientStatus.provisioning = true;
+            this.clientStatus.provisioned = false;
             this.emit('status', this.clientStatus );
             this.emit('provisioning');
 
@@ -365,6 +375,8 @@ export class AzureClient extends EventEmitter {
                             this.clientStatus.provisioning = false;
                             this.emit('status', this.clientStatus );
                             this.emit('provisioned');
+                            // Update the status
+                            this.clientStatus.provisioned = true;
                             resolve(true);
                         })
                         .catch((err)=>{
@@ -375,6 +387,9 @@ export class AzureClient extends EventEmitter {
 
             } catch( err ){
                 this.emit('error', 'Failed to provision: '+err);
+                this.clientStatus.provisioning = false;
+                // Retry provisioning in 2 seconds...
+                setTimeout(()=>{this.provision()},2000);
                 return reject( err );
             }
         });

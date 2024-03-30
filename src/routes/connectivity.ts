@@ -9,6 +9,12 @@ const router = Router();
  *  Azure IoT Hub Connection
  */
 
+
+/* Get the Azure client status */
+router.get('/azure/status', (req:any, res:any)=>{
+    return res.send( cloud.getClientStatus() );
+});
+
 /* Get the Azure IoT Hub connection parameters */
 router.get('/azure/connectionparameters', (req:any, res:any)=>{
     return res.send( cloud.getConnectionParameters() );

@@ -14,7 +14,7 @@ import { readFileSync } from "fs";
 // Get the SSID of the current WLAN connection
 export async function system_getWirelessSSID(){
     try{
-        const ssid = execSync(`iwgetid | awk -F '"' '{print $2}' >/dev/null 2>&1` ).toString().split('\n')[0];
+        const ssid = execSync(`iwgetid | awk -F '"' '{print $2}' 2>/dev/null` ).toString().split('\n')[0];
         return ssid;
     } catch(err){
         return 'Error: '+err;
@@ -24,7 +24,7 @@ export async function system_getWirelessSSID(){
 // Get the IP address of the WLAN connection
 export async function system_getWirelessAddress( networkInterface:string ){
     try{
-        const ipAddress = execSync(`ifconfig ${networkInterface} | awk -F ' *|:' '/inet /{print $3}' >/dev/null 2>&1`).toString().split('\n')[0];
+        const ipAddress = execSync(`ifconfig ${networkInterface} | awk -F ' *|:' '/inet /{print $3}' 2>/dev/null`).toString().split('\n')[0];
         return ipAddress;
     } catch(err){
         return 'Error: '+err;
@@ -97,6 +97,7 @@ let blinkInterval:any = null;
 export function system_setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string ){
     // Clear the previous state
     if( blinkInterval ) clearInterval( blinkInterval );
+    primary=true;
     setLedColor('off');
 
     // Static color
@@ -122,11 +123,11 @@ export function system_setStatusLed( color:string, blink?:boolean|number, second
 export function system_beepBuzzer( status:string ){
     switch(status){
         // Short beep
-        case 'short':   setTimeout(()=>{setBuzzerState('off')},100);
+        case 'short':   setTimeout(()=>{setBuzzerState('off')},80);
                         setBuzzerState('on');
                         break;
         // Long beep
-        case 'long':    setTimeout(()=>{setBuzzerState('off')},400);
+        case 'long':    setTimeout(()=>{setBuzzerState('off')},200);
                         setBuzzerState('on');
                         break;
         case 'twice':   break;
