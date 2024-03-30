@@ -11,7 +11,7 @@ const cors = require('cors');
 
 /* Use Settings from file */
 try{
-    console.log('\x1b[30mReading settings from settings file...\x1b[37m');
+    console.log('\x1b[90mReading settings from settings file...\x1b[37m');
     var settings = JSON.parse(readFileSync('settings.json').toString());
     console.log('\x1b[32mSettings read from settings file \x1b[37m');
 } catch(err){
@@ -66,7 +66,7 @@ async function initialize(){
     }
 }
 
-//initialize();
+initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
@@ -82,7 +82,7 @@ cloud.on('disconnected', ()=>{
 cloud.on('provisioning', ()=>{
     system_beepBuzzer('long');
     system_setStatusLed( 'orange', 70 );
-    console.log('\x1b[30mProvisioning the Azure IoT Client... \x1b[37m');
+    console.log('\x1b[90mProvisioning the Azure IoT Client... \x1b[37m');
 });
 
 cloud.on('provisioned', ()=>{
@@ -92,7 +92,7 @@ cloud.on('provisioned', ()=>{
 cloud.on('connecting', ()=>{
     system_setStatusLed( 'green', 70, 'orange' );
     system_beepBuzzer('short');
-    console.log('\x1b[30mConnecting to Azure IoT Hub... \x1b[37m');
+    console.log('\x1b[90mConnecting to Azure IoT Hub... \x1b[37m');
 });
 
 cloud.on('error', (error)=>{
