@@ -14,7 +14,7 @@ import { readFileSync } from "fs";
 // Get the SSID of the current WLAN connection
 export async function system_getWirelessSSID(){
     try{
-        const ssid = execSync(`iwgetid | awk -F '"' '{print $2}'` ).toString().split('\n')[0];
+        const ssid = execSync(`iwgetid | awk -F '"' '{print $2}' >/dev/null 2>&1` ).toString().split('\n')[0];
         return ssid;
     } catch(err){
         return 'Error: '+err;
@@ -24,7 +24,7 @@ export async function system_getWirelessSSID(){
 // Get the IP address of the WLAN connection
 export async function system_getWirelessAddress( networkInterface:string ){
     try{
-        const ipAddress = execSync(`ifconfig ${networkInterface} | awk -F ' *|:' '/inet /{print $3}'`).toString().split('\n')[0];
+        const ipAddress = execSync(`ifconfig ${networkInterface} | awk -F ' *|:' '/inet /{print $3}' >/dev/null 2>&1`).toString().split('\n')[0];
         return ipAddress;
     } catch(err){
         return 'Error: '+err;

@@ -32,7 +32,7 @@ router.post('/azure/connectionparameters', async(req:any, res:any)=>{
 router.post('/azure/connect', async(req:any, res:any)=>{
     try{
         await cloud.connect();
-        return res.send({message:'Connecting device'});
+        return res.send({message:'Connected to Azure IoT Hub'});
     } catch(err:any){
         return res.status(500).send({message:err.toString()});
     }
@@ -77,7 +77,7 @@ router.post('/azure/provision', async(req:any, res:any)=>{
         await cloud.provision();
         // Connect Azure IoT Hub Client client
         await cloud.connect();
-        return res.send({message:'Provisioning device'});
+        return res.send({message:'Device successfully provisioned'});
     } catch(err:any){
         return res.status(500).send({message:err.toString()});
     }
