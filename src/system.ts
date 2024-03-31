@@ -60,18 +60,13 @@ export async function system_restart( timeoutMs?:number ){
  */
 
 // Get system application info
+// Using PM2
 export function system_getApplicationInfo():Promise<string|any>{
     return new Promise<string|any>((resolve, reject)=>{
         pm2.connect((err:any)=>{
-            if (err) {
-              return reject(err.toString());
-            }
-          
+            if (err) return reject(err.toString());
             pm2.list((err:any, processes:any) => {
-                if (err) {
-                    return reject(err);
-                }
-          
+                if (err) return reject(err);
                 // Loop through processes
                 processes.forEach((process:any) => {
                     if(process.name === 'Edge_Gateway'){
@@ -82,7 +77,7 @@ export function system_getApplicationInfo():Promise<string|any>{
                             status: process.pm2_env.status
                         }
                         pm2.disconnect();
-                        resolve( data );
+                        return resolve( data );
                     }
                 });
                 pm2.disconnect();
