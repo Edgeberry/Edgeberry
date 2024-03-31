@@ -66,7 +66,7 @@ async function initialize(){
     }
 }
 
-initialize();
+//initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
@@ -119,6 +119,10 @@ cloud.on('status', (status)=>{
 import { IPC_Client } from "@spuq/json-ipc";
 const ipc = new IPC_Client( true , "Gateway-SDK","./sdk-ipc");
 
+export let sdkStatus = {
+                            connected:false
+                        };
+
 // receiving data from the other process
 ipc.on('data', async(data:any)=>{
     //console.log(data);
@@ -146,12 +150,14 @@ ipc.on('data', async(data:any)=>{
 // Connection status
 ipc.on('connected', ()=>{
     console.log('\x1b[32mApplication connected\x1b[37m');
+    sdkStatus.connected = true;
 });
 
 ipc.on('disconnected', ()=>{
     console.error('\x1b[33mApplication disconnected\x1b[37m');
+    sdkStatus.connected = false;
 });
 
 setInterval(()=>{
-    ipc.send({ping:'ping'})
+    ipc.send({ping:'ping'});
 },2000)

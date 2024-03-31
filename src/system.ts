@@ -4,7 +4,7 @@
  */
 import { exec, execSync } from "child_process";
 import { readFileSync } from "fs";
-
+const pm2 = require('pm2');
 
 /*
  *  Networking
@@ -59,17 +59,39 @@ export async function system_restart( timeoutMs?:number ){
  *  Basically this app
  */
 
-// Get system application version
-export async function system_getApplicationVersion(){
-    try{
-        const npmPackage = JSON.parse(readFileSync('package.json').toString());
-        return npmPackage.version;
-    } catch(err){
-        return 'Error: '+err;
-    }
+// Get system application info
+export function system_getApplicationInfo():Promise<string|any>{
+    return new Promise<string|any>((resolve, reject)=>{
+        pm2.connect((err:any)=>{
+            if (err) {
+              return reject(err.toString());
+            }
+          
+            pm2.list((err:any, processes:any) => {
+                if (err) {
+                    return reject(err);
+                }
+          
+                // Loop through processes
+                processes.forEach((process:any) => {
+                    if(process.name === 'Edge_Gateway'){
+                        const data = {
+                            version: process.pm2_env.version,
+                            cpuUsage: process.monit.cpu+'%',
+                            memUsage: process.monit.memory+'MB',
+                            status: process.pm2_env.status
+                        }
+                        pm2.disconnect();
+                        resolve( data );
+                    }
+                });
+                pm2.disconnect();
+            });
+        })
+    });
 }
 
-// Get system application version
+// Update system application
 export function system_updateApplication():Promise<string>{
     return new Promise<string>((resolve, reject)=>{
         try{

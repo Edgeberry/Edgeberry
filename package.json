@@ -41,6 +41,7 @@
     "azure-iot-security-symmetric-key": "^1.8.2",
     "azure-iot-security-x509": "^1.8.2",
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "pm2": "^5.3.1"
   }
 }
