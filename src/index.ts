@@ -66,7 +66,7 @@ async function initialize(){
     }
 }
 
-//initialize();
+initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
@@ -112,15 +112,34 @@ cloud.on('status', (status)=>{
 
 /*
  *  SDK
- *  Through inter-process communication
+ *  Communication with another application through 
+ *  inter-process communication.
  */
 
 import { IPC_Client } from "@spuq/json-ipc";
 const ipc = new IPC_Client( true , "Gateway-SDK","./sdk-ipc");
 
 // receiving data from the other process
-ipc.on('data', (data:object)=>{
-    console.log(data);
+ipc.on('data', async(data:any)=>{
+    //console.log(data);
+    // When a method is called from the IPC
+    if(data?.method){
+        switch(data.method){
+            case 'beep':        system_beepBuzzer( 'short' );
+                                break;
+
+            // Send Message
+            case 'sendMessage': if(!data?.data || !data?.properties) return;
+                                try{
+                                    await cloud.sendMessage( {data:data.data, properties:data.properties} );
+                                } catch(err){}
+                                break;
+
+            // Unrecognized method
+            default:
+                                break;
+        }
+    }
 });
 
 
@@ -132,3 +151,7 @@ ipc.on('connected', ()=>{
 ipc.on('disconnected', ()=>{
     console.error('\x1b[33mApplication disconnected\x1b[37m');
 });
+
+setInterval(()=>{
+    ipc.send({ping:'ping'})
+},2000)
