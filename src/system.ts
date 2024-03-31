@@ -73,7 +73,7 @@ export function system_getApplicationInfo():Promise<string|any>{
                         const data = {
                             version: process.pm2_env.version,
                             cpuUsage: process.monit.cpu+'%',
-                            memUsage: process.monit.memory+'MB',
+                            memUsage: Math.round(parseInt(process.monit.memory)/100000)+' MB',
                             status: process.pm2_env.status
                         }
                         pm2.disconnect();
