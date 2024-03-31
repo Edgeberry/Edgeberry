@@ -32,3 +32,45 @@ export function app_getApplicationInfo():Promise<string|any>{
         })
     });
 }
+
+// Restart the application
+export function app_restartApplication():Promise<string>{
+    return new Promise<string>((resolve, reject)=>{
+        pm2.connect((err:any)=>{
+            if(err){
+                pm2.disconnect();
+                return reject(err.toString());
+            }
+            // Restart the PM2 process
+            pm2.restart('Edge_Gateway_Application', (err:any, process:any)=>{
+                if(err){
+                    pm2.disconnect();
+                    return reject(err.toString());
+                }
+                pm2.disconnect();
+                resolve('Application restarted');
+            });
+        });
+    });
+}
+
+// Stop the application
+export function app_stopApplication():Promise<string>{
+    return new Promise<string>((resolve, reject)=>{
+        pm2.connect((err:any)=>{
+            if(err){
+                pm2.disconnect();
+                return reject(err.toString());
+            }
+            // Restart the PM2 process
+            pm2.stop('Edge_Gateway_Application', (err:any, process:any)=>{
+                if(err){
+                    pm2.disconnect();
+                    return reject(err.toString());
+                }
+                pm2.disconnect();
+                resolve('Application stopped');
+            });
+        });
+    });
+}

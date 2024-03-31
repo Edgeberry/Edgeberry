@@ -2,7 +2,7 @@
  *  REST API: Application routes
  */
 import { Router } from "express";
-import { app_getApplicationInfo } from "../application";
+import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "../application";
 const router = Router();
 
 /* Get the system application info */
@@ -22,20 +22,20 @@ router.post('/update', (req:any, res:any)=>{
 });
 
 /* Restart the application */
-router.post('/restart', (req:any, res:any)=>{
+router.post('/restart', async(req:any, res:any)=>{
     try{
-            
-            return res.send({message:'Application restarted'});
+        const result = await app_restartApplication();
+        return res.send({message:result});
     } catch( err ){
         return res.status(500).send({message:err});
     }
 });
 
 /* Stop the application */
-router.post('/stop', (req:any, res:any)=>{
+router.post('/stop', async(req:any, res:any)=>{
     try{
-
-        return res.send({message:'Application stopped'});
+        const result = await app_stopApplication();
+        return res.send({message:result});
     } catch( err ){
         return res.status(500).send({message:err});
     }
