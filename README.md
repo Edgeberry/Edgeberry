@@ -26,6 +26,10 @@ When using Raspberry Pi as your Edge Gateway device, you can add following IO fe
 
 Note that these pins are controlled by the Edge Gateway application, and should not be used for your application to avoid conflict.
 
+## Using the SDK
+When creating your application for the Edge Gateway, use the SDK for communicating with the Edge Gateway.
+
+TODO: SDK usage example
 
 ## License & Copyright
 Copyright Sanne 'SpuQ' Santens, all rights reserved.
