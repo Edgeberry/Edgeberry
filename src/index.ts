@@ -68,7 +68,7 @@ async function initialize(){
     }
 }
 
-//initialize();
+initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
