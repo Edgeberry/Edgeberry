@@ -66,7 +66,7 @@ async function initialize(){
     }
 }
 
-initialize();
+//initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
@@ -101,4 +101,34 @@ cloud.on('error', (error)=>{
 
 cloud.on('warning', (warning)=>{
     console.error('\x1b[33mAzure: '+warning+'\x1b[37m');
+});
+
+
+cloud.on('status', (status)=>{
+    // inform the application about the status
+    ipc.send( status );
+});
+
+
+/*
+ *  SDK
+ *  Through inter-process communication
+ */
+
+import { IPC_Client } from "@spuq/json-ipc";
+const ipc = new IPC_Client( true , "Gateway-SDK","./sdk-ipc");
+
+// receiving data from the other process
+ipc.on('data', (data:object)=>{
+    console.log(data);
+});
+
+
+// Connection status
+ipc.on('connected', ()=>{
+    console.log('\x1b[32mApplication connected\x1b[37m');
+});
+
+ipc.on('disconnected', ()=>{
+    console.error('\x1b[33mApplication disconnected\x1b[37m');
 });

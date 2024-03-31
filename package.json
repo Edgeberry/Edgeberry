@@ -33,6 +33,7 @@
     "typescript": "^5.4.3"
   },
   "dependencies": {
+    "@spuq/json-ipc": "^1.1.0",
     "azure-iot-device": "^1.18.3",
     "azure-iot-device-mqtt": "^1.16.3",
     "azure-iot-provisioning-device": "^1.9.1",
