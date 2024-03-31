@@ -34,7 +34,7 @@ jobs:
         id: project_name
         run: echo "::set-output name=name::$(echo ${{ github.repository }} | cut -d'/' -f2)"
 
-      - name: Upload Release Asset
+      - name: Upload packaged project build to release assets
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
@@ -43,3 +43,13 @@ jobs:
           asset_path: package.tar.gz
           asset_name: ${{ steps.project_name.outputs.name }}-${{ github.event.release.tag_name }}.tar.gz
           asset_content_type: application/gzip
+
+      - name: Upload install script to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: install.sh
+          asset_name: install.sh
+          asset_content_type: application/octet-stream
