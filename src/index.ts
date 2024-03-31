@@ -30,8 +30,10 @@ app.use(cors({origin:'*'}));    // Cross-origin references
 // API routes
 import connectivityRoutes from './routes/connectivity';
 import systemRoutes from './routes/system';
+import applicationRoutes from './routes/application';
 app.use('/api/connectivity', connectivityRoutes );
 app.use('/api/system', systemRoutes );
+app.use('/api/application', applicationRoutes );
 
 // Serve the public directory and a static HTML index file
 app.use(express.static( __dirname+'/public/'));

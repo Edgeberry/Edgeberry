@@ -17,7 +17,7 @@ router.get('/network/settings', async(req:any, res:any)=>{
         return res.send(settings);
     }
     catch( err ){
-        return res.static(500).send({message:err});
+        return res.status(500).send({message:err});
     }
 });
 
@@ -31,7 +31,7 @@ router.get('/application/info', (req:any, res:any)=>{
 
         })
         .catch((err)=>{
-            return res.static(500).send({message:err});
+            return res.status(500).send({message:err});
         });
 });
 
@@ -42,7 +42,7 @@ router.post('/application/update', (req:any, res:any)=>{
             return res.send({message:message});
         })
         .catch((err)=>{
-            return res.static(500).send({message:err});
+            return res.status(500).send({message:err});
         });
 });
 
@@ -54,7 +54,7 @@ router.post('/reboot', (req:any, res:any)=>{
             system_restart(2000);
             return res.send({message:'Restarting system'});
     } catch( err ){
-        return res.static(500).send({message:err});
+        return res.status(500).send({message:err});
     }
 });
 export default router;
