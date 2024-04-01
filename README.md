@@ -1,3 +1,5 @@
+![Edge Gateway](brand/Edge_Gateway_banner.png)
+
 # Edge Gateway
 Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With this Edge Gateway project you turn your favorite single-board computer platform into an IoT Edge device in the blink of a cursor!
 
