@@ -9,9 +9,15 @@ const pm2 = require('pm2');
 export function app_getApplicationInfo():Promise<string|any>{
     return new Promise<string|any>((resolve, reject)=>{
         pm2.connect((err:any)=>{
-            if (err) return reject(err.toString());
+            if (err){
+                pm2.disconnect();
+                return reject(err.toString());
+            }
             pm2.list((err:any, processes:any) => {
-                if (err) return reject(err);
+                if (err){
+                    pm2.disconnect();
+                    return reject(err.toString());
+                }
                 // Loop through processes
                 processes.forEach((process:any) => {
                     if(process.name === 'Edge_Gateway_Application'){
@@ -26,8 +32,8 @@ export function app_getApplicationInfo():Promise<string|any>{
                         return resolve( data );
                     }
                 });
-                reject('Application not found');
                 pm2.disconnect();
+                reject('Application not found');
             });
         })
     });
@@ -62,7 +68,7 @@ export function app_stopApplication():Promise<string>{
                 pm2.disconnect();
                 return reject(err.toString());
             }
-            // Restart the PM2 process
+            // Stop the PM2 process
             pm2.stop('Edge_Gateway_Application', (err:any, process:any)=>{
                 if(err){
                     pm2.disconnect();
