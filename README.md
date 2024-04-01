@@ -7,9 +7,9 @@ The Edge Gateway is a stand-alone software packet that allows you to connect you
 - Microsoft Azure IoT Hub
 
 ## Installation
-Install the Edge Gateway application by downloading and running the installation script.
+Install the Edge Gateway application by downloading and executing the installation script.
 ```
-wget -O install.sh https://github.com/SpuQ/Edge_Gateway/releases/download/v2.0.2/install.sh
+wget -O install.sh https://github.com/SpuQ/Edge_Gateway/releases/download/v2.2.0/install.sh
 sudo ./install.sh
 ```
 Follow the instructions in the installation process.
@@ -24,7 +24,7 @@ When using Raspberry Pi as your Edge Gateway device, you can add following IO fe
 | 19       | Red status LED   |
 | 26       | Green status LED |
 
-Note that these pins are controlled by the Edge Gateway application, and should not be used for your application to avoid conflict.
+Note that these pins are controlled by the Edge Gateway application, and should not be used for your application to avoid unexpected behavior.
 
 ## Using the SDK
 When creating your application for the Edge Gateway, use the [Edge Gateway SDK](https://github.com/SpuQ/Edge_Gateway_SDK) for interacting with the Edge Gateway.
@@ -35,7 +35,7 @@ npm install --save @spuq/edge_gateway_sdk
 For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/Edge_Gateway_SDK?tab=readme-ov-file#readme).
 
 ## License & Collaboration
-Copyright 2024 Sanne 'SpuQ' Santens. This project is licensed under the MIT License - see the [LICENSE](LICENSE.txt) file for details.
+Copyright 2024 Sanne 'SpuQ' Santens. This project is licensed under the [MIT License](LICENSE.txt).
 
 If you'd like to contribute to this project, please follow these guidelines:
 1. Fork the repository and create your branch from `main`.
