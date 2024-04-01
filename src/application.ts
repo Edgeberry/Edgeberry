@@ -1,3 +1,5 @@
+import { stateManager } from ".";
+
 /*
  *  Application
  *  Interaction with application related features
@@ -28,7 +30,11 @@ export function app_getApplicationInfo():Promise<string|any>{
                             memUsage: Math.round(parseInt(process.monit.memory)/100000)+' MB',
                             status: process.pm2_env.status
                         }
+                        
                         pm2.disconnect();
+                        // Update the State Manager with the application state
+                        stateManager.updateApplicationState( 'version', data.version );
+                        stateManager.updateApplicationState( 'state', data.status==='online'?'running':data.status );
                         return resolve( data );
                     }
                 });
@@ -54,6 +60,7 @@ export function app_restartApplication():Promise<string>{
                     return reject(err.toString());
                 }
                 pm2.disconnect();
+                stateManager.updateApplicationState('state', 'started');
                 resolve('Application restarted');
             });
         });
@@ -75,6 +82,7 @@ export function app_stopApplication():Promise<string>{
                     return reject(err.toString());
                 }
                 pm2.disconnect();
+                stateManager.updateApplicationState('state', 'stopped');
                 resolve('Application stopped');
             });
         });
