@@ -39,6 +39,7 @@ export function app_getApplicationInfo():Promise<string|any>{
                     }
                 });
                 pm2.disconnect();
+                stateManager.updateApplicationState( 'state', 'no application' );
                 reject('Application not found');
             });
         })

@@ -74,6 +74,7 @@ initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
+    stateManager.interruptIndicators('beep');
     stateManager.updateConnectionState('connection', 'connected');
     let connectionParameters = cloud.getConnectionParameters();
     console.log('\x1b[32mConnected to Azure IoT Hub: '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');

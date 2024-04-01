@@ -55,6 +55,15 @@ export class StateManager extends EventEmitter{
         this.updateStatusIndication();
     }
 
+    // Get the device state
+    public getState():deviceState{
+        return this.state;
+    }
+
+    /*
+     *  State updaters
+     */
+
     // Update the system state
     public updateSystemState( key: keyof deviceState['system'], value:string|number|boolean ):void{
         // update the local state
@@ -79,7 +88,7 @@ export class StateManager extends EventEmitter{
         if( this.state.application.hasOwnProperty(key)){
             this.state.application[key] = typeof(value)!=='string'?value.toString():value ;
         }
-        this.updateState();
+        //this.updateState();
     }
 
     // LED and buzzer indicators
@@ -95,8 +104,7 @@ export class StateManager extends EventEmitter{
                 case 'connecting':  system_setStatusLed( 'orange', 70, 'green' );
                                     break;
                 // Connected
-                case 'connected':   system_beepBuzzer('short');
-                                    system_setStatusLed( 'green', true );
+                case 'connected':   system_setStatusLed( 'green', true );
                                     break;
                 // Disconnected/Unknown/...
                 default:            system_setStatusLed( 'red', true );

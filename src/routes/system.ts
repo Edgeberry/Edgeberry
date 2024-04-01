@@ -68,4 +68,10 @@ router.post('/identify', (req:any, res:any)=>{
         return res.status(500).send({message:err});
     }
 });
+
+/* Get the system state info */
+router.get('/state', (req:any, res:any)=>{
+        return res.send(stateManager.getState());
+});
+
 export default router;
