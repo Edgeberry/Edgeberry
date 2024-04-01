@@ -1,6 +1,16 @@
 /*
  *  Edge Gateway
+ *  An application for using your system as an edge gateway device for your IoT project.
+ * 
+ *  Copyright 2024, Sanne 'SpuQ' Santens
+ * 
+ *  THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT 
+ *  LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+ *  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+ *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+ *  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
 
 import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
@@ -121,7 +131,7 @@ cloud.on('status', (status)=>{
  */
 
 import { IPC_Client } from "@spuq/json-ipc";
-import { system_getApplicationInfo } from "./system";
+import { system_beepBuzzer, system_getApplicationInfo } from "./system";
 const ipc = new IPC_Client( true , "Gateway-SDK","./sdk-ipc");
 
 // receiving data from the other process
@@ -130,7 +140,7 @@ ipc.on('data', async(data:any)=>{
     // When a method is called from the IPC
     if(data?.method){
         switch(data.method){
-            case 'beep':        stateManager.interruptIndicators('beep');
+            case 'beep':        system_beepBuzzer('short');
                                 break;
 
             // Send Message
