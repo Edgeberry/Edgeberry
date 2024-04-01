@@ -3,6 +3,7 @@
  */
 import { Router } from "express";
 import { system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "../system";
+import { stateManager } from "..";
 const router = Router();
 
 /* Network */
@@ -53,6 +54,16 @@ router.post('/reboot', (req:any, res:any)=>{
     try{
             system_restart(2000);
             return res.send({message:'Restarting system'});
+    } catch( err ){
+        return res.status(500).send({message:err});
+    }
+});
+
+// Identify this device
+router.post('/identify', (req:any, res:any)=>{
+    try{
+        stateManager.interruptIndicators('identify')
+        return res.send({message:'Identifying system'});
     } catch( err ){
         return res.status(500).send({message:err});
     }

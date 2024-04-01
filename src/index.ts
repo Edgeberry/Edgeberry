@@ -5,7 +5,11 @@
 import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
 import express from 'express';
-import { system_beepBuzzer, system_setStatusLed } from "./system";
+import { StateManager } from "./stateManager";
+
+/* State Manager */
+export const stateManager = new StateManager();
+stateManager.updateSystemState('state', 'starting');
 
 const cors = require('cors');
 
@@ -19,9 +23,6 @@ try{
     // ToDo: create settings file?
 }
 
-/* State Manager */
-const stateManager = new StateManager();
-stateManager.updateSystemState('state', 'starting');
 
 /* Express Web/API server */
 const app = express();
@@ -119,7 +120,6 @@ cloud.on('status', (status)=>{
  */
 
 import { IPC_Client } from "@spuq/json-ipc";
-import { StateManager } from "./stateManager";
 const ipc = new IPC_Client( true , "Gateway-SDK","./sdk-ipc");
 
 // receiving data from the other process
@@ -128,7 +128,7 @@ ipc.on('data', async(data:any)=>{
     // When a method is called from the IPC
     if(data?.method){
         switch(data.method){
-            case 'beep':        system_beepBuzzer( 'short' );
+            case 'beep':        stateManager.interruptIndicators('beep');
                                 break;
 
             // Send Message

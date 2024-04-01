@@ -50,7 +50,7 @@ export class StateManager extends EventEmitter{
     }
 
     // Update all state components
-    private updateState(){
+    private updateState():void{
         this.emit('state', this.state);
         this.updateStatusIndication();
     }
@@ -85,10 +85,10 @@ export class StateManager extends EventEmitter{
     // LED and buzzer indicators
     private updateStatusIndication():void{
         if( this.state.system.state !== 'running' ){
-            system_setStatusLed( 'orange', 70, 'red' );
+            system_setStatusLed( 'red' );
         }
         else if( this.state.connection.provision === 'disabled' ||
-            this.state.connection.provision === 'provisioned'){
+                 this.state.connection.provision === 'provisioned'){
 
             switch(this.state.connection.connection){
                 // Connecting
@@ -114,8 +114,14 @@ export class StateManager extends EventEmitter{
             case 'identify':    system_beepBuzzer('long');
                                 system_setStatusLed( 'green', 30, 'red' );
                                 break;
-            default:
+            case 'beep'     :   system_beepBuzzer('short');
+                                break;
+            default:            system_beepBuzzer('short');
                                 break;
         }
+        // return to normal
+        setTimeout(() => {
+            this.updateState();
+        }, 1000);
     }
 }
