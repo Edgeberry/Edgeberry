@@ -5,7 +5,7 @@
 import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
 import express from 'express';
-import { system_beepBuzzer, system_getWirelessAddress, system_getWirelessSSID, system_setStatusLed } from "./system";
+import { system_beepBuzzer, system_setStatusLed } from "./system";
 
 const cors = require('cors');
 
@@ -18,6 +18,10 @@ try{
     console.error('\x1b[31mCould not read settings file! \x1b[37m');
     // ToDo: create settings file?
 }
+
+/* State Manager */
+const stateManager = new StateManager();
+stateManager.updateSystemState('state', 'starting');
 
 /* Express Web/API server */
 const app = express();
@@ -45,9 +49,6 @@ app.get('*', (req:any, res:any)=>{
 // Start the webserver
 app.listen( port, ()=>{ console.log('\x1b[32mEdge Gateway UI server running on port '+port+'\x1b[30m')});
 
-// Blink the status LED orange
-system_setStatusLed( 'orange', true );
-
 /* Azure IoT Hub Connection */
 export const cloud = new AzureClient();
 
@@ -72,28 +73,27 @@ initialize();
 
 /* Cloud Event handlers */
 cloud.on('connected', ()=>{
-    system_setStatusLed( 'green', true );
+    stateManager.updateConnectionState('connection', 'connected');
     let connectionParameters = cloud.getConnectionParameters();
     console.log('\x1b[32mConnected to Azure IoT Hub: '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');
 });
 
 cloud.on('disconnected', ()=>{
-    system_setStatusLed( 'green', true, 'orange' );
+    stateManager.updateConnectionState('connection', 'disconnected');
 });
 
 cloud.on('provisioning', ()=>{
-    system_beepBuzzer('long');
-    system_setStatusLed( 'orange', 70 );
+    stateManager.updateConnectionState('provision', 'provisioning');
     console.log('\x1b[90mProvisioning the Azure IoT Client... \x1b[37m');
 });
 
 cloud.on('provisioned', ()=>{
+    stateManager.updateConnectionState('provision', 'provisioned');
     console.log('\x1b[32mProvisioning from Device Provisioning Service for Azure IoT Hub succeeded!\x1b[37m');
 });
 
 cloud.on('connecting', ()=>{
-    system_setStatusLed( 'green', 70, 'orange' );
-    system_beepBuzzer('short');
+    stateManager.updateConnectionState('connection', 'connecting');
     console.log('\x1b[90mConnecting to Azure IoT Hub... \x1b[37m');
 });
 
@@ -119,11 +119,8 @@ cloud.on('status', (status)=>{
  */
 
 import { IPC_Client } from "@spuq/json-ipc";
+import { StateManager } from "./stateManager";
 const ipc = new IPC_Client( true , "Gateway-SDK","./sdk-ipc");
-
-export let sdkStatus = {
-                            connected:false
-                        };
 
 // receiving data from the other process
 ipc.on('data', async(data:any)=>{
@@ -151,15 +148,19 @@ ipc.on('data', async(data:any)=>{
 
 // Connection status
 ipc.on('connected', ()=>{
+    stateManager.updateApplicationState('connection', 'connected');
     console.log('\x1b[32mApplication connected\x1b[37m');
-    sdkStatus.connected = true;
 });
 
 ipc.on('disconnected', ()=>{
+    stateManager.updateApplicationState('connection', 'disconnected');
     console.error('\x1b[33mApplication disconnected\x1b[37m');
-    sdkStatus.connected = false;
 });
 
 setInterval(()=>{
     ipc.send({ping:'ping'});
 },2000)
+
+
+// When we got here, the system has started
+stateManager.updateSystemState('state', 'running');
