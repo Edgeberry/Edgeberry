@@ -1,7 +1,7 @@
 # Edge Gateway
+Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With this Edge Gateway project you turn your favorite single-board computer platform into an IoT Edge device in the blink of a cursor!
 
-A device managing local sensor/actuator connections, performing basic data processing, and facilitating cloud communication.
-TODO: short sales pitch
+The Edge Gateway is a stand-alone software packet that allows you to connect your device to the cloud without having to dive into the details, so you can put all your focus on your application. The Edge Gateway comes with an intuitive user interface for configuration and monitoring the cloud connection, available on your local network.
 
 ##### Supported IoT platforms:
 - Microsoft Azure IoT Hub
