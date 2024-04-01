@@ -91,13 +91,12 @@ export function system_updateApplication():Promise<string>{
     return new Promise<string>((resolve, reject)=>{
         try{
             const URL = "https://github.com/SpuQ/Edge_Gateway/archive/refs/heads/main.tar.gz"
-            const TOKEN = "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"
             const TMPDIR = "/tmp/Edge_Gateway"
             const APPNAME = "Edge_Gateway"
 
             exec(`
                         mkdir -p ${TMPDIR}
-                        wget --header="Authorization: token ${TOKEN}" -O ${TMPDIR}/${APPNAME}.tar.gz ${URL}
+                        wget -O ${TMPDIR}/${APPNAME}.tar.gz ${URL}
                         if [ $? -ne 0 ]; then
                             echo "Download failed, exit."
                             exit 1;
