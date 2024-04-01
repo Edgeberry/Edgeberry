@@ -120,6 +120,7 @@ cloud.on('status', (status)=>{
  */
 
 import { IPC_Client } from "@spuq/json-ipc";
+import { system_getApplicationInfo } from "./system";
 const ipc = new IPC_Client( true , "Gateway-SDK","./sdk-ipc");
 
 // receiving data from the other process
@@ -161,6 +162,17 @@ setInterval(()=>{
     ipc.send({ping:'ping'});
 },2000)
 
+
+// ToDo: Update state with system version etc!
+async function setDeviceState() {
+    try{
+        const sysAppInfo = await system_getApplicationInfo()
+        stateManager.updateSystemState('version', sysAppInfo?.version );
+    } catch( err ){
+        console.error('\x1b[33mDevice State not updated '+err+'\x1b[37m');
+    }
+}
+setDeviceState();
 
 // When we got here, the system has started
 stateManager.updateSystemState('state', 'running');
