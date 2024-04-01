@@ -27,9 +27,19 @@ When using Raspberry Pi as your Edge Gateway device, you can add following IO fe
 Note that these pins are controlled by the Edge Gateway application, and should not be used for your application to avoid conflict.
 
 ## Using the SDK
-When creating your application for the Edge Gateway, use the SDK for communicating with the Edge Gateway.
+When creating your application for the Edge Gateway, use the [Edge Gateway SDK](https://github.com/SpuQ/Edge_Gateway_SDK) for interacting with the Edge Gateway.
 
-TODO: SDK usage example
+```
+npm install --save @spuq/edge_gateway_sdk
+```
+For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/Edge_Gateway_SDK?tab=readme-ov-file#readme).
 
-## License & Copyright
-Copyright Sanne 'SpuQ' Santens, all rights reserved.
+## License & Collaboration
+Copyright 2024 Sanne 'SpuQ' Santens. This project is licensed under the MIT License - see the [LICENSE](LICENSE.txt) file for details.
+
+If you'd like to contribute to this project, please follow these guidelines:
+1. Fork the repository and create your branch from `main`.
+2. Make your changes and ensure they adhere to the project's coding style and conventions.
+3. Test your changes thoroughly.
+4. Ensure your commits are descriptive and well-documented.
+5. Open a pull request, describing the changes you've made and the problem or feature they address.
