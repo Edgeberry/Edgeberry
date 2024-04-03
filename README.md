@@ -6,6 +6,7 @@ Whether you are a weathered engineer making a quick proof-of-concept for an IoT 
 The Edge Gateway is a stand-alone software packet that allows you to connect your device to the cloud without having to dive into the details, so you can put all your focus on your application. The Edge Gateway comes with an intuitive user interface for configuration and monitoring the cloud connection, available on your local network.
 
 ##### Supported IoT platforms:
+- AWS IoT Core
 - Microsoft Azure IoT Hub
 
 ## Installation

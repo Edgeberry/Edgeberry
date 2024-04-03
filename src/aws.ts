@@ -20,7 +20,7 @@ export type AWSConnectionParameters = {
     authenticationType: string;             // AWS only has X.509 authentication
     certificate: string;                    // X.509 authentication certificate
     privateKey: string;                     // X.509 authentication private key
-    rootCertificate?: string;               // X.509 Authoritiy
+    rootCertificate?: string;               // X.509 certificate authoritiy
 }
 
 
