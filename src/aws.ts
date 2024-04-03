@@ -11,13 +11,13 @@
  */
 import { mqtt } from 'aws-iot-device-sdk-v2';
 import { iot } from 'aws-iot-device-sdk-v2';
-import { http } from 'aws-iot-device-sdk-v2';
 import { EventEmitter } from "events";
 
 /* Types for AWS IoT Core client */
 export type AWSConnectionParameters = {
-    endpoint: string;                       // Name of the host to connect to (e.g. )
-    clientId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
+    hostName: string;                       // Name of the AWS endpoint to connect to (e.g. )
+    deviceId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
+    authenticationType: string;             // AWS only has X.509 authentication
     certificate: string;                    // X.509 authentication certificate
     privateKey: string;                     // X.509 authentication private key
     rootCertificate?: string;               // X.509 Authoritiy
@@ -32,10 +32,10 @@ export type AWSClientStatus = {
 }
 
 export class AWSClient extends EventEmitter {
-    private connectionParameters: AWSConnectionParameters|null = null;                  // AWS IoT Core connection parameters
+    private connectionParameters: AWSConnectionParameters|null = null;                    // AWS IoT Core connection parameters
     //private provisioningParameters: AWSDPSParameters|null = null;                       // AWS IoT Core Device Provisioning Service parameters
-    private clientStatus:AWSClientStatus = { connected: false, provisioning:false };    // Azure IoT Hub connection status
-    private client:any|null = null;                                                     // AWS IoT Core client object
+    private clientStatus:AWSClientStatus = { connected: false, provisioning:false };      // AWS IoT Core connection status
+    private client:mqtt.MqttClientConnection|null = null;                                 // AWS IoT Core client object
     //private directMethods:AzureDirectMethod[] = [];                                     // Direct Methods (not natively supported by AWS IoT Core!)
 
     constructor(){
@@ -64,9 +64,9 @@ export class AWSClient extends EventEmitter {
         return this.connectionParameters;
     }
 
-    /* Disconnect the Azure IoT Hub client */
+    /* Disconnect the AWS Iot Core client */
     private disconnect(){
-        if(this.client ){
+        if( this.client !== null ){
             // Close the connection
             this.client.disconnect();
             // Remove all the registered event listeners
@@ -105,15 +105,15 @@ export class AWSClient extends EventEmitter {
                 // reconnects to the broker, enabling it to resume previous subscriptions and receive queued messages.
                 config_builder.with_clean_session(false);
                 // Set the MQTT Client ID
-                config_builder.with_client_id( this.connectionParameters.clientId );
+                config_builder.with_client_id( this.connectionParameters.deviceId );
                 // Set the AWS endpoint (host)
-                config_builder.with_endpoint( this.connectionParameters.endpoint );
+                config_builder.with_endpoint( this.connectionParameters.hostName );
                 const config = config_builder.build();
 
                 // Create the MQTT client
-                this.client = new mqtt.MqttClient();
-                // 
-                this.client.new_connection( config );
+                const mqttClient = new mqtt.MqttClient();
+                // Create the MQTT connection
+                this.client = mqttClient.new_connection( config );
 
                 // Register the event listeners
                 this.client.on('connect', ()=>this.clientConnectHandler());
@@ -155,7 +155,7 @@ export class AWSClient extends EventEmitter {
         this.emit( 'disconnected' );
         this.emit( 'status', this.clientStatus );
         try{
-            setTimeout(()=>{this.client.open()},2000);
+            setTimeout(()=>{this.client?.connect()},2000);
         } catch(err){
             // Todo: do something with the error state
         }
@@ -186,21 +186,21 @@ export class AWSClient extends EventEmitter {
      */
 
     /* Update the parameters for the Device Provisioning Service */
-    /*public updateProvisioningParameters( parameters:AWSDPSParameters ):Promise<string|boolean>{
+    public updateProvisioningParameters( parameters:any ):Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
             return resolve(true);
         });
-    }*/
+    }
 
     /* Get the parameters for the Device Provisioning Service */
-    /*public getProvisioningParameters():AzureDPSParameters|null{
-        return this.provisioningParameters;
-    }*/
+    public getProvisioningParameters():any|null{
+        return {};
+    }
 
     /* Provison the Azure IoT client using the Device Provisioning Service */
-    /*public provision():Promise<string|boolean>{
+    public provision():Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
             reject('Not implemented');
         });
-    }*/
+    }
 }

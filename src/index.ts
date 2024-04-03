@@ -14,6 +14,7 @@
 
 import { readFileSync } from "fs";
 import { AzureClient } from "./azure";
+import { AWSClient } from "./aws";
 import express from 'express';
 import { StateManager } from "./stateManager";
 
@@ -61,6 +62,7 @@ app.get('*', (req:any, res:any)=>{
 app.listen( port, ()=>{ console.log('\x1b[32mEdge Gateway UI server running on port '+port+'\x1b[30m')});
 
 /* Azure IoT Hub Connection */
+/*
 export const cloud = new AzureClient();
 
 async function initialize(){
@@ -78,6 +80,27 @@ async function initialize(){
     } catch(err){
         console.error(err);
     }
+}*/
+
+/* AWS IoT Core */
+export const cloud = new AWSClient();
+
+async function initialize():Promise<void>{
+    try{
+        // Update the connection parameters from the settings
+        await cloud.updateConnectionParameters({
+                                                    hostName: settings.connection.endpoint,
+                                                    deviceId: settings.connection.clientId,
+                                                    authenticationType: 'x509',
+                                                    certificate: readFileSync( settings.connection.certificateFile ).toString(),
+                                                    privateKey: readFileSync( settings.connection.privateKeyFile ).toString(),
+                                                    rootCertificate: readFileSync( settings.connection.rootCertificateFile ).toString()
+                                                });
+        // Connect the client
+        await cloud.connect();
+    } catch(err){
+        console.error(err);
+    }
 }
 
 initialize();
@@ -87,7 +110,7 @@ cloud.on('connected', ()=>{
     stateManager.interruptIndicators('beep');
     stateManager.updateConnectionState('connection', 'connected');
     let connectionParameters = cloud.getConnectionParameters();
-    console.log('\x1b[32mConnected to Azure IoT Hub: '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');
+    console.log('\x1b[32mConnected to cloud: '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');
 });
 
 cloud.on('disconnected', ()=>{
@@ -96,7 +119,7 @@ cloud.on('disconnected', ()=>{
 
 cloud.on('provisioning', ()=>{
     stateManager.updateConnectionState('provision', 'provisioning');
-    console.log('\x1b[90mProvisioning the Azure IoT Client... \x1b[37m');
+    console.log('\x1b[90mProvisioning the cloud client... \x1b[37m');
 });
 
 cloud.on('provisioned', ()=>{
@@ -106,7 +129,7 @@ cloud.on('provisioned', ()=>{
 
 cloud.on('connecting', ()=>{
     stateManager.updateConnectionState('connection', 'connecting');
-    console.log('\x1b[90mConnecting to Azure IoT Hub... \x1b[37m');
+    console.log('\x1b[90mConnecting to cloud... \x1b[37m');
 });
 
 cloud.on('error', (error)=>{
