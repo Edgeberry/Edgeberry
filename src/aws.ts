@@ -9,13 +9,18 @@
  *  AWS IoT Core documentation:
  *      https://docs.aws.amazon.com/iot/latest/developerguide/what-is-aws-iot.html
  */
+import { mqtt } from 'aws-iot-device-sdk-v2';
+import { iot } from 'aws-iot-device-sdk-v2';
+import { http } from 'aws-iot-device-sdk-v2';
+import { EventEmitter } from "events";
 
 /* Types for AWS IoT Core client */
 export type AWSConnectionParameters = {
     endpoint: string;                       // Name of the host to connect to (e.g. )
     clientId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
-    certificate?: string;                   // X.509 authentication certificate
-    privateKey?: string;                    // X.509 authentication private key
+    certificate: string;                    // X.509 authentication certificate
+    privateKey: string;                     // X.509 authentication private key
+    rootCertificate?: string;               // X.509 Authoritiy
 }
 
 
@@ -63,7 +68,7 @@ export class AWSClient extends EventEmitter {
     private disconnect(){
         if(this.client ){
             // Close the connection
-            this.client.close();
+            this.client.disconnect();
             // Remove all the registered event listeners
             this.client.removeAllListeners();
             // Annihilate the client
@@ -73,7 +78,7 @@ export class AWSClient extends EventEmitter {
 
     /* Connect to the AWS IoT Core using the connection settings */
     public async connect():Promise<string|boolean>{
-        return new Promise<string|boolean>((resolve, reject)=>{
+        return new Promise<string|boolean>(async(resolve, reject)=>{
             this.clientStatus.connecting = true;
             this.emit('connecting');
 
@@ -89,15 +94,26 @@ export class AWSClient extends EventEmitter {
                 return reject('X.509 authentication parameters incomplete');
 
                 // Create the AWS IoT Core client
-                this.client = Client.fromConnectionString(  'HostName='+this.connectionParameters.hostName+
-                                                                                ';DeviceId='+this.connectionParameters.deviceId+
-                                                                                ';x509=true'
-                                                                                , Mqtt);
-                                    // Set the X.509 parameters
-                                    this.client.setOptions({
-                                        cert: this.connectionParameters.certificate,
-                                        key: this.connectionParameters.privateKey
-                                    });
+                let config_builder = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder(this.connectionParameters.certificate, this.connectionParameters.privateKey);
+                
+                // If a root certificate is set, use the root certificate
+                if ( typeof(this.connectionParameters.rootCertificate) === 'string' ) {
+                    config_builder.with_certificate_authority( this.connectionParameters.rootCertificate );
+                }
+
+                // By setting 'clean session' to 'false', the MQTT client will retain its session state when it
+                // reconnects to the broker, enabling it to resume previous subscriptions and receive queued messages.
+                config_builder.with_clean_session(false);
+                // Set the MQTT Client ID
+                config_builder.with_client_id( this.connectionParameters.clientId );
+                // Set the AWS endpoint (host)
+                config_builder.with_endpoint( this.connectionParameters.endpoint );
+                const config = config_builder.build();
+
+                // Create the MQTT client
+                this.client = new mqtt.MqttClient();
+                // 
+                this.client.new_connection( config );
 
                 // Register the event listeners
                 this.client.on('connect', ()=>this.clientConnectHandler());
@@ -106,7 +122,7 @@ export class AWSClient extends EventEmitter {
                 this.client.on('message', (message:any)=>this.clientMessageHandler(message));
 
                 // Open the AWS IoT Core connection
-                this.client.open();
+                await this.client.connect();
                 this.clientStatus.connecting = false;
                 // If we got here, everything went fine
                 return resolve(true);

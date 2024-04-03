@@ -4,7 +4,7 @@
   "description": "Edge device for managing cloud connection, connecting sensors/actuators and do basic data processing",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",
-  "private":false,
+  "private": false,
   "main": "build/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@spuq/json-ipc": "^1.1.0",
+    "aws-iot-device-sdk-v2": "^1.19.1",
     "azure-iot-device": "^1.18.3",
     "azure-iot-device-mqtt": "^1.16.3",
     "azure-iot-provisioning-device": "^1.9.1",
