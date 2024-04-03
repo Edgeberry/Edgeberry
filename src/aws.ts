@@ -15,12 +15,12 @@ import { EventEmitter } from "events";
 
 /* Types for AWS IoT Core client */
 export type AWSConnectionParameters = {
-    hostName: string;                       // Name of the AWS endpoint to connect to (e.g. )
+    hostName: string;                       // Name of the AWS endpoint to connect to (e.g. a11fkxltf4r89e-ats.iot.eu-north-1.amazonaws.com)
     deviceId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
-    authenticationType: string;             // AWS only has X.509 authentication
-    certificate: string;                    // X.509 authentication certificate
-    privateKey: string;                     // X.509 authentication private key
-    rootCertificate?: string;               // X.509 certificate authoritiy
+    authenticationType: string;             // AWS IoT Core only has X.509 authentication
+    certificate: string;                    // X.509 authentication certificate (<devicename>.cert.pem)
+    privateKey: string;                     // X.509 authentication private key (<devicename>.private.key)
+    rootCertificate?: string;               // X.509 authentication root certificate (root-CA.cert)
 }
 
 
@@ -68,7 +68,9 @@ export class AWSClient extends EventEmitter {
     private disconnect(){
         if( this.client !== null ){
             // Close the connection
-            this.client.disconnect();
+            try{
+                this.client.disconnect();
+            } catch (err){}
             // Remove all the registered event listeners
             this.client.removeAllListeners();
             // Annihilate the client
@@ -97,7 +99,7 @@ export class AWSClient extends EventEmitter {
                 let config_builder = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder(this.connectionParameters.certificate, this.connectionParameters.privateKey);
                 
                 // If a root certificate is set, use the root certificate
-                if ( typeof(this.connectionParameters.rootCertificate) === 'string' ) {
+                if ( typeof(this.connectionParameters.rootCertificate) === 'string' && this.connectionParameters.rootCertificate !== '' ) {
                     config_builder.with_certificate_authority( this.connectionParameters.rootCertificate );
                 }
 
@@ -155,7 +157,9 @@ export class AWSClient extends EventEmitter {
         this.emit( 'disconnected' );
         this.emit( 'status', this.clientStatus );
         try{
-            setTimeout(()=>{this.client?.connect()},2000);
+            setTimeout(()=>{
+                this.client?.connect();
+            },2000);
         } catch(err){
             // Todo: do something with the error state
         }
@@ -167,6 +171,14 @@ export class AWSClient extends EventEmitter {
 
     private clientMessageHandler( message:any ){
         this.emit( 'message', message );
+    }
+
+
+    /*
+     *  Direct Methods
+     */
+    public registerDirectMethod( name:string, method:Function ){
+        //this.directMethods.push( {name:name, function:method} );
     }
 
     /*

@@ -87,10 +87,13 @@ export const cloud = new AWSClient();
 
 async function initialize():Promise<void>{
     try{
+        // disable the provisioning
+        stateManager.updateConnectionState( 'provision', 'disabled' );
+
         // Update the connection parameters from the settings
         await cloud.updateConnectionParameters({
-                                                    hostName: settings.connection.endpoint,
-                                                    deviceId: settings.connection.clientId,
+                                                    hostName: settings.connection.hostName,
+                                                    deviceId: settings.connection.deviceId,
                                                     authenticationType: 'x509',
                                                     certificate: readFileSync( settings.connection.certificateFile ).toString(),
                                                     privateKey: readFileSync( settings.connection.privateKeyFile ).toString(),
