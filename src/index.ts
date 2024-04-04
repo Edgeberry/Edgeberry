@@ -13,16 +13,23 @@
 
 
 import { readFileSync } from "fs";
-import { AzureClient } from "./azure";
-import { AWSClient } from "./aws";
 import express from 'express';
 import { StateManager } from "./stateManager";
+import cors from 'cors';
+import { IPC_Client } from "@spuq/json-ipc";
+// Cloud clients
+import { AzureClient } from "./azure";
+import { AWSClient } from "./aws";
+// System features
+import { system_beepBuzzer, system_getApplicationInfo } from "./system";
+// API routes
+import connectivityRoutes from './routes/connectivity';
+import systemRoutes from './routes/system';
+import applicationRoutes from './routes/application';
 
 /* State Manager */
 export const stateManager = new StateManager();
 stateManager.updateSystemState('state', 'starting');
-
-const cors = require('cors');
 
 /* Use Settings from file */
 try{
@@ -34,32 +41,24 @@ try{
     // ToDo: create settings file?
 }
 
-
 /* Express Web/API server */
 const app = express();
 const port = settings?.interface?.port?settings.interface.port:3000     // default webui port: 3000
-
+// Express tools
 app.use(express.json());        // JSON API
 app.use(cors({origin:'*'}));    // Cross-origin references
-
-
-// API routes
-import connectivityRoutes from './routes/connectivity';
-import systemRoutes from './routes/system';
-import applicationRoutes from './routes/application';
+// Use the API Routers
 app.use('/api/connectivity', connectivityRoutes );
 app.use('/api/system', systemRoutes );
 app.use('/api/application', applicationRoutes );
-
 // Serve the public directory and a static HTML index file
 app.use(express.static( __dirname+'/public/'));
 app.get('*', (req:any, res:any)=>{
     return res.sendFile('index.html',{ root: __dirname+'/public' });
 });
-
-
 // Start the webserver
 app.listen( port, ()=>{ console.log('\x1b[32mEdgeBerry UI server running on port '+port+'\x1b[30m')});
+
 
 /* Azure IoT Hub Connection */
 /*
@@ -151,13 +150,10 @@ cloud.on('status', (status)=>{
 
 
 /*
- *  SDK
+ *  EdgeBerry SDK
  *  Communication with another application through 
  *  inter-process communication.
  */
-
-import { IPC_Client } from "@spuq/json-ipc";
-import { system_beepBuzzer, system_getApplicationInfo } from "./system";
 const ipc = new IPC_Client( true , "EdgeBerry-SDK","./sdk-ipc");
 
 // receiving data from the other process
@@ -168,21 +164,18 @@ ipc.on('data', async(data:any)=>{
         switch(data.method){
             case 'beep':        system_beepBuzzer('short');
                                 break;
-
             // Send Message
             case 'sendMessage': if(!data?.data || !data?.properties) return;
                                 try{
-                                    await cloud.sendMessage( {data:data.data, properties:data.properties} );
+                                    await cloud.sendMessage( {data:atob(data.data), properties:data.properties} );
                                 } catch(err){}
                                 break;
-
             // Unrecognized method
             default:
                                 break;
         }
     }
 });
-
 
 // Connection status
 ipc.on('connected', ()=>{
@@ -197,7 +190,7 @@ ipc.on('disconnected', ()=>{
 
 setInterval(()=>{
     ipc.send({ping:'ping'});
-},2000)
+},2000);
 
 
 // ToDo: Update state with system version etc!
