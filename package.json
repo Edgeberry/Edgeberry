@@ -1,7 +1,7 @@
 {
-  "name": "edge_gateway",
-  "version": "2.2.1",
-  "description": "Edge device for managing cloud connection, connecting sensors/actuators and do basic data processing",
+  "name": "edgeberry",
+  "version": "2.3.0",
+  "description": "Turn your Raspberry Pi into an IoT edge device!",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",
   "private": false,
@@ -14,17 +14,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SpuQ/Edge_Gateway.git"
+    "url": "git+https://github.com/SpuQ/EdgeBerry.git"
   },
   "keywords": [
     "iot",
     "edge",
-    "gateway"
+    "device",
+    "raspberry",
+    "pi",
+    "aws",
+    "azure"
   ],
   "bugs": {
-    "url": "https://github.com/SpuQ/Edge_Gateway/issues"
+    "url": "https://github.com/SpuQ/EdgeBerry/issues"
   },
-  "homepage": "https://github.com/SpuQ/Edge_Gateway#readme",
+  "homepage": "https://github.com/SpuQ/EdgeBerry#readme",
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",

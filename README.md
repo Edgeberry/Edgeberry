@@ -1,24 +1,23 @@
-![Edge Gateway](brand/Edge_Gateway_banner.png)
+![EdgeBerry](brand/EdgeBerry_banner.png)
 
-# Edge Gateway
-Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With this Edge Gateway project you turn your favorite single-board computer platform into an IoT Edge device in the blink of a cursor!
+Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the EdgeBerry project you turn your favorite single-board computer platform into an IoT Edge device in the blink of a cursor!
 
-The Edge Gateway is a stand-alone software packet that allows you to connect your device to the cloud without having to dive into the details, so you can put all your focus on your application. The Edge Gateway comes with an intuitive user interface for configuration and monitoring the cloud connection, available on your local network.
+EdgeBerry is a stand-alone software packet that allows you to connect your device to the cloud without having to dive into the details, so you can put all your focus on your application. EdgeBerry comes with an intuitive user interface for configuration and monitoring the cloud connection, available on your local network.
 
 ##### Supported IoT platforms:
 - AWS IoT Core
 - Microsoft Azure IoT Hub
 
 ## Installation
-Install the Edge Gateway application by downloading and executing the installation script.
+Install the EdgeBerry application by downloading and executing the installation script.
 ```
-wget -O install.sh https://github.com/SpuQ/Edge_Gateway/releases/download/v2.2.0/install.sh
+wget -O install.sh https://github.com/SpuQ/EdgeBerry/releases/download/v2.3.0/install.sh
 sudo ./install.sh
 ```
 Follow the instructions in the installation process.
 
-### Raspberry Pi: I/O setup
-When using Raspberry Pi as your Edge Gateway device, you can add following IO features for a better user experience:
+### Raspberry Pi I/O setup
+When using Raspberry Pi as your edge device using EdgeBerry, you can add following IO features for a better user experience:
 
 | GPIO Pin | Feature          |
 |----------|------------------|
@@ -27,15 +26,15 @@ When using Raspberry Pi as your Edge Gateway device, you can add following IO fe
 | 19       | Red status LED   |
 | 26       | Green status LED |
 
-Note that these pins are controlled by the Edge Gateway application, and should not be used for your application to avoid unexpected behavior.
+Note that these pins are controlled by the EdgeBerry application, and should not be used for your application to avoid unexpected behavior.
 
 ## Using the SDK
-When creating your application for the Edge Gateway, use the [Edge Gateway SDK](https://github.com/SpuQ/Edge_Gateway_SDK) for interacting with the Edge Gateway.
+When creating your IoT edge application for EdgeBerry, use the [EdgeBerry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the EdgeBerry application.
 
 ```
-npm install --save @spuq/edge_gateway_sdk
+npm install --save @spuq/edgeberry_sdk
 ```
-For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/Edge_Gateway_SDK?tab=readme-ov-file#readme).
+For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/EdgeBerry-SDK?tab=readme-ov-file#readme).
 
 ## License & Collaboration
 Copyright 2024 Sanne 'SpuQ' Santens. This project is licensed under the [MIT License](LICENSE.txt).

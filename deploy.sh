@@ -6,6 +6,7 @@
 
 DEFAULT_USER=spuq
 DEFAULT_HOST=192.168.1.105
+APPDIR=/opt/EdgeBerry
 
 clear;
 
@@ -51,14 +52,14 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
 
     sudo su
     echo -e '\e[0;32mCreating project directory... \e[m'
-    mkdir /opt/Edge_Gateway
+    mkdir /opt/EdgeBerry
 
     echo -e '\e[0;32mCopying project to project directory... \e[m'
-    cp -r ./temp/* /opt/Edge_Gateway
+    cp -r ./temp/* /opt/EdgeBerry
     rm -rf ./temp
 
     echo -e '\e[0;32mInstalling project dependencies... \e[m'
-    cd /opt/Edge_Gateway
+    cd /opt/EdgeBerry
     npm install --include=dev --verbose
 
     echo -e '\e[0;32mBuilding the project... \e[m'
@@ -66,7 +67,7 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
 
     # (re)start application
     echo -e '\e[0;32mRestarting the application... \e[m'
-    pm2 restart Edge_Gateway
+    pm2 restart EdgeBerry
     
 EOF
 

@@ -31,6 +31,8 @@ export type AWSClientStatus = {
     provisioned?: boolean;                  // AWS IoT Core provisioning status
 }
 
+
+
 export class AWSClient extends EventEmitter {
     private connectionParameters: AWSConnectionParameters|null = null;                    // AWS IoT Core connection parameters
     //private provisioningParameters: AWSDPSParameters|null = null;                       // AWS IoT Core Device Provisioning Service parameters
@@ -65,21 +67,23 @@ export class AWSClient extends EventEmitter {
     }
 
     /* Disconnect the AWS Iot Core client */
-    private disconnect(){
+    private async disconnect(){
         if( this.client !== null ){
             // Close the connection
             try{
-                this.client.disconnect();
+                await this.client.disconnect();
+                // Remove all the registered event listeners
+                this.client.removeAllListeners();
+                // Annihilate the client
+                this.client = null;
             } catch (err){}
-            // Remove all the registered event listeners
-            this.client.removeAllListeners();
-            // Annihilate the client
+
             this.client = null;
         }
     }
 
     /* Connect to the AWS IoT Core using the connection settings */
-    public async connect():Promise<string|boolean>{
+    public connect():Promise<string|boolean>{
         return new Promise<string|boolean>(async(resolve, reject)=>{
             this.clientStatus.connecting = true;
             this.emit('connecting');
@@ -94,15 +98,12 @@ export class AWSClient extends EventEmitter {
                 // Check the required X.509 parameters
                 if( typeof(this.connectionParameters.certificate) !== 'string' || typeof(this.connectionParameters.privateKey) !== 'string' )
                 return reject('X.509 authentication parameters incomplete');
-
                 // Create the AWS IoT Core client
                 let config_builder = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder(this.connectionParameters.certificate, this.connectionParameters.privateKey);
-                
                 // If a root certificate is set, use the root certificate
                 if ( typeof(this.connectionParameters.rootCertificate) === 'string' && this.connectionParameters.rootCertificate !== '' ) {
                     config_builder.with_certificate_authority( this.connectionParameters.rootCertificate );
                 }
-
                 // By setting 'clean session' to 'false', the MQTT client will retain its session state when it
                 // reconnects to the broker, enabling it to resume previous subscriptions and receive queued messages.
                 config_builder.with_clean_session(false);
@@ -131,16 +132,40 @@ export class AWSClient extends EventEmitter {
             } catch(err){
                 this.clientStatus.connecting = false;
                 // Retry connecting in 2 seconds ...
-                setTimeout(()=>{this.connect()},2000);
+                setTimeout(()=>{this.reconnect()},5000);
                 return reject(err);
             }
         });
     }
 
+    private reconnect(){
+            this.connect()
+                .then(()=>{
+                    console.log("success!")
+                })
+                .catch((err)=>{
+                });
+    }
+
     /* Send message */
     public sendMessage( message:any ):Promise<string|boolean>{
-        return new Promise((resolve, reject)=>{
-            reject('Not implemented');
+        return new Promise(async(resolve, reject)=>{
+            // Don't bother sending a message if there's no client
+            if( !this.client ) return reject('No client');
+            // Encode the (JSON) message to base64
+            //var encodedMessage = btoa(JSON.stringify(message));
+            // Publish the base64 encoded message to topic 'devices/<deviceId>/messages/events'
+            try{
+                const result = await this.client.publish(
+                                    'devices/'+this.connectionParameters?.deviceId+'/messages/events',
+                                    message,
+                                    mqtt.QoS.AtLeastOnce,
+                                    false
+                                );
+                return resolve(true);
+            } catch(err){
+                return reject(err);
+            }
         });
     } 
 
@@ -156,17 +181,13 @@ export class AWSClient extends EventEmitter {
         this.clientStatus.connected = false;
         this.emit( 'disconnected' );
         this.emit( 'status', this.clientStatus );
-        try{
-            setTimeout(()=>{
-                this.client?.connect();
-            },2000);
-        } catch(err){
-            // Todo: do something with the error state
-        }
+        //setTimeout(()=>{this.reconnect()},2000);
     }
 
     private clientErrorHandler( error:any ){
         this.emit( 'error', error );
+        // Reconnect after error
+        //setTimeout(()=>{this.reconnect()},5000);
     }
 
     private clientMessageHandler( message:any ){

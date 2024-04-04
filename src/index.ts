@@ -1,6 +1,6 @@
 /*
- *  Edge Gateway
- *  An application for using your system as an edge gateway device for your IoT project.
+ *  EdgeBerry
+ *  An application for using your Raspberry Pi as an edge device for your IoT project.
  * 
  *  Copyright 2024, Sanne 'SpuQ' Santens
  * 
@@ -59,7 +59,7 @@ app.get('*', (req:any, res:any)=>{
 
 
 // Start the webserver
-app.listen( port, ()=>{ console.log('\x1b[32mEdge Gateway UI server running on port '+port+'\x1b[30m')});
+app.listen( port, ()=>{ console.log('\x1b[32mEdgeBerry UI server running on port '+port+'\x1b[30m')});
 
 /* Azure IoT Hub Connection */
 /*
@@ -102,7 +102,7 @@ async function initialize():Promise<void>{
         // Connect the client
         await cloud.connect();
     } catch(err){
-        console.error(err);
+        //console.error(err);
     }
 }
 
@@ -113,7 +113,7 @@ cloud.on('connected', ()=>{
     stateManager.interruptIndicators('beep');
     stateManager.updateConnectionState('connection', 'connected');
     let connectionParameters = cloud.getConnectionParameters();
-    console.log('\x1b[32mConnected to cloud: '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');
+    console.log('\x1b[32mCloud Connection: connected with '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');
 });
 
 cloud.on('disconnected', ()=>{
@@ -122,12 +122,12 @@ cloud.on('disconnected', ()=>{
 
 cloud.on('provisioning', ()=>{
     stateManager.updateConnectionState('provision', 'provisioning');
-    console.log('\x1b[90mProvisioning the cloud client... \x1b[37m');
+    console.log('\x1b[90mProvisioning the Cloud client... \x1b[37m');
 });
 
 cloud.on('provisioned', ()=>{
     stateManager.updateConnectionState('provision', 'provisioned');
-    console.log('\x1b[32mProvisioning from Device Provisioning Service for Azure IoT Hub succeeded!\x1b[37m');
+    console.log('\x1b[32mProvisioning succeeded!\x1b[37m');
 });
 
 cloud.on('connecting', ()=>{
@@ -136,11 +136,11 @@ cloud.on('connecting', ()=>{
 });
 
 cloud.on('error', (error)=>{
-    console.error('\x1b[31mAzure: '+error+'\x1b[37m');
+    console.error('\x1b[31mCloud Connection: '+error+'\x1b[37m');
 });
 
 cloud.on('warning', (warning)=>{
-    console.error('\x1b[33mAzure: '+warning+'\x1b[37m');
+    console.error('\x1b[33mCloud Connection: '+warning+'\x1b[37m');
 });
 
 
@@ -158,7 +158,7 @@ cloud.on('status', (status)=>{
 
 import { IPC_Client } from "@spuq/json-ipc";
 import { system_beepBuzzer, system_getApplicationInfo } from "./system";
-const ipc = new IPC_Client( true , "Gateway-SDK","./sdk-ipc");
+const ipc = new IPC_Client( true , "EdgeBerry-SDK","./sdk-ipc");
 
 // receiving data from the other process
 ipc.on('data', async(data:any)=>{

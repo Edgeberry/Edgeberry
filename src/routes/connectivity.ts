@@ -51,7 +51,7 @@ router.post('/azure/sendmessage', async(req:any, res:any)=>{
     return res.status(401).send({message:'Data incomplete'});
     // Send the message
     try{
-        await cloud.sendMessage( { data:req.body.message, properties:req.body.properties} );
+        await cloud.sendMessage( { data:btoa(req.body.message), properties:req.body.properties} );
         return res.send({message:'Message sent'})
     } catch(err:any){
         return res.status(500).send({message:err.toString()});

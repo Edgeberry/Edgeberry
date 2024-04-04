@@ -2,13 +2,13 @@
 
 ##
 #   Install.sh
-#   Installation script for the Edge Gateway application and
-#   software it relies.
+#   Installation script for the EdgeBerry application and
+#   software it relies on.
 #
 #   by Sanne 'SpuQ' Santens
 ##
 
-APPNAME="Edge Gateway"
+APPNAME="EdgeBerry"
 
 
 # Check if this script is running as root. If not, notify the user
