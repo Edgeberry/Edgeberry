@@ -5,6 +5,7 @@
  *  AWS IoT Core SDK examples:
  *      https://docs.aws.amazon.com/iot/latest/developerguide/iot-sdks.html
  *      https://github.com/aws/aws-iot-device-sdk-js-v2
+ *      https://github.com/aws/aws-iot-device-sdk-js-v2/blob/main/samples/node/
  *  
  *  AWS IoT Core documentation:
  *      https://docs.aws.amazon.com/iot/latest/developerguide/what-is-aws-iot.html
@@ -16,13 +17,12 @@ import { EventEmitter } from "events";
 /* Types for AWS IoT Core client */
 export type AWSConnectionParameters = {
     hostName: string;                       // Name of the AWS endpoint to connect to (e.g. a11fkxltf4r89e-ats.iot.eu-north-1.amazonaws.com)
-    deviceId: string;                       // The unique ID of this device (e.g. Edge_Gateway_01)
+    deviceId: string;                       // The unique ID of this device (e.g. EdgeBerry_01)
     authenticationType: string;             // AWS IoT Core only has X.509 authentication
     certificate: string;                    // X.509 authentication certificate (<devicename>.cert.pem)
     privateKey: string;                     // X.509 authentication private key (<devicename>.private.key)
     rootCertificate?: string;               // X.509 authentication root certificate (root-CA.cert)
 }
-
 
 export type AWSClientStatus = {
     connecting?:boolean;                    // AWS IoT Core connecting activity
@@ -32,13 +32,12 @@ export type AWSClientStatus = {
 }
 
 
-
 export class AWSClient extends EventEmitter {
     private connectionParameters: AWSConnectionParameters|null = null;                    // AWS IoT Core connection parameters
     //private provisioningParameters: AWSDPSParameters|null = null;                       // AWS IoT Core Device Provisioning Service parameters
     private clientStatus:AWSClientStatus = { connected: false, provisioning:false };      // AWS IoT Core connection status
     private client:mqtt.MqttClientConnection|null = null;                                 // AWS IoT Core client object
-    //private directMethods:AzureDirectMethod[] = [];                                     // Direct Methods (not natively supported by AWS IoT Core!)
+    //private directMethods:AzureDirectMethod[] = [];                                     // Direct Methods (not natively supported by AWS IoT Core?)
 
     constructor(){
         super();
