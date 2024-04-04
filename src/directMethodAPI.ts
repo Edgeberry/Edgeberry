@@ -13,12 +13,12 @@ import { system_restart } from "./system";
  *  All features involving device-to-cloud connectivity
  */
 
-/* Get the Azure IoT Hub connection parameters */
+/* Get the connection parameters */
 cloud.registerDirectMethod('getConnectionParameters',(req:any, res:any)=>{
     return res.send( cloud.getConnectionParameters() );
 });
 
-/* Update the Azure IoT Hub connection parameters */
+/* Update the connection parameters */
 cloud.registerDirectMethod('updateConnectionParameters', async(req:any, res:any)=>{
     // Check for the presence of the parameters in the payload
     if( !req.payload || !req.payload?.parameters )
@@ -26,18 +26,18 @@ cloud.registerDirectMethod('updateConnectionParameters', async(req:any, res:any)
 
     try{
         await cloud.updateConnectionParameters( req.payload.parameters );
-        return res.send({message:'Successfully updated the Azure IoT Hub connection parameters'});
+        return res.send({message:'Successfully updated the connection parameters'});
     } catch(err){
         return res.status(500).send({message:err});
     }
 });
 
-/* Get the Azure Device Provisioning Service parameters */
+/* Get the provisioning parameters */
 cloud.registerDirectMethod('getProvisioningParameters',(req:any, res:any)=>{
     return res.send( cloud.getProvisioningParameters() );
 });
 
-/* Update the Azure Device Provisioning Service parameters */
+/* Update the provisioning parameters */
 cloud.registerDirectMethod('updateProvisioningParameters', async(req:any, res:any)=>{
     // Check for the presence of the parameters in the payload
     if( !req.payload || !req.payload?.parameters )
@@ -45,7 +45,7 @@ cloud.registerDirectMethod('updateProvisioningParameters', async(req:any, res:an
 
     try{
         await cloud.updateProvisioningParameters( req.payload.parameters );
-        return res.send({message:'Successfully updated the Azure Device Provisioning Service parameters'});
+        return res.send({message:'Successfully updated the provisioning parameters'});
     } catch(err){
         return res.status(500).send({message:err});
     }
