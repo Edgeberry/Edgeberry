@@ -35,10 +35,11 @@ stty -echo
 read -p "Password: " PASSWORD
 stty -echo
 echo ''
+echo ''
 
 # Create a directory on the device for copying the project to
 echo -e '\e[0;32mCreating temporary directory for the project... \e[m'
-sshpass -p ${PASSWORD} ssh-o StrictHostKeyChecking=no ${USER}@${HOST} "mkdir ~/temp"
+sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "mkdir ~/temp"
 
 
 # Copy project to the device
@@ -48,25 +49,25 @@ sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ${USER}@${HOS
 # Install the application on remote device
 sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF 
 
-sudo su
-echo -e '\e[0;32mCreating project directory... \e[m'
-mkdir /opt/Edge_Gateway
+    sudo su
+    echo -e '\e[0;32mCreating project directory... \e[m'
+    mkdir /opt/Edge_Gateway
 
-echo -e '\e[0;32mCopying project to project directory... \e[m'
-cp -r ./temp/* /opt/Edge_Gateway
-rm -rf ./temp
+    echo -e '\e[0;32mCopying project to project directory... \e[m'
+    cp -r ./temp/* /opt/Edge_Gateway
+    rm -rf ./temp
 
-echo -e '\e[0;32mInstalling project dependencies... \e[m'
-cd /opt/Edge_Gateway
-npm install --include=dev --verbose
+    echo -e '\e[0;32mInstalling project dependencies... \e[m'
+    cd /opt/Edge_Gateway
+    npm install --include=dev --verbose
 
-echo -e '\e[0;32mBuilding the project... \e[m'
-npm run build --verbose
+    echo -e '\e[0;32mBuilding the project... \e[m'
+    npm run build --verbose
 
-# Todo: (re)start application
-echo -e '\e[0;32mRestarting the application... \e[m'
-pm2 restart Edge_Gateway
-
+    # (re)start application
+    echo -e '\e[0;32mRestarting the application... \e[m'
+    pm2 restart Edge_Gateway
+    
 EOF
 
 exit 0;
