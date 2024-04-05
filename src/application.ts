@@ -1,10 +1,10 @@
-import { stateManager } from ".";
-
 /*
  *  Application
  *  Interaction with application related features
  */
-const pm2 = require('pm2');
+import { readFileSync } from "fs";
+import { stateManager } from ".";
+import pm2 from 'pm2';
 
 // Get system application info
 // Using PM2
@@ -22,9 +22,9 @@ export function app_getApplicationInfo():Promise<string|any>{
                 }
                 // Loop through processes
                 processes.forEach((process:any) => {
-                    if(process.name === 'Edge_Gateway_Application'){
+                    if(process.name === 'EdgeBerry_Application'){
                         const data = {
-                            name: process.pm2_env.axm_options.module_name,
+                            name: (JSON.parse(readFileSync('/opt/EdgeBerry_Application/package.json').toString()))?.name,
                             version: process.pm2_env.version,
                             cpuUsage: process.monit.cpu+'%',
                             memUsage: Math.round(parseInt(process.monit.memory)/100000)+' MB',
@@ -54,8 +54,8 @@ export function app_restartApplication():Promise<string>{
                 pm2.disconnect();
                 return reject(err.toString());
             }
-            // Restart the PM2 process
-            pm2.restart('Edge_Gateway_Application', (err:any, process:any)=>{
+            // Restart the EdgeBerry Application PM2 process
+            pm2.restart('EdgeBerry_Application', (err:any, process:any)=>{
                 if(err){
                     pm2.disconnect();
                     return reject(err.toString());
@@ -76,8 +76,8 @@ export function app_stopApplication():Promise<string>{
                 pm2.disconnect();
                 return reject(err.toString());
             }
-            // Stop the PM2 process
-            pm2.stop('Edge_Gateway_Application', (err:any, process:any)=>{
+            // Stop the EdgeBerry Application PM2 process
+            pm2.stop('EdgeBerry_Application', (err:any, process:any)=>{
                 if(err){
                     pm2.disconnect();
                     return reject(err.toString());

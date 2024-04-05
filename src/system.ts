@@ -69,7 +69,7 @@ export function system_getApplicationInfo():Promise<string|any>{
                 if (err) return reject(err);
                 // Loop through processes
                 processes.forEach((process:any) => {
-                    if(process.name === 'Edge_Gateway'){
+                    if(process.name === 'EdgeBerry'){
                         const data = {
                             version: process.pm2_env.version,
                             cpuUsage: process.monit.cpu+'%',
@@ -90,9 +90,9 @@ export function system_getApplicationInfo():Promise<string|any>{
 export function system_updateApplication():Promise<string>{
     return new Promise<string>((resolve, reject)=>{
         try{
-            const URL = "https://github.com/SpuQ/Edge_Gateway/archive/refs/heads/main.tar.gz"
-            const TMPDIR = "/tmp/Edge_Gateway"
-            const APPNAME = "Edge_Gateway"
+            const URL = "https://github.com/SpuQ/EdgeBerry/archive/refs/heads/main.tar.gz"
+            const TMPDIR = "/tmp/EdgeBerry"
+            const APPNAME = "EdgeBerry"
 
             exec(`
                         mkdir -p ${TMPDIR}
