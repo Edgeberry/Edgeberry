@@ -29,7 +29,7 @@ if which node >/dev/null 2>&1; then
 else 
     echo -e "\e[0;33mNodeJS is not installed \e[0m";
     echo -e "\e[0mInstalling Node using apt \e[0m";
-    apt install -y node;
+    apt install -y node > /dev/null 2>&1;
 fi
 
 # Check for NPM. If it's not installed, install it.
@@ -39,7 +39,7 @@ if which npm >/dev/null 2>&1; then
 else 
     echo -e "\e[0;33mNPM is not installed \e[0m";
     echo -e "\e[0mInstalling NPM using apt \e[0m";
-    apt install -y npm;
+    apt install -y npm > /dev/null 2>&1;
 fi
 
 # Check for PM2. If it's not installed, install it.
@@ -49,9 +49,9 @@ if which pm2 >/dev/null 2>&1; then
 else 
     echo -e "\e[0;33mPM2 is not installed \e[0m";
     echo -e "\e[0mInstalling PM2 using npm \e[0m";
-    npm install -g pm2;
+    npm install -g pm2 > /dev/null 2>&1;
     echo -e "\e[0mMaking sure PM2 runs on boot \e[0m";
-    pm2 startup systemd
+    pm2 startup systemd 
 fi
 
 # Check for CMAKE (required by AWS SDK). If it's not installed,
@@ -62,7 +62,18 @@ if which cmake >/dev/null 2>&1; then
 else 
     echo -e "\e[0;33mcmake is not installed \e[0m";
     echo -e "\e[0mInstalling cmake using apt \e[0m";
-    apt install -y cmake
+    apt install -y cmake > /dev/null 2>&1
+fi
+
+# Check for JQ (required by this script). If it's not installed,
+# install it.
+echo -e "\e[0mChecking for jq (required by installer)...\e[0m"
+if which cmake >/dev/null 2>&1; then  
+    echo -e "\e[0;32mjq is installed \e[0m"; 
+else 
+    echo -e "\e[0;33mjq is not installed \e[0m";
+    echo -e "\e[0mInstalling jq using apt \e[0m";
+    apt install -y jq > /dev/null 2>&1
 fi
 
 
@@ -84,7 +95,7 @@ if [ -n "$asset_url" ]; then
     -H "Authorization: Bearer ${ACCESSTOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     -o "repo.tar.gz" \
-    "$asset_url"
+    "$asset_url" > /dev/null 2>&1
 else
     echo -e "\e[0;33mFailed to get the latest release URL\e[0m";
     exit 1;
@@ -93,11 +104,11 @@ fi
 #Untar the application in the application folder
 echo -e "\e[0mUnpacking the application in the application folder...\e[0m"
 mkdir /opt/${APPNAME}
-tar -xvzf repo.tar.gz -C /opt/${APPNAME}
+tar -xvzf repo.tar.gz -C /opt/${APPNAME} > /dev/null 2>&1
 
 # Install package dependencies
 echo -e "\e[0mInstalling dependencies...\e[0m"
-npm install --prefix /opt/${APPNAME}
+npm install --prefix /opt/${APPNAME} > /dev/null 2>&1
 
 # Cleanup the download
 rm -rf repo.tar.gz
@@ -119,7 +130,7 @@ if [ -n "$asset_url" ]; then
     -H "Authorization: Bearer ${ACCESSTOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     -o "ui.tar.gz" \
-    "$asset_url"
+    "$asset_url" > /dev/null 2>&1
 else
     echo -e "\e[0;33mFailed to get the latest UI release URL\e[0m";
     exit 1;
@@ -127,7 +138,7 @@ fi
 
 # Unpack the UI in the build/public folder of the application
 echo -e "\e[0mUnpacking the application in the application UI folder...\e[0m"
-tar -xvzf ui.tar.gz -C /opt/${APPNAME}/build/public
+tar -xvzf ui.tar.gz -C /opt/${APPNAME}/build/public > /dev/null 2>&1
 
 # Cleanup the download
 rm -rf ui.tar.gz
@@ -138,11 +149,12 @@ rm -rf ui.tar.gz
 
 # Start the application using PM2
 cd /opt/${APPNAME}
-pm2 start build/index.js  --name ${APPNAME}
+pm2 start build/index.js  --name ${APPNAME} > /dev/null 2>&1
 
 # Save the PM2 state, so the application will automatically
 # run after a reboot
-pm2 save
+pm2 save > /dev/null 2>&1
 
-# Exit success
+# Exit succes
+echo -e "\e[0;32m${APPNAME} is installed! \e[0m"; 
 exit 0;
