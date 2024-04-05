@@ -8,7 +8,7 @@
 #   by Sanne 'SpuQ' Santens
 ##
 
-APPNAME="EdgeBerry"
+APPNAME=EdgeBerry
 
 
 # Check if this script is running as root. If not, notify the user
