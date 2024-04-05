@@ -9,12 +9,15 @@ EdgeBerry is a stand-alone software packet that allows you to connect your devic
 - Microsoft Azure IoT Hub
 
 ## Installation
-Install the EdgeBerry application by downloading and executing the installation script.
+Install the EdgeBerry application by downloading and executing the installation script on your device.
 ```
-wget -O install.sh https://github.com/SpuQ/EdgeBerry/releases/download/v2.3.0/install.sh
+wget -O install.sh https://github.com/SpuQ/EdgeBerry/releases/download/v2.3.1/install.sh
 sudo ./install.sh
 ```
-Follow the instructions in the installation process.
+If everything was successful, you can now access your EdgeBerry's web interface on port 3000
+```
+http://<device_ip_address>:3000
+```
 
 ### Raspberry Pi I/O setup
 When using Raspberry Pi as your edge device using EdgeBerry, you can add following IO features for a better user experience:
