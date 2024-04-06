@@ -149,7 +149,7 @@ rm -rf ui.tar.gz
 
 # Start the application using PM2
 cd /opt/${APPNAME}
-pm2 start build/index.js  --name ${APPNAME} > /dev/null 2>&1
+pm2 start npm --name ${APPNAME} -- start > /dev/null 2>&1
 
 # Save the PM2 state, so the application will automatically
 # run after a reboot
