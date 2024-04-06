@@ -17,18 +17,4 @@ module.exports = {
       libraryTarget: 'commonjs',
       path: path.resolve(__dirname, 'build')
     },
-  
-    // Specify modules to exclude from processing by webpack
-    module: {
-      rules: [
-        {
-          // Exclude node_modules directory
-          exclude: /node_modules/,
-          // Use appropriate loader for your project's files
-          // Example: Babel loader for JavaScript/TypeScript files
-          test: /\.js$/,
-          use: 'babel-loader'
-        },
-      ],
-    },
   };

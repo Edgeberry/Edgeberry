@@ -8,7 +8,6 @@
   "main": "build/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "boold": "tsc; cp -r src/public build/ && webpack --config webpack.config.js",
     "build": "tsc && webpack --config webpack.config.js && uglifyjs --mangle toplevel --output build/index.js -- build/bundle.js && rm -rf build/bundle.js jsbuild/  && cp -r src/public build/",
     "deploy": "bash ./deploy.sh",
     "dev": "nodemon --watch src src/index.ts",
