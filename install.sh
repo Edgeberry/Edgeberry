@@ -225,7 +225,7 @@ rm -rf ui.tar.gz
 ##
 
 # Start the application using PM2
-echo -n -e "\e[0mStarting the ${APPNAME} Application using PM2 \e[0m"
+echo -n -e "\e[0mStarting ${APPNAME} for the first time using PM2 \e[0m"
 cd /opt/${APPNAME}
 pm2 start npm --name ${APPNAME} -- start > /dev/null 2>&1
 # Check if the last command succeeded
