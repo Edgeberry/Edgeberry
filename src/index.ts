@@ -149,6 +149,12 @@ cloud.on('status', (status)=>{
 });
 
 
+// Test sending messages
+/*setInterval(()=>{
+    cloud.sendMessage({data:'blub ik ben een string', properties:[{key:"zee", value:"meermin"}]})
+},3000);*/
+
+
 /*
  *  EdgeBerry SDK
  *  Communication with another application through 

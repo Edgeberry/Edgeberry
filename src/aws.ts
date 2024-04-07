@@ -13,7 +13,7 @@
 import { mqtt } from 'aws-iot-device-sdk-v2';
 import { iot } from 'aws-iot-device-sdk-v2';
 import { EventEmitter } from "events";
-import { TextDecoder } from 'util';
+import { TextDecoder, TextEncoder } from 'util';
 
 /* Types for AWS IoT Core client */
 export type AWSConnectionParameters = {
@@ -30,6 +30,16 @@ export type AWSClientStatus = {
     connected?: boolean;                    // AWS IoT Core connection status
     provisioning?: boolean;                 // AWS IoT Core provisioning activity
     provisioned?: boolean;                  // AWS IoT Core provisioning status
+}
+
+export type Message = {
+    data: string;                           // The data should be a buffer?
+    properties?: MessageProperty[];    // key/value pair properties
+}
+
+export type MessageProperty = {
+    key: string;
+    value: string;
 }
 
 
@@ -130,13 +140,13 @@ export class AWSClient extends EventEmitter {
                 // Create the MQTT connection
                 this.client = mqttClient.new_connection( config );
 
+                // Subscribe to the Direct Methods topic (/devices/<device ID>/methods/post)
                 this.client.subscribe("/devices/"+this.connectionParameters.deviceId+"/methods/post", mqtt.QoS.AtMostOnce, this.directMethodHandler);
 
                 // Register the event listeners
                 this.client.on('connect', ()=>this.clientConnectHandler());
                 this.client.on('disconnect', ()=>this.clientDisconnectHandler());
                 this.client.on('error', (error:any)=>this.clientErrorHandler(error));
-                this.client.on('message', (message:any)=>this.clientMessageHandler(message));
 
                 // Open the AWS IoT Core connection
                 await this.client.connect();
@@ -162,17 +172,26 @@ export class AWSClient extends EventEmitter {
     }
 
     /* Send message */
-    public sendMessage( message:any ):Promise<string|boolean>{
+    public sendMessage( message:Message ):Promise<string|boolean>{
         return new Promise(async(resolve, reject)=>{
             // Don't bother sending a message if there's no client
             if( !this.client ) return reject('No client');
-            // Encode the (JSON) message to base64
-            //var encodedMessage = btoa(JSON.stringify(message));
-            // Publish the base64 encoded message to topic 'devices/<deviceId>/messages/events'
+            const encoder = new TextEncoder();
+            // Create a new message object
+            let msg:any = {};
+            // Encode the (JSON) message to UTF-8
+            msg.data = encoder.encode(message.data);
+            // Add the properties to the message
+            if( message.properties && message.properties.length > 0){
+                message.properties.forEach((property)=>{
+                    msg[property.key] = property.value;
+                });
+            }
+            // Publish the UTF-8 encoded message to topic 'devices/<deviceId>/messages/events'
             try{
                 const result = await this.client.publish(
                                     'devices/'+this.connectionParameters?.deviceId+'/messages/events',
-                                    message,
+                                    msg,
                                     mqtt.QoS.AtLeastOnce,
                                     false
                                 );
@@ -181,7 +200,7 @@ export class AWSClient extends EventEmitter {
                 return reject(err);
             }
         });
-    } 
+    }
 
     /* AWS IoT Core client event handlers */
     private clientConnectHandler(){
@@ -204,12 +223,6 @@ export class AWSClient extends EventEmitter {
         //setTimeout(()=>{this.reconnect()},5000);
     }
 
-    private clientMessageHandler( message:any ){
-        this.emit( 'message', message );
-    }
-
-
-
     /*
      *  Direct Methods
      */
@@ -217,6 +230,7 @@ export class AWSClient extends EventEmitter {
         //this.directMethods.push( {name:name, function:method} );
     }
 
+    /* Looks up and calls the method for a direct method invokation */
     private directMethodHandler( topic:string, payload:ArrayBuffer ){
         let response:AWSDirectMethodResponse = {status:500, requestId:''}
         try{
