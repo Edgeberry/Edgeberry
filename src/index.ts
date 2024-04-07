@@ -173,7 +173,7 @@ ipc.on('data', async(data:any)=>{
             // Send Message
             case 'sendMessage': if(!data?.data || !data?.properties) return;
                                 try{
-                                    await cloud.sendMessage( {data:atob(data.data), properties:data.properties} );
+                                    await cloud.sendMessage( {data:data.data, properties:data.properties} );
                                 } catch(err){}
                                 break;
             // Unrecognized method
