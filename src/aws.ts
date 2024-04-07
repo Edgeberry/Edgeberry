@@ -13,6 +13,7 @@
 import { mqtt } from 'aws-iot-device-sdk-v2';
 import { iot } from 'aws-iot-device-sdk-v2';
 import { EventEmitter } from "events";
+import { TextDecoder } from 'util';
 
 /* Types for AWS IoT Core client */
 export type AWSConnectionParameters = {
@@ -32,12 +33,24 @@ export type AWSClientStatus = {
 }
 
 
+export type AWSDirectMethodResponse = {
+    status:number                       // AWS IoT Core connecting activity
+    data?: any;                         // AWS IoT Core connection status
+    error?: any;
+    requestId: string;                          // ID of the request to which this is a response
+}
+
+export type DirectMethod = {
+    name: string;                           // The registration name of the method
+    function: Function;                     // The function that is called when the method is invoked
+}
+
 export class AWSClient extends EventEmitter {
     private connectionParameters: AWSConnectionParameters|null = null;                    // AWS IoT Core connection parameters
     //private provisioningParameters: AWSDPSParameters|null = null;                       // AWS IoT Core Device Provisioning Service parameters
     private clientStatus:AWSClientStatus = { connected: false, provisioning:false };      // AWS IoT Core connection status
     private client:mqtt.MqttClientConnection|null = null;                                 // AWS IoT Core client object
-    //private directMethods:AzureDirectMethod[] = [];                                     // Direct Methods (not natively supported by AWS IoT Core?)
+    private directMethods:DirectMethod[] = [];                                            // Direct Methods (not natively supported by AWS IoT Core?)
 
     constructor(){
         super();
@@ -117,6 +130,8 @@ export class AWSClient extends EventEmitter {
                 // Create the MQTT connection
                 this.client = mqttClient.new_connection( config );
 
+                this.client.subscribe("/devices/"+this.connectionParameters.deviceId+"/methods/post", mqtt.QoS.AtMostOnce, this.directMethodHandler);
+
                 // Register the event listeners
                 this.client.on('connect', ()=>this.clientConnectHandler());
                 this.client.on('disconnect', ()=>this.clientDisconnectHandler());
@@ -194,11 +209,39 @@ export class AWSClient extends EventEmitter {
     }
 
 
+
     /*
      *  Direct Methods
      */
     public registerDirectMethod( name:string, method:Function ){
         //this.directMethods.push( {name:name, function:method} );
+    }
+
+    private directMethodHandler( topic:string, payload:ArrayBuffer ){
+        let response:AWSDirectMethodResponse = {status:500, requestId:''}
+        try{
+            // Decode UTF-8 payload
+            const decoder = new TextDecoder();
+            const request = JSON.parse(decoder.decode(payload));
+            console.log(request);
+
+            // Check if the required parameters are included
+            if( typeof(request?.methodName) !== 'string' ){
+                //
+            }
+
+            // Find this method in the directMethod registry
+            this.directMethods.forEach( (directMethod)=>{
+                if(directMethod.name === request.methodName ){
+                    // Call the function that belongs to this method
+                    console.log("function found");
+                }
+            });
+
+        } catch(err){
+            this.emit('error', err);
+        }
+
     }
 
     /*
