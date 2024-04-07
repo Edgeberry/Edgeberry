@@ -180,7 +180,9 @@ export class AWSClient extends EventEmitter {
             // Create a new message object
             let msg:any = {};
             // Encode the (JSON) message to UTF-8
-            msg.data = encoder.encode(message.data);
+            //msg.data = encoder.encode(message.data);
+            //msg.data = Buffer.from(message.data, 'utf8');
+            msg.data=message.data;
             // Add the properties to the message
             if( message.properties && message.properties.length > 0){
                 message.properties.forEach((property)=>{
