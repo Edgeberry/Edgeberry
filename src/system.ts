@@ -60,6 +60,11 @@ export async function system_getPiVersion(){
         const piVersion = execSync(`cat /proc/device-tree/model 2>/dev/null`).toString();
         return piVersion;
     } catch(err){
+        try{
+            const system = execSync(`hostnamectl | grep -E 'Hardware Vendor|Hardware Model' | awk '{printf "%s %s", $3, $4}'`).toString();
+            return system;
+        }
+        catch(err){}
         return 'Error';
     }
 }
