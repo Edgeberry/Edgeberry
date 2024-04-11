@@ -45,7 +45,7 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "mkdir ~/
 
 # Copy project to the device
 echo -e '\e[0;32mCopying project to device...\e[m'
-sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ${USER}@${HOST}:temp/
+sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./webpack.config.js ${USER}@${HOST}:temp/
 
 # Install the application on remote device
 sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF 

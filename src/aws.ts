@@ -10,8 +10,7 @@
  *  AWS IoT Core documentation:
  *      https://docs.aws.amazon.com/iot/latest/developerguide/what-is-aws-iot.html
  */
-import { mqtt } from 'aws-iot-device-sdk-v2';
-import { iot } from 'aws-iot-device-sdk-v2';
+import { mqtt, iot, iotjobs } from 'aws-iot-device-sdk-v2';
 import { EventEmitter } from "events";
 import { TextDecoder, TextEncoder } from 'util';
 
@@ -140,8 +139,11 @@ export class AWSClient extends EventEmitter {
                 // Create the MQTT connection
                 this.client = mqttClient.new_connection( config );
 
-                // Subscribe to the Direct Methods topic (/devices/<device ID>/methods/post)
-                this.client.subscribe("/devices/"+this.connectionParameters.deviceId+"/methods/post", mqtt.QoS.AtMostOnce, this.directMethodHandler);
+                // Subscribe to the 'Remote Actions' topic
+                //this.client.subscribe("/devices/"+this.connectionParameters.deviceId+"/methods/post", mqtt.QoS.AtMostOnce, this.directMethodHandler);
+                this.client.subscribe('$aws/things/'+this.connectionParameters.deviceId+'/jobs/notify-next', mqtt.QoS.AtLeastOnce, this.remoteActionHandler );
+                // Connection ping
+                this.client.subscribe('$aws/things/'+this.connectionParameters.deviceId+'/ping', mqtt.QoS.AtMostOnce, this.remoteActionHandler );
 
                 // Register the event listeners
                 this.client.on('connect', ()=>this.clientConnectHandler());
@@ -233,27 +235,13 @@ export class AWSClient extends EventEmitter {
     }
 
     /* Looks up and calls the method for a direct method invokation */
-    private directMethodHandler( topic:string, payload:ArrayBuffer ){
-        let response:AWSDirectMethodResponse = {status:500, requestId:''}
+    private remoteActionHandler( topic:string, payload:ArrayBuffer ){
         try{
+            console.log(topic);
             // Decode UTF-8 payload
             const decoder = new TextDecoder();
             const request = JSON.parse(decoder.decode(payload));
-            console.log(request);
-
-            // Check if the required parameters are included
-            if( typeof(request?.methodName) !== 'string' ){
-                //
-            }
-
-            // Find this method in the directMethod registry
-            this.directMethods.forEach( (directMethod)=>{
-                if(directMethod.name === request.methodName ){
-                    // Call the function that belongs to this method
-                    console.log("function found");
-                }
-            });
-
+            console.log(request)
         } catch(err){
             this.emit('error', err);
         }
