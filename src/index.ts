@@ -21,7 +21,7 @@ import { IPC_Client } from "@spuq/json-ipc";
 import { AzureClient } from "./azure";
 import { AWSClient } from "./aws";
 // System features
-import { system_beepBuzzer, system_getApplicationInfo } from "./system";
+import { system_beepBuzzer, system_getApplicationInfo, system_getPlatform } from "./system";
 // API routes
 import connectivityRoutes from './routes/connectivity';
 import systemRoutes from './routes/system';
@@ -85,6 +85,13 @@ async function initialize(){
 export const cloud = new AWSClient();
 
 async function initialize():Promise<void>{
+    // initialize system state
+    try{
+        stateManager.updateSystemState('platform', (await system_getPlatform()) );
+    }
+    catch(err){}
+
+    // Initialize Cloud connection
     try{
         // disable the provisioning
         stateManager.updateConnectionState( 'provision', 'disabled' );
@@ -148,6 +155,12 @@ cloud.on('status', (status)=>{
     ipc.send( status );
 });
 
+stateManager.on('state', (state)=>{
+    // Update the system state
+    cloud.updateState('system', state )
+        .then(()=>{})
+        .catch(()=>{});
+});
 
 // Test sending messages
 /*setInterval(()=>{

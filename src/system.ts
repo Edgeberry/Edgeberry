@@ -55,7 +55,7 @@ export async function system_restart( timeoutMs?:number ){
 }
 
 // Get the Raspberry Pi hardware version
-export async function system_getPiVersion(){
+export async function system_getPlatform(){
     try{
         const piVersion = execSync(`cat /proc/device-tree/model 2>/dev/null`).toString();
         return piVersion;

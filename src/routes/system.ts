@@ -2,7 +2,7 @@
  *  REST API: System Routes
  */
 import { Router } from "express";
-import { system_getApplicationInfo, system_getPiVersion, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "../system";
+import { system_getApplicationInfo, system_getPlatform, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "../system";
 import { stateManager } from "..";
 const router = Router();
 
@@ -52,7 +52,7 @@ router.post('/application/update', (req:any, res:any)=>{
 router.get('/info', async(req:any, res:any)=>{
     try{
         const info = {
-            platform: await system_getPiVersion()
+            platform: await system_getPlatform()
         }
 
         return res.send(info);

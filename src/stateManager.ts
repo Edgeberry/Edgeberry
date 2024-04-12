@@ -8,6 +8,7 @@ import { system_beepBuzzer, system_setStatusLed } from "./system";
 
 export type deviceState = {
     system:{
+        platform: string;               // hardware platform
         state: string;                  // Running | Restarting | Updating | Starting
         version: string;                // e.g. 1.1.0
     };
@@ -32,6 +33,7 @@ export class StateManager extends EventEmitter{
         // Initialize the state
         this.state = {
             system:{
+                platform: 'unknown',
                 state: 'unknown',
                 version: 'unknown'
             },

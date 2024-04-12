@@ -61,6 +61,8 @@ export class AWSClient extends EventEmitter {
     private client:mqtt.MqttClientConnection|null = null;                                 // AWS IoT Core client object
     private directMethods:DirectMethod[] = [];                                            // Direct Methods (not natively supported by AWS IoT Core?)
 
+    private shadowTopicPrefix = '';     // Shadow topic prefix
+
     constructor(){
         super();
     }
@@ -144,6 +146,21 @@ export class AWSClient extends EventEmitter {
                 this.client.subscribe('$aws/things/'+this.connectionParameters.deviceId+'/jobs/notify-next', mqtt.QoS.AtLeastOnce, this.remoteActionHandler );
                 // Connection ping
                 this.client.subscribe('$aws/things/'+this.connectionParameters.deviceId+'/ping', mqtt.QoS.AtMostOnce, this.remoteActionHandler );
+            
+                // Thing Shadow
+                // The named shadow for EdgeBerry devices is 'edgeberry-device'
+                this.shadowTopicPrefix = '$aws/things/'+this.connectionParameters.deviceId+'/shadow/name/edgeberry-device'
+                // UPDATE
+                // The update request was accepted by AWS IoT, and the message body contains the current shadow document.
+                this.client.subscribe( this.shadowTopicPrefix+'/update/accepted', mqtt.QoS.AtMostOnce, this.updateShadowResponseHandler );
+                // The update request was rejected by AWS IoT, and the message body contains the error information.
+                this.client.subscribe( this.shadowTopicPrefix+'/update/rejected', mqtt.QoS.AtMostOnce, this.updateShadowResponseHandler );
+                // GET
+                //The get request was accepted by AWS IoT, and the message body contains the current shadow document.
+                this.client.subscribe( this.shadowTopicPrefix+'/get/accepted', mqtt.QoS.AtMostOnce, this.getShadowResponseHandler );
+                // The get request was rejected by AWS IoT, and the message body contains the error information.
+                this.client.subscribe( this.shadowTopicPrefix+'/get/rejected', mqtt.QoS.AtMostOnce, this.getShadowResponseHandler );
+
 
                 // Register the event listeners
                 this.client.on('connect', ()=>this.clientConnectHandler());
@@ -249,14 +266,61 @@ export class AWSClient extends EventEmitter {
     }
 
     /*
-     *  Device State management
+     *  Device State management (Thing Shadow)
+     *  Every shadow has a reserved MQTT topic that supports the 'get', 'update' and 'delete' actions
+     *  on the shadow. Devices should only write the 'reported' property of the shadow.
+     * 
+     *  Named shadow topic prefix: $aws/things/<thingName>/shadow/name/<shadowName>
      */
 
     /* Update the (reported) device state for a specific property */
-    public updateState( key:string, value:string ):Promise<string|boolean>{
+    public updateState( key:string, value:string|number|boolean|object ):Promise<string|boolean>{
         return new Promise<string|boolean>(async (resolve, reject)=>{
-            reject('Not implemented');
+            if( !this.client || !this.clientStatus.connected ) return reject('No connection');            
+            // create the state object
+            let reported:any = {};
+            reported[key] = value;
+            const state = { state:{ reported:reported } };
+            try{
+                await this.client.publish( this.shadowTopicPrefix+'/update', state, mqtt.QoS.AtMostOnce );
+                return resolve('success');
+            }
+            catch(err){
+                return reject(err);
+            }
         });
+    }
+
+    private updateShadowResponseHandler( topic:string, payload:ArrayBuffer ){
+        try{
+            //console.log(topic);
+            // Decode UTF-8 payload
+            const decoder = new TextDecoder();
+            const request = JSON.parse(decoder.decode(payload));
+            //console.log(request)
+        } catch(err){
+            this.emit('error', err);
+        }
+    }
+
+    private async getShadow(){
+        if( !this.client || !this.clientStatus.connected ) return;
+        console.log( 'Requesting shadow: '+this.shadowTopicPrefix+'/get')
+        const id:mqtt.MqttRequest = await this.client.publish( this.shadowTopicPrefix+'/get','',mqtt.QoS.AtMostOnce );
+        console.log(id);
+    }
+
+    private getShadowResponseHandler( topic:string, payload:ArrayBuffer ){
+        console.log('here')
+        try{
+            //console.log(topic);
+            // Decode UTF-8 payload
+            const decoder = new TextDecoder();
+            const request = JSON.parse(decoder.decode(payload));
+            //console.log(request)
+        } catch(err){
+            this.emit('error', err);
+        }
     }
 
     /*
