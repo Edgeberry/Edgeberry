@@ -3,8 +3,8 @@
  *  Interaction with system-related features.
  */
 import { exec, execSync } from "child_process";
-import { readFileSync } from "fs";
-const pm2 = require('pm2');
+import { stateManager } from ".";
+import pm2 from 'pm2';
 
 /*
  *  Networking
@@ -39,6 +39,7 @@ export async function system_getWirelessAddress( networkInterface:string ){
 
 // Reboot the system
 export async function system_restart( timeoutMs?:number ){
+    stateManager.updateSystemState('state', 'rebooting');
     try{
         if(!timeoutMs){
             // Reboot Now
