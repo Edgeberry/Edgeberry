@@ -4,7 +4,7 @@
  *  a convenient interface for calling remote actions on the device from the Azure Cloud Platform.
  */
 
-import { cloud } from ".";
+import { cloud, stateManager } from ".";
 import { system_restart } from "./system";
 
 
@@ -12,7 +12,7 @@ import { system_restart } from "./system";
  *  Connectivity Direct API
  *  All features involving device-to-cloud connectivity
  */
-
+export function initializeDirectMethodAPI(){
 /* Get the connection parameters */
 cloud.registerDirectMethod('getConnectionParameters',(req:any, res:any)=>{
     return res.send( cloud.getConnectionParameters() );
@@ -62,3 +62,10 @@ cloud.registerDirectMethod('reboot',async(req:any, res:any)=>{
     return res.send({message:'Restarting system'});
     return res.status(500).send({message:'System restart failed'});
 });
+
+/* Identify System  */
+cloud.registerDirectMethod('identify',async(req:any, res:any)=>{
+    stateManager.interruptIndicators('identify');
+    return res.send({message:'Identifying system'});
+});
+}

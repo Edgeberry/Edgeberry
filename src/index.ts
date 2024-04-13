@@ -17,6 +17,8 @@ import express from 'express';
 import { StateManager } from "./stateManager";
 import cors from 'cors';
 import { IPC_Client } from "@spuq/json-ipc";
+// Direct Methods
+//import * as directMethodAPI from "./directMethodAPI";
 // Cloud clients
 import { AzureClient } from "./azure";
 import { AWSClient } from "./aws";
@@ -26,6 +28,7 @@ import { system_beepBuzzer, system_getApplicationInfo, system_getPlatform } from
 import connectivityRoutes from './routes/connectivity';
 import systemRoutes from './routes/system';
 import applicationRoutes from './routes/application';
+import { initializeDirectMethodAPI } from "./directMethodAPI";
 
 /* State Manager */
 export const stateManager = new StateManager();
@@ -167,6 +170,9 @@ stateManager.on('state', (state)=>{
     cloud.sendMessage({data:'blub ik ben een string', properties:[{key:"zee", value:"meermin"}]})
 },3000);*/
 
+
+// Initialize Direct Method API
+initializeDirectMethodAPI();
 
 /*
  *  EdgeBerry SDK

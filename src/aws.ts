@@ -10,7 +10,7 @@
  *  AWS IoT Core documentation:
  *      https://docs.aws.amazon.com/iot/latest/developerguide/what-is-aws-iot.html
  */
-import { mqtt, iot, iotjobs } from 'aws-iot-device-sdk-v2';
+import { mqtt, iot } from 'aws-iot-device-sdk-v2';
 import { EventEmitter } from "events";
 import { TextDecoder, TextEncoder } from 'util';
 
@@ -54,6 +54,32 @@ export type DirectMethod = {
     function: Function;                     // The function that is called when the method is invoked
 }
 
+class DirectMethodResponse {
+    private statuscode:number = 200;
+    private callback:Function|null = null;
+    private id:string = ''
+
+    constructor( id:string, callback:Function ){
+        this.callback = callback;
+        this.id = id;
+    }
+
+    public send( payload:any ){
+        if( typeof(this.callback) === 'function')
+        if( this.statuscode === 200 ){
+            this.callback( {status:this.statuscode, payload:payload, id:this.id} );
+        }
+        else{
+            this.callback( { status:this.statuscode, message:payload.message, id:this.id } )
+        }
+    }
+
+    public status( status:number ){
+        this.statuscode = status;
+    }
+
+}
+
 export class AWSClient extends EventEmitter {
     private connectionParameters: AWSConnectionParameters|null = null;                    // AWS IoT Core connection parameters
     //private provisioningParameters: AWSDPSParameters|null = null;                       // AWS IoT Core Device Provisioning Service parameters
@@ -61,6 +87,7 @@ export class AWSClient extends EventEmitter {
     private client:mqtt.MqttClientConnection|null = null;                                 // AWS IoT Core client object
     private directMethods:DirectMethod[] = [];                                            // Direct Methods (not natively supported by AWS IoT Core?)
 
+    // MQTT topics
     private shadowTopicPrefix = '';     // Shadow topic prefix
 
     constructor(){
@@ -140,12 +167,6 @@ export class AWSClient extends EventEmitter {
                 const mqttClient = new mqtt.MqttClient();
                 // Create the MQTT connection
                 this.client = mqttClient.new_connection( config );
-
-                // Subscribe to the 'Remote Actions' topic
-                //this.client.subscribe("/devices/"+this.connectionParameters.deviceId+"/methods/post", mqtt.QoS.AtMostOnce, this.directMethodHandler);
-                this.client.subscribe('$aws/things/'+this.connectionParameters.deviceId+'/jobs/notify-next', mqtt.QoS.AtLeastOnce, this.remoteActionHandler );
-                // Connection ping
-                this.client.subscribe('$aws/things/'+this.connectionParameters.deviceId+'/ping', mqtt.QoS.AtMostOnce, this.remoteActionHandler );
             
                 // Thing Shadow
                 // The named shadow for EdgeBerry devices is 'edgeberry-device'
@@ -156,10 +177,14 @@ export class AWSClient extends EventEmitter {
                 // The update request was rejected by AWS IoT, and the message body contains the error information.
                 this.client.subscribe( this.shadowTopicPrefix+'/update/rejected', mqtt.QoS.AtMostOnce, this.updateShadowResponseHandler );
                 // GET
-                //The get request was accepted by AWS IoT, and the message body contains the current shadow document.
+                // The get request was accepted by AWS IoT, and the message body contains the current shadow document.
                 this.client.subscribe( this.shadowTopicPrefix+'/get/accepted', mqtt.QoS.AtMostOnce, this.getShadowResponseHandler );
                 // The get request was rejected by AWS IoT, and the message body contains the error information.
                 this.client.subscribe( this.shadowTopicPrefix+'/get/rejected', mqtt.QoS.AtMostOnce, this.getShadowResponseHandler );
+
+                // Direct Methods
+                // Direct method invocations (Cloud-to-Device) are posted to the /methods/post topic
+                this.client.subscribe('$aws/things/'+this.connectionParameters.deviceId+'/methods/post', mqtt.QoS.AtMostOnce, (topic, payload)=>this.handleDirectMethod(topic, payload) );
 
 
                 // Register the event listeners
@@ -246,23 +271,39 @@ export class AWSClient extends EventEmitter {
 
     /*
      *  Direct Methods
+     *  Cloud-To-Device messaging. Invoke direct methods from the cloud on this device,
+     *  and receive a reply.
      */
-    public registerDirectMethod( name:string, method:Function ){
-        //this.directMethods.push( {name:name, function:method} );
+
+    // Handler for direct method invocations
+    private handleDirectMethod(topic:string, payload:ArrayBuffer ){
+        try{
+            // Decode UTF-8 payload
+            const request = JSON.parse((new TextDecoder().decode(payload)).toString());
+            // Find the registered method with this method name
+            const directMethod = this.directMethods.find(obj => obj.name === request?.name );
+            // If the method is not found, return 'not found' to caller
+            if(!directMethod) return this.respondToDirectMethod( { status:404, message:'Method not found', id:request.id });
+            // Invoke the direct method
+            directMethod.function( request, new DirectMethodResponse( request.id, ( response:any )=>{
+                // Send a respons to the invoker
+                this.respondToDirectMethod( response );
+            }))
+        } catch(err){
+            return this.respondToDirectMethod( {status:500, message:"That didn't work", id:'noIdea'})
+        }
     }
 
-    /* Looks up and calls the method for a direct method invokation */
-    private remoteActionHandler( topic:string, payload:ArrayBuffer ){
-        try{
-            console.log(topic);
-            // Decode UTF-8 payload
-            const decoder = new TextDecoder();
-            const request = JSON.parse(decoder.decode(payload));
-            console.log(request)
-        } catch(err){
-            this.emit('error', err);
-        }
+    // Send a response to a direct method
+    private respondToDirectMethod( response:any ){
+        // Publish the response
+        if( !this.client || !this.connectionParameters?.deviceId ) return;
+        this.client.publish('$aws/things/'+this.connectionParameters.deviceId+'/methods/response',response, mqtt.QoS.AtMostOnce );
+    }
 
+    // Register direct methods
+    public registerDirectMethod( name:string, method:Function ){
+        this.directMethods.push( {name:name, function:method} );
     }
 
     /*
