@@ -52,20 +52,18 @@ export type DirectMethod = {
 class DirectMethodResponse {
     private statuscode:number = 200;        // HTTP Status code
     private callback:Function|null = null;  // Callback function
-    private requestId:string = 'noIdea';    // ID of the method invocation request
 
-    constructor( requestId:string, callback:Function ){
+    constructor( callback:Function ){
         this.callback = callback;
-        this.requestId = requestId;
     }
 
     public send( payload:any ){
         if( typeof(this.callback) === 'function')
         if( this.statuscode === 200 ){
-            this.callback( {status:this.statuscode, payload:payload, requestId:this.requestId} );
+            this.callback( {status:this.statuscode, payload:payload} );
         }
         else{
-            this.callback( { status:this.statuscode, message:payload.message, requestId:this.requestId } )
+            this.callback( { status:this.statuscode, message:payload.message} )
         }
     }
 
@@ -279,17 +277,18 @@ export class AWSClient extends EventEmitter {
         try{
             // Decode UTF-8 payload
             const request = JSON.parse((new TextDecoder().decode(payload)).toString());
+            console.log(request);
             // Find the registered method with this method name
             const directMethod = this.directMethods.find(obj => obj.name === request?.name );
             // If the method is not found, return 'not found' to caller
-            if(!directMethod) return this.respondToDirectMethod( { status:404, message:'Method not found', requestId:request.requestId });
+            if(!directMethod) return this.respondToDirectMethod( { status:404, message:'Method not found'});
             // Invoke the direct method
-            directMethod.function( request, new DirectMethodResponse( request.requestId, ( response:any )=>{
+            directMethod.function( request, new DirectMethodResponse(( response:any )=>{
                 // Send a respons to the invoker
                 this.respondToDirectMethod( response );
             }))
         } catch(err){
-            return this.respondToDirectMethod( {status:500, message:"That didn't work", requestId:'noIdea'});
+            return this.respondToDirectMethod( {httpStatusCode:500, message:"That didn't work"});
         }
     }
 
