@@ -9,6 +9,9 @@
  *  
  *  AWS IoT Core documentation:
  *      https://docs.aws.amazon.com/iot/latest/developerguide/what-is-aws-iot.html
+ * 
+ *  Other info:
+ *      https://iotatlas.net
  */
 import { mqtt, iot } from 'aws-iot-device-sdk-v2';
 import { EventEmitter } from "events";
@@ -33,20 +36,12 @@ export type AWSClientStatus = {
 
 export type Message = {
     data: string;                           // The data should be a buffer?
-    properties?: MessageProperty[];    // key/value pair properties
+    properties?: MessageProperty[];         // key/value pair properties
 }
 
 export type MessageProperty = {
     key: string;
     value: string;
-}
-
-
-export type AWSDirectMethodResponse = {
-    status:number                       // AWS IoT Core connecting activity
-    data?: any;                         // AWS IoT Core connection status
-    error?: any;
-    requestId: string;                          // ID of the request to which this is a response
 }
 
 export type DirectMethod = {
@@ -55,22 +50,22 @@ export type DirectMethod = {
 }
 
 class DirectMethodResponse {
-    private statuscode:number = 200;
-    private callback:Function|null = null;
-    private id:string = ''
+    private statuscode:number = 200;        // HTTP Status code
+    private callback:Function|null = null;  // Callback function
+    private requestId:string = 'noIdea';    // ID of the method invocation request
 
-    constructor( id:string, callback:Function ){
+    constructor( requestId:string, callback:Function ){
         this.callback = callback;
-        this.id = id;
+        this.requestId = requestId;
     }
 
     public send( payload:any ){
         if( typeof(this.callback) === 'function')
         if( this.statuscode === 200 ){
-            this.callback( {status:this.statuscode, payload:payload, id:this.id} );
+            this.callback( {status:this.statuscode, payload:payload, requestId:this.requestId} );
         }
         else{
-            this.callback( { status:this.statuscode, message:payload.message, id:this.id } )
+            this.callback( { status:this.statuscode, message:payload.message, requestId:this.requestId } )
         }
     }
 
@@ -79,6 +74,7 @@ class DirectMethodResponse {
     }
 
 }
+
 
 export class AWSClient extends EventEmitter {
     private connectionParameters: AWSConnectionParameters|null = null;                    // AWS IoT Core connection parameters
@@ -273,29 +269,32 @@ export class AWSClient extends EventEmitter {
      *  Direct Methods
      *  Cloud-To-Device messaging. Invoke direct methods from the cloud on this device,
      *  and receive a reply.
+     * 
+     *  https://docs.aws.amazon.com/wellarchitected/latest/iot-lens/device-commands.html
+     *  
      */
 
     // Handler for direct method invocations
-    private handleDirectMethod(topic:string, payload:ArrayBuffer ){
+    private handleDirectMethod(topic:string, payload:ArrayBuffer ):void{
         try{
             // Decode UTF-8 payload
             const request = JSON.parse((new TextDecoder().decode(payload)).toString());
             // Find the registered method with this method name
             const directMethod = this.directMethods.find(obj => obj.name === request?.name );
             // If the method is not found, return 'not found' to caller
-            if(!directMethod) return this.respondToDirectMethod( { status:404, message:'Method not found', id:request.id });
+            if(!directMethod) return this.respondToDirectMethod( { status:404, message:'Method not found', requestId:request.requestId });
             // Invoke the direct method
-            directMethod.function( request, new DirectMethodResponse( request.id, ( response:any )=>{
+            directMethod.function( request, new DirectMethodResponse( request.requestId, ( response:any )=>{
                 // Send a respons to the invoker
                 this.respondToDirectMethod( response );
             }))
         } catch(err){
-            return this.respondToDirectMethod( {status:500, message:"That didn't work", id:'noIdea'})
+            return this.respondToDirectMethod( {status:500, message:"That didn't work", requestId:'noIdea'});
         }
     }
 
-    // Send a response to a direct method
-    private respondToDirectMethod( response:any ){
+    // Send response to a direct method
+    private respondToDirectMethod( response:any ):void{
         // Publish the response
         if( !this.client || !this.connectionParameters?.deviceId ) return;
         this.client.publish('$aws/things/'+this.connectionParameters.deviceId+'/methods/response',response, mqtt.QoS.AtMostOnce );
@@ -311,7 +310,7 @@ export class AWSClient extends EventEmitter {
      *  Every shadow has a reserved MQTT topic that supports the 'get', 'update' and 'delete' actions
      *  on the shadow. Devices should only write the 'reported' property of the shadow.
      * 
-     *  Named shadow topic prefix: $aws/things/<thingName>/shadow/name/<shadowName>
+     *  https://docs.aws.amazon.com/iot/latest/apireference/API_iotdata_GetThingShadow.html
      */
 
     /* Update the (reported) device state for a specific property */
@@ -366,7 +365,7 @@ export class AWSClient extends EventEmitter {
 
     /*
      *  Device Provisioning Service
-     *  for Azure IoT Hub
+     *  
      */
 
     /* Update the parameters for the Device Provisioning Service */
@@ -381,7 +380,7 @@ export class AWSClient extends EventEmitter {
         return {};
     }
 
-    /* Provison the Azure IoT client using the Device Provisioning Service */
+    /* Provison the AWS IoT Core client using the Device Provisioning Service */
     public provision():Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
             reject('Not implemented');

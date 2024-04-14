@@ -38,18 +38,18 @@ export async function system_getWirelessAddress( networkInterface:string ){
  */
 
 // Reboot the system
-export async function system_restart( timeoutMs?:number ){
+export function system_restart( timeoutMs?:number ){
     stateManager.updateSystemState('state', 'rebooting');
     try{
-        if(!timeoutMs){
+        if( typeof(timeoutMs) !== 'number' ){
             // Reboot Now
-            execSync(`shutdown -r now`);
+            setTimeout(()=>{exec(`shutdown -r now`)},1000);
         }
         else{
             // Reboot after timeout 
             setTimeout(()=>{exec(`shutdown -r now`)},timeoutMs);
         }
-        return '';
+        return true;
     } catch(err){
         return 'Error: '+err;
     }
