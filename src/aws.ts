@@ -178,7 +178,7 @@ export class AWSClient extends EventEmitter {
 
                 // Direct Methods
                 // Direct method invocations (Cloud-to-Device) are posted to the /methods/post topic
-                this.client.subscribe('$aws/things/'+this.connectionParameters.deviceId+'/methods/post', mqtt.QoS.AtMostOnce, (topic, payload)=>this.handleDirectMethod(topic, payload) );
+                this.client.subscribe('edgeberry/things/'+this.connectionParameters.deviceId+'/methods/post', mqtt.QoS.AtMostOnce, (topic, payload)=>this.handleDirectMethod(topic, payload) );
 
 
                 // Register the event listeners
@@ -273,30 +273,30 @@ export class AWSClient extends EventEmitter {
      */
 
     // Handler for direct method invocations
-    private handleDirectMethod(topic:string, payload:ArrayBuffer ):void{
+    private async handleDirectMethod(topic:string, payload:ArrayBuffer ){
         try{
             // Decode UTF-8 payload
             const request = JSON.parse((new TextDecoder().decode(payload)).toString());
-            console.log(request);
+            //console.log(request);
             // Find the registered method with this method name
             const directMethod = this.directMethods.find(obj => obj.name === request?.name );
             // If the method is not found, return 'not found' to caller
-            if(!directMethod) return this.respondToDirectMethod( { status:404, message:'Method not found'});
+            if(!directMethod) return await this.respondToDirectMethod( { status:404, message:'Method not found'});
             // Invoke the direct method
             directMethod.function( request, new DirectMethodResponse(( response:any )=>{
                 // Send a respons to the invoker
                 this.respondToDirectMethod( response );
             }))
         } catch(err){
-            return this.respondToDirectMethod( {httpStatusCode:500, message:"That didn't work"});
+            return await this.respondToDirectMethod( {httpStatusCode:500, message:"That didn't work"});
         }
     }
 
     // Send response to a direct method
-    private respondToDirectMethod( response:any ):void{
+    private async respondToDirectMethod( response:any ){
         // Publish the response
         if( !this.client || !this.connectionParameters?.deviceId ) return;
-        this.client.publish('$aws/things/'+this.connectionParameters.deviceId+'/methods/response',response, mqtt.QoS.AtMostOnce );
+        const result = await this.client.publish('edgeberry/things/'+this.connectionParameters.deviceId+'/methods/response',response, mqtt.QoS.AtMostOnce, true );
     }
 
     // Register direct methods

@@ -127,6 +127,7 @@ cloud.on('connected', ()=>{
 
 cloud.on('disconnected', ()=>{
     stateManager.updateConnectionState('connection', 'disconnected');
+    console.log('\x1b[33mCloud Connection: disconnected \x1b[37m');
 });
 
 cloud.on('provisioning', ()=>{
