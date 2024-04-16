@@ -62,18 +62,20 @@ export type DirectMethod = {
 class DirectMethodResponse {
     private statuscode:number = 200;        // HTTP Status code
     private callback:Function|null = null;  // Callback function
+    private requestId:string = '';
 
-    constructor( callback:Function ){
+    constructor( requestId:string, callback:Function ){
         this.callback = callback;
+        this.requestId = requestId;
     }
 
     public send( payload:any ){
         if( typeof(this.callback) === 'function')
         if( this.statuscode === 200 ){
-            this.callback( {status:this.statuscode, payload:payload} );
+            this.callback( {status:this.statuscode, payload:payload, requestId:this.requestId} );
         }
         else{
-            this.callback( { status:this.statuscode, message:payload.message} )
+            this.callback( { status:this.statuscode, message:payload.message, requestId:this.requestId} );
         }
     }
 
@@ -293,7 +295,7 @@ export class AWSClient extends EventEmitter {
             // If the method is not found, return 'not found' to caller
             if(!directMethod) return await this.respondToDirectMethod( { status:404, message:'Method not found'});
             // Invoke the direct method
-            directMethod.function( request, new DirectMethodResponse(( response:any )=>{
+            directMethod.function( request, new DirectMethodResponse( request.requestId, ( response:any )=>{
                 // Send a respons to the invoker
                 this.respondToDirectMethod( response );
             }))
