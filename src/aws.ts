@@ -395,7 +395,7 @@ export class AWSClient extends EventEmitter {
     }
 
     /* Get the parameters for the Device Provisioning Service */
-    public getProvisioningParameters():any|null{
+    public getProvisioningParameters():AWSProvisioningParameters|null{
         return this.provisioningParameters;
     }
 

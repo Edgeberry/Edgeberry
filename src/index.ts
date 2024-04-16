@@ -94,45 +94,50 @@ async function initialize():Promise<void>{
     }
     catch(err){}
 
+    // If we have connection settings, connect to the cloud using
+    // these settings
+    if(settings.connection){
+        // Initialize Cloud connection
+        try{
+            // disable the provisioning
+            stateManager.updateConnectionState( 'provision', 'disabled' );
 
-    // Provision the device
-    try{
-        stateManager.updateConnectionState( 'provision', 'provisioning' );
-        await cloud.updateProvisioningParameters({
-            hostName: settings.provisioning.hostName,
-            clientId: settings.provisioning.clientId,
-            authenticationType: 'x509',
-            certificate: readFileSync( settings.provisioning.certificateFile ).toString(),
-            privateKey: readFileSync( settings.provisioning.privateKeyFile ).toString(),
-            rootCertificate: readFileSync( settings.provisioning.rootCertificateFile ).toString()
-        });
-        // Provision
-        await cloud.provision();
+            // Update the connection parameters from the settings
+            await cloud.updateConnectionParameters({
+                                                        hostName: settings.connection.hostName,
+                                                        deviceId: settings.connection.deviceId,
+                                                        authenticationType: 'x509',
+                                                        certificate: readFileSync( settings.connection.certificateFile ).toString(),
+                                                        privateKey: readFileSync( settings.connection.privateKeyFile ).toString(),
+                                                        rootCertificate: readFileSync( settings.connection.rootCertificateFile ).toString()
+                                                    });
+            // Connect the client
+            await cloud.connect();
+        } catch(err){
+            //console.error(err);
+        }
     }
-    catch(err){
-        console.error("Device provisioning failed: "+err);
+    // If there were no connection settings, but we have provisioning
+    // settings, provision the device.
+    else if(settings.provisioning){
+        // Provision the device
+        try{
+            stateManager.updateConnectionState( 'provision', 'provisioning' );
+            await cloud.updateProvisioningParameters({
+                hostName: settings.provisioning.hostName,
+                clientId: settings.provisioning.clientId,
+                authenticationType: 'x509',
+                certificate: readFileSync( settings.provisioning.certificateFile ).toString(),
+                privateKey: readFileSync( settings.provisioning.privateKeyFile ).toString(),
+                rootCertificate: readFileSync( settings.provisioning.rootCertificateFile ).toString()
+            });
+            // Provision
+            await cloud.provision();
+        }
+        catch(err){
+            console.error("Device provisioning failed: "+err);
+        }
     }
-
-/*
-    // Initialize Cloud connection
-    try{
-        // disable the provisioning
-        stateManager.updateConnectionState( 'provision', 'disabled' );
-
-        // Update the connection parameters from the settings
-        await cloud.updateConnectionParameters({
-                                                    hostName: settings.connection.hostName,
-                                                    deviceId: settings.connection.deviceId,
-                                                    authenticationType: 'x509',
-                                                    certificate: readFileSync( settings.connection.certificateFile ).toString(),
-                                                    privateKey: readFileSync( settings.connection.privateKeyFile ).toString(),
-                                                    rootCertificate: readFileSync( settings.connection.rootCertificateFile ).toString()
-                                                });
-        // Connect the client
-        await cloud.connect();
-    } catch(err){
-        //console.error(err);
-    }*/
 }
 
 initialize();
