@@ -374,12 +374,12 @@ export class AWSClient extends EventEmitter {
 
     /*
      *  Device Provisioning Service
-     *
-     *  https://docs.aws.amazon.com/iot/latest/developerguide/provision-wo-cert.html#claim-based 
+     *  Automated onboarding of devices using Just In Time Provisionig (JITP) by 'fleet provisioning (by claim)'. For registration, a private
+     *  key and certificate must be provided by the device maker (manufacturer).
+     *  
      *  https://aws.amazon.com/blogs/iot/how-to-automate-onboarding-of-iot-devices-to-aws-iot-core-at-scale-with-fleet-provisioning/ 
-     * 
      *  https://docs.aws.amazon.com/iot/latest/developerguide/jit-provisioning.html#jit-provisioning-overview
-     *  https://docs.aws.amazon.com/iot/latest/developerguide/fleet-provision-api.html#register-thing
+     *  https://docs.aws.amazon.com/iot/latest/developerguide/fleet-provision-api.html
      * 
      */
 
@@ -440,9 +440,13 @@ export class AWSClient extends EventEmitter {
                     certificate = response.certificatePem;
                     privateKey = response.privateKey;
                     rootCa = response.rootca?response.rootCa:'';
-                    // Create the registration parameters
+                    // Create the registration
+                    // -> The parameters are parameters passed to the provisioning template!
                     const parameters = {
-                        certificateOwnershipToken: response.certificateOwnershipToken
+                        certificateOwnershipToken: response.certificateOwnershipToken,
+                        parameters:{
+                            SerialNumber: this.provisioningParameters?.clientId
+                        }
                     }
                     // Publish registration request
                     provisioningClient.publish('$aws/provisioning-templates/EdgeBerry-provisioning/provision/json', parameters,mqtt.QoS.AtMostOnce);
@@ -461,7 +465,7 @@ export class AWSClient extends EventEmitter {
 
                     const connectionParameters = {
                         hostName: this.provisioningParameters?.hostName,
-                        deviceId: "some_device_id",
+                        deviceId: response.thingName,
                         authenticationType: 'x509',
                         certificate: certificate,
                         privateKey: privateKey,
