@@ -27,6 +27,16 @@ export type AWSConnectionParameters = {
     rootCertificate?: string;               // X.509 authentication root certificate (root-CA.cert)
 }
 
+/* Types for AWS IoT Core client */
+export type AWSProvisioningParameters = {
+    hostName: string;                       // Name of the AWS endpoint to connect to (e.g. a11fkxltf4r89e-ats.iot.eu-north-1.amazonaws.com)
+    clientId: string;                       // The unique ID (e.g. the serial number)
+    authenticationType: string;             // AWS IoT Core only has X.509 authentication
+    certificate: string;                    // X.509 authentication certificate (<devicename>.cert.pem)
+    privateKey: string;                     // X.509 authentication private key (<devicename>.private.key)
+    rootCertificate?: string;               // X.509 authentication root certificate (root-CA.cert)
+}
+
 export type AWSClientStatus = {
     connecting?:boolean;                    // AWS IoT Core connecting activity
     connected?: boolean;                    // AWS IoT Core connection status
@@ -76,7 +86,7 @@ class DirectMethodResponse {
 
 export class AWSClient extends EventEmitter {
     private connectionParameters: AWSConnectionParameters|null = null;                    // AWS IoT Core connection parameters
-    //private provisioningParameters: AWSDPSParameters|null = null;                       // AWS IoT Core Device Provisioning Service parameters
+    private provisioningParameters: AWSProvisioningParameters|null = null;                // AWS IoT Core Device Provisioning Service parameters
     private clientStatus:AWSClientStatus = { connected: false, provisioning:false };      // AWS IoT Core connection status
     private client:mqtt.MqttClientConnection|null = null;                                 // AWS IoT Core client object
     private directMethods:DirectMethod[] = [];                                            // Direct Methods (not natively supported by AWS IoT Core?)
@@ -364,25 +374,129 @@ export class AWSClient extends EventEmitter {
 
     /*
      *  Device Provisioning Service
-     *  
+     *
+     *  https://docs.aws.amazon.com/iot/latest/developerguide/provision-wo-cert.html#claim-based 
+     *  https://aws.amazon.com/blogs/iot/how-to-automate-onboarding-of-iot-devices-to-aws-iot-core-at-scale-with-fleet-provisioning/ 
+     * 
+     *  https://docs.aws.amazon.com/iot/latest/developerguide/jit-provisioning.html#jit-provisioning-overview
+     *  https://docs.aws.amazon.com/iot/latest/developerguide/fleet-provision-api.html#register-thing
+     * 
      */
 
     /* Update the parameters for the Device Provisioning Service */
     public updateProvisioningParameters( parameters:any ):Promise<string|boolean>{
         return new Promise<string|boolean>((resolve, reject)=>{
+            this.provisioningParameters = parameters;
+            //console.log(this.provisioningParameters);
             return resolve(true);
         });
     }
 
     /* Get the parameters for the Device Provisioning Service */
     public getProvisioningParameters():any|null{
-        return {};
+        return this.provisioningParameters;
     }
 
     /* Provison the AWS IoT Core client using the Device Provisioning Service */
     public provision():Promise<string|boolean>{
-        return new Promise<string|boolean>((resolve, reject)=>{
-            reject('Not implemented');
+        return new Promise<string|boolean>(async(resolve, reject)=>{
+            this.emit('provisioning');
+            // Connect to the Provisioning service using the provisioning parameters
+            
+            if( !this.provisioningParameters ) return reject('Provisioning parameters not set');
+
+            try{
+                // Check the required X.509 parameters
+                if( typeof(this.provisioningParameters.certificate) !== 'string' || typeof(this.provisioningParameters.privateKey) !== 'string' )
+                return reject('X.509 authentication parameters incomplete');
+                // Create the AWS IoT Core client
+                let config_builder = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder(this.provisioningParameters.certificate, this.provisioningParameters.privateKey);
+                // If a root certificate is set, use the root certificate
+                if ( typeof(this.provisioningParameters.rootCertificate) === 'string' && this.provisioningParameters.rootCertificate !== '' ) {
+                    config_builder.with_certificate_authority( this.provisioningParameters.rootCertificate );
+                }
+                // By setting 'clean session' to 'false', the MQTT client will retain its session state when it
+                // reconnects to the broker, enabling it to resume previous subscriptions and receive queued messages.
+                config_builder.with_clean_session(false);
+                // Set the MQTT Client ID
+                config_builder.with_client_id( this.provisioningParameters.clientId );
+                // Set the AWS endpoint (host)
+                config_builder.with_endpoint( this.provisioningParameters.hostName );
+                const config = config_builder.build();
+                // Create the MQTT client
+                const mqttClient = new mqtt.MqttClient();
+                // Create the MQTT connection
+                const provisioningClient = mqttClient.new_connection( config );
+
+
+                var certificate = '';
+                var privateKey = '';
+                var rootCa = '';
+
+                // Subscribe to the device provisioning response
+                provisioningClient.subscribe('$aws/certificates/create/json/accepted', mqtt.QoS.AtLeastOnce, async(topic, payload)=>{
+                    const response = JSON.parse(new TextDecoder().decode(payload));
+                    // The payload contains the new certificate
+                    certificate = response.certificatePem;
+                    privateKey = response.privateKey;
+                    rootCa = response.rootca?response.rootCa:'';
+                    // Create the registration parameters
+                    const parameters = {
+                        certificateOwnershipToken: response.certificateOwnershipToken
+                    }
+                    // Publish registration request
+                    provisioningClient.publish('$aws/provisioning-templates/EdgeBerry-provisioning/provision/json', parameters,mqtt.QoS.AtMostOnce);
+                });
+
+                // Provisioning: subscribe to the certificate creation
+                // rejection topic
+                provisioningClient.subscribe('$aws/certificates/create/json/rejected', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
+                    return reject(new TextDecoder().decode(payload));
+                });
+
+                // Registration: subscribe to the registration accepted topic
+                provisioningClient.subscribe('$aws/provisioning-templates/EdgeBerry-provisioning/provision/json/accepted', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
+                    const response = JSON.parse(new TextDecoder().decode(payload));
+                    console.log(response);
+
+                    const connectionParameters = {
+                        hostName: this.provisioningParameters?.hostName,
+                        deviceId: "some_device_id",
+                        authenticationType: 'x509',
+                        certificate: certificate,
+                        privateKey: privateKey,
+                        rootCertificate: rootCa
+                    }
+                    // Disconnect the provisioning client
+                    provisioningClient.disconnect();
+                    // Emit the connection parameters
+                    this.emit('provisioned', connectionParameters);
+                    return resolve(true);
+                });
+                provisioningClient.subscribe('$aws/provisioning-templates/EdgeBerry-provisioning/provision/json/rejected', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
+                    //console.log("Device provisioning rejected")
+                    return reject(new TextDecoder().decode(payload));
+                });
+
+                // When the provisioning client connects, we request
+                // a certificate by publishing to the create certificate topic
+                provisioningClient.on('connect', ()=>{
+                    //console.log('connected to provisioning service')
+                    provisioningClient.publish('$aws/certificates/create/json', JSON.stringify({parameters:{serialNumber:'blab'}}),mqtt.QoS.AtMostOnce);
+                });
+
+                //provisioningClient.on('disconnect', ()=>{console.log("ProvisioningClient disconnected")});
+                provisioningClient.on('error', (error:any)=>{return reject(error)});
+
+                // Open the AWS IoT Core connection
+                await provisioningClient.connect();
+                // If we got here, everything went fine
+                return resolve(true);
+            } catch(err){
+                this.clientStatus.provisioning = false;
+                this.clientStatus.provisioned = false;
+                return reject(err);
+            }
         });
     }
 }

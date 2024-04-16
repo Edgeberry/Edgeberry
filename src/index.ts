@@ -94,6 +94,26 @@ async function initialize():Promise<void>{
     }
     catch(err){}
 
+
+    // Provision the device
+    try{
+        stateManager.updateConnectionState( 'provision', 'provisioning' );
+        await cloud.updateProvisioningParameters({
+            hostName: settings.provisioning.hostName,
+            clientId: settings.provisioning.clientId,
+            authenticationType: 'x509',
+            certificate: readFileSync( settings.provisioning.certificateFile ).toString(),
+            privateKey: readFileSync( settings.provisioning.privateKeyFile ).toString(),
+            rootCertificate: readFileSync( settings.provisioning.rootCertificateFile ).toString()
+        });
+        // Provision
+        await cloud.provision();
+    }
+    catch(err){
+        console.error("Device provisioning failed: "+err);
+    }
+
+/*
     // Initialize Cloud connection
     try{
         // disable the provisioning
@@ -112,7 +132,7 @@ async function initialize():Promise<void>{
         await cloud.connect();
     } catch(err){
         //console.error(err);
-    }
+    }*/
 }
 
 initialize();
@@ -135,9 +155,23 @@ cloud.on('provisioning', ()=>{
     console.log('\x1b[90mProvisioning the Cloud client... \x1b[37m');
 });
 
-cloud.on('provisioned', ()=>{
+cloud.on('provisioned', async( connectionParameters )=>{
     stateManager.updateConnectionState('provision', 'provisioned');
     console.log('\x1b[32mProvisioning succeeded!\x1b[37m');
+
+    // Connect to the cloud with the parameters provided
+    // by the provisioning service.
+    await cloud.updateConnectionParameters({
+        hostName: connectionParameters.hostName,
+        deviceId: connectionParameters.deviceId,
+        authenticationType: 'x509',
+        certificate: connectionParameters.certificate,
+        privateKey: connectionParameters.privateKey,
+        rootCertificate: connectionParameters.rootCa
+    });
+    // Connect the cloud client
+    await cloud.connect();
+    // TODO: save the connection parameters!
 });
 
 cloud.on('connecting', ()=>{
