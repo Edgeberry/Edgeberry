@@ -1,6 +1,6 @@
 {
   "name": "edgeberry",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "description": "Turn your Raspberry Pi into an IoT edge device!",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",

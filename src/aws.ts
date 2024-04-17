@@ -308,7 +308,7 @@ export class AWSClient extends EventEmitter {
     private async respondToDirectMethod( response:any ){
         // Publish the response
         if( !this.client || !this.connectionParameters?.deviceId ) return;
-        const result = await this.client.publish('edgeberry/things/'+this.connectionParameters.deviceId+'/methods/response',response, mqtt.QoS.AtMostOnce, true );
+        const result = await this.client.publish('edgeberry/things/'+this.connectionParameters.deviceId+'/methods/response/'+response.requestId, response, mqtt.QoS.AtMostOnce, true );
     }
 
     // Register direct methods
