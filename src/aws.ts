@@ -293,7 +293,7 @@ export class AWSClient extends EventEmitter {
             // Find the registered method with this method name
             const directMethod = this.directMethods.find(obj => obj.name === request?.name );
             // If the method is not found, return 'not found' to caller
-            if(!directMethod) return await this.respondToDirectMethod( { status:404, message:'Method not found'});
+            if(!directMethod) return await this.respondToDirectMethod( { status:404, message:'Method not found', requestId: request.requestId });
             // Invoke the direct method
             directMethod.function( request, new DirectMethodResponse( request.requestId, ( response:any )=>{
                 // Send a respons to the invoker

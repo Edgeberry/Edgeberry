@@ -94,6 +94,29 @@ async function initialize():Promise<void>{
     }
     catch(err){}
 
+    // load the settings
+    try{
+        if(settings.provisioning)
+        await cloud.updateProvisioningParameters({
+            hostName: settings.provisioning.hostName,
+            clientId: settings.provisioning.clientId,
+            authenticationType: 'x509',
+            certificate: readFileSync( settings.provisioning.certificateFile ).toString(),
+            privateKey: readFileSync( settings.provisioning.privateKeyFile ).toString(),
+            rootCertificate: readFileSync( settings.provisioning.rootCertificateFile ).toString()
+        });
+        // Update the connection parameters from the settings
+        if(settings.connection)
+        await cloud.updateConnectionParameters({
+            hostName: settings.connection.hostName,
+            deviceId: settings.connection.deviceId,
+            authenticationType: 'x509',
+            certificate: readFileSync( settings.connection.certificateFile ).toString(),
+            privateKey: readFileSync( settings.connection.privateKeyFile ).toString(),
+            rootCertificate: readFileSync( settings.connection.rootCertificateFile ).toString()
+        });
+    } catch (err){}
+
     // If we have connection settings, connect to the cloud using
     // these settings
     if(settings.connection){
@@ -101,16 +124,6 @@ async function initialize():Promise<void>{
         try{
             // disable the provisioning
             stateManager.updateConnectionState( 'provision', 'disabled' );
-
-            // Update the connection parameters from the settings
-            await cloud.updateConnectionParameters({
-                                                        hostName: settings.connection.hostName,
-                                                        deviceId: settings.connection.deviceId,
-                                                        authenticationType: 'x509',
-                                                        certificate: readFileSync( settings.connection.certificateFile ).toString(),
-                                                        privateKey: readFileSync( settings.connection.privateKeyFile ).toString(),
-                                                        rootCertificate: readFileSync( settings.connection.rootCertificateFile ).toString()
-                                                    });
             // Connect the client
             await cloud.connect();
         } catch(err){
@@ -122,16 +135,6 @@ async function initialize():Promise<void>{
     else if(settings.provisioning){
         // Provision the device
         try{
-            stateManager.updateConnectionState( 'provision', 'provisioning' );
-            await cloud.updateProvisioningParameters({
-                hostName: settings.provisioning.hostName,
-                clientId: settings.provisioning.clientId,
-                authenticationType: 'x509',
-                certificate: readFileSync( settings.provisioning.certificateFile ).toString(),
-                privateKey: readFileSync( settings.provisioning.privateKeyFile ).toString(),
-                rootCertificate: readFileSync( settings.provisioning.rootCertificateFile ).toString()
-            });
-            // Provision
             await cloud.provision();
         }
         catch(err){
