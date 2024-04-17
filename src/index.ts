@@ -29,20 +29,11 @@ import connectivityRoutes from './routes/connectivity';
 import systemRoutes from './routes/system';
 import applicationRoutes from './routes/application';
 import { initializeDirectMethodAPI } from "./directMethodAPI";
+import { settings, settings_storeConnectionParameters } from './persistence';
 
 /* State Manager */
 export const stateManager = new StateManager();
 stateManager.updateSystemState('state', 'starting');
-
-/* Use Settings from file */
-try{
-    console.log('\x1b[90mReading settings from settings file...\x1b[37m');
-    var settings = JSON.parse(readFileSync('settings.json').toString());
-    console.log('\x1b[32mSettings read from settings file \x1b[37m');
-} catch(err){
-    console.error('\x1b[31mCould not read settings file! \x1b[37m');
-    // ToDo: create settings file?
-}
 
 /* Express Web/API server */
 const app = express();
@@ -166,6 +157,9 @@ cloud.on('provisioning', ()=>{
 cloud.on('provisioned', async( connectionParameters )=>{
     stateManager.updateConnectionState('provision', 'provisioned');
     console.log('\x1b[32mProvisioning succeeded!\x1b[37m');
+
+    // Save the connection parameters
+    settings_storeConnectionParameters( connectionParameters );
 
     // Connect to the cloud with the parameters provided
     // by the provisioning service.
