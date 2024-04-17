@@ -17,8 +17,6 @@ import express from 'express';
 import { StateManager } from "./stateManager";
 import cors from 'cors';
 import { IPC_Client } from "@spuq/json-ipc";
-// Direct Methods
-//import * as directMethodAPI from "./directMethodAPI";
 // Cloud clients
 import { AzureClient } from "./azure";
 import { AWSClient } from "./aws";
@@ -28,7 +26,9 @@ import { system_beepBuzzer, system_getApplicationInfo, system_getPlatform } from
 import connectivityRoutes from './routes/connectivity';
 import systemRoutes from './routes/system';
 import applicationRoutes from './routes/application';
+// Direct Methods
 import { initializeDirectMethodAPI } from "./directMethodAPI";
+// Persistent settings
 import { settings, settings_storeConnectionParameters } from './persistence';
 
 /* State Manager */
@@ -55,25 +55,7 @@ app.listen( port, ()=>{ console.log('\x1b[32mEdgeBerry UI server running on port
 
 
 /* Azure IoT Hub Connection */
-/*
-export const cloud = new AzureClient();
-
-async function initialize(){
-    try{
-        await cloud.updateProvisioningParameters({ registrationId: settings.provisioning.registrationId,
-                                                   idScope: settings.provisioning.idScope,
-                                                   hostName: settings.provisioning.hostName,
-                                                   authenticationType: settings.provisioning.authenticationType,
-                                                   registrationKey: settings.provisioning.registrationKey
-                                                });
-        // provision the client
-        await cloud.provision();
-        // connect the client
-        await cloud.connect();
-    } catch(err){
-        console.error(err);
-    }
-}*/
+//export const cloud = new AzureClient();
 
 /* AWS IoT Core */
 export const cloud = new AWSClient();

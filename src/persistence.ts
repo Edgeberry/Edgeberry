@@ -60,7 +60,7 @@ export function settings_storeConnectionParameters( params:any ){
         writeFileSync(connectionRootCAFile, '');
     }
 
-
+    // Save the settings to the JSON file
     saveSettings();
 }
 
@@ -96,6 +96,8 @@ export function settings_storeProvisioningParameters( params:any ){
     else{
         writeFileSync(provisioningRootCAFile, '');
     }
+    
+    // Save the settings to the JSON file
     saveSettings();
 }
 
