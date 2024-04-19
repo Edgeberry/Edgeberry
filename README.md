@@ -1,4 +1,4 @@
-![EdgeBerry](brand/EdgeBerry_banner.png)
+![EdgeBerry](assets/EdgeBerry_banner.png)
 
 Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the EdgeBerry project you turn your favorite single-board computer platform into an IoT Edge device in the blink of a cursor!
 
@@ -35,7 +35,7 @@ Note that these pins are controlled by the EdgeBerry application, and should not
 When creating your IoT edge application for EdgeBerry, use the [EdgeBerry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the EdgeBerry application.
 
 ```
-npm install --save @spuq/edgeberry_sdk
+npm install --save @spuq/edgeberry-sdk
 ```
 For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/EdgeBerry-SDK?tab=readme-ov-file#readme).
 
