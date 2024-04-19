@@ -5,7 +5,7 @@
  */
 
 import { cloud, stateManager } from ".";
-import { system_getApplicationInfo, system_getPlatform, system_getWirelessAddress, system_getWirelessSSID, system_restart } from "./system";
+import { system_getApplicationInfo, system_getPlatform, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system";
 
 
 /*
@@ -74,6 +74,17 @@ export function initializeDirectMethodAPI(){
         system_getApplicationInfo()
             .then((appInfo:any)=>{
                 return res.send(appInfo);
+            })
+            .catch((err)=>{
+                return res.status(500).send({message:err});
+            });
+    });
+
+    /* Request system application update */
+    cloud.registerDirectMethod('updateSystemApplication', (req:any, res:any)=>{
+        system_updateApplication()
+            .then((message)=>{
+                return res.send({message:message});
             })
             .catch((err)=>{
                 return res.status(500).send({message:err});
