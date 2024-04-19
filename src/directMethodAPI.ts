@@ -5,6 +5,7 @@
  */
 
 import { cloud, stateManager } from ".";
+import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "./application";
 import { system_getApplicationInfo, system_getPlatform, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system";
 
 
@@ -104,4 +105,45 @@ export function initializeDirectMethodAPI(){
             return res.status(500).send({message:err});
         }
     });
+
+    /*
+     *  Application
+     */
+
+    /* Get the system application info */
+    cloud.registerDirectMethod('getApplicationInfo', async(req:any, res:any)=>{
+        app_getApplicationInfo()
+            .then((appInfo:any)=>{
+                return res.send(appInfo);
+            })
+            .catch((err)=>{
+                return res.status(500).send({message:err});
+            });
+    });
+
+    /* Update the system application */
+    cloud.registerDirectMethod('updateApplication', async(req:any, res:any)=>{
+        return res.send({message:'TODO: implementation'});
+    });
+
+    /* Restart the application */
+    cloud.registerDirectMethod('restartApplication', async(req:any, res:any)=>{
+        try{
+            const result = await app_restartApplication();
+            return res.send({message:result});
+        } catch( err ){
+            return res.status(500).send({message:err});
+        }
+    });
+
+    /* Stop the application */
+    cloud.registerDirectMethod('stopApplication', async(req:any, res:any)=>{
+        try{
+            const result = await app_stopApplication();
+            return res.send({message:result});
+        } catch( err ){
+            return res.status(500).send({message:err});
+        }
+    });
+
 }
