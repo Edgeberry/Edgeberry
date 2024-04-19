@@ -5,7 +5,7 @@
  */
 
 import { cloud, stateManager } from ".";
-import { system_getApplicationInfo, system_getPlatform, system_restart } from "./system";
+import { system_getApplicationInfo, system_getPlatform, system_getWirelessAddress, system_getWirelessSSID, system_restart } from "./system";
 
 
 /*
@@ -78,5 +78,19 @@ export function initializeDirectMethodAPI(){
             .catch((err)=>{
                 return res.status(500).send({message:err});
             });
+    });
+
+    /* Get system network info */
+    cloud.registerDirectMethod('getSystemNetworkInfo', async(req:any, res:any)=>{
+        try{
+            const settings = {
+                ssid: await system_getWirelessSSID(),
+                ipAddress: await system_getWirelessAddress('wlan0')
+            }
+            return res.send(settings);
+        }
+        catch( err ){
+            return res.status(500).send({message:err});
+        }
     });
 }
