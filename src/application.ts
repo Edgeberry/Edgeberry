@@ -23,9 +23,15 @@ export function app_getApplicationInfo():Promise<string|any>{
                 // Loop through processes
                 processes.forEach((process:any) => {
                     if(process.name === 'EdgeBerry_Application'){
+                        try{
+                            var packageJson = JSON.parse(readFileSync('/opt/EdgeBerry_Application/package.json').toString());
+                        }
+                        catch(err){
+                            packageJson = {}
+                        }
                         const data = {
-                            name: (JSON.parse(readFileSync('/opt/EdgeBerry_Application/package.json').toString()))?.name,
-                            version: process.pm2_env.version,
+                            name: packageJson?.name,
+                            version: packageJson?.version,
                             cpuUsage: process.monit.cpu+'%',
                             memUsage: Math.round(parseInt(process.monit.memory)/100000)+' MB',
                             status: process.pm2_env.status

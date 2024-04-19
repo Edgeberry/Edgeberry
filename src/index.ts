@@ -224,12 +224,12 @@ ipc.on('data', async(data:any)=>{
 // Connection status
 ipc.on('connected', ()=>{
     stateManager.updateApplicationState('connection', 'connected');
-    console.log('\x1b[32mApplication connected\x1b[37m');
+    console.log('\x1b[32mSDK: Application connected\x1b[37m');
 });
 
 ipc.on('disconnected', ()=>{
     stateManager.updateApplicationState('connection', 'disconnected');
-    console.error('\x1b[33mApplication disconnected\x1b[37m');
+    console.error('\x1b[33mSDK: Application disconnected\x1b[37m');
 });
 
 setInterval(()=>{

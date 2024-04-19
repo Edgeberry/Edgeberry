@@ -5,6 +5,7 @@
 import { exec, execSync } from "child_process";
 import { stateManager } from ".";
 import pm2 from 'pm2';
+import { readFileSync } from "fs";
 
 /*
  *  Networking
@@ -86,8 +87,15 @@ export function system_getApplicationInfo():Promise<string|any>{
                 // Loop through processes
                 processes.forEach((process:any) => {
                     if(process.name === 'EdgeBerry'){
+                        try{
+                            var packageJson = JSON.parse(readFileSync('/opt/EdgeBerry/package.json').toString());
+                        }
+                        catch(err){
+                            packageJson = {}
+                        }
                         const data = {
-                            version: process.pm2_env.version,
+                            name: packageJson?.name,
+                            version: packageJson?.version,
                             cpuUsage: process.monit.cpu+'%',
                             memUsage: Math.round(parseInt(process.monit.memory)/100000)+' MB',
                             status: process.pm2_env.status

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #   deploy.sh
-#   Deploy the Edge Gateway application to a device on your
+#   Deploy the EdgeBerry application to a device on your
 #   local network using sshpass.
 
 DEFAULT_USER=spuq
