@@ -3,6 +3,7 @@
  */
 import { Router } from "express";
 import { cloud } from "..";
+import { settings_storeProvisioningParameters } from "../persistence";
 const router = Router();
 
 /* Get the cloud client status */
@@ -65,6 +66,7 @@ router.post('/provisioningparameters', async(req:any, res:any)=>{
     
     try{
         await cloud.updateProvisioningParameters( req.body );
+        settings_storeProvisioningParameters( req.body );
         return res.send({message:'Provisioning parameters successfully updated'})
     } catch(err:any){
         return res.status(500).send({message:err.toString()});

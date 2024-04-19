@@ -5,7 +5,7 @@
  */
 
 import { cloud, stateManager } from ".";
-import { system_restart } from "./system";
+import { system_getApplicationInfo, system_getPlatform, system_restart } from "./system";
 
 
 /*
@@ -67,5 +67,16 @@ export function initializeDirectMethodAPI(){
     cloud.registerDirectMethod('identify',async(req:any, res:any)=>{
         stateManager.interruptIndicators('identify');
         return res.send({message:'Identifying system'});
+    });
+
+    /* Get system application info */
+    cloud.registerDirectMethod('getSystemApplicationInfo', (req:any, res:any)=>{
+        system_getApplicationInfo()
+            .then((appInfo:any)=>{
+                return res.send(appInfo);
+            })
+            .catch((err)=>{
+                return res.status(500).send({message:err});
+            });
     });
 }

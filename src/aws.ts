@@ -81,6 +81,7 @@ class DirectMethodResponse {
 
     public status( status:number ){
         this.statuscode = status;
+        return this;                // by returning this, we can chain-call functions (e.g. res.status().send())
     }
 
 }

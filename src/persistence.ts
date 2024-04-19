@@ -67,7 +67,7 @@ export function settings_storeConnectionParameters( params:any ){
 // Store provisioning parameters
 export function settings_storeProvisioningParameters( params:any ){
     var parameters = JSON.parse(JSON.stringify(params));    // hard copy the parameters, otherwise this is by reference
-    settings.connection = parameters;
+    settings.provisioning = parameters;
 
     // Write the certificate file
     if( typeof(parameters.certificate) === 'string' ){
@@ -96,7 +96,7 @@ export function settings_storeProvisioningParameters( params:any ){
     else{
         writeFileSync(provisioningRootCAFile, '');
     }
-    
+
     // Save the settings to the JSON file
     saveSettings();
 }

@@ -97,6 +97,7 @@ export function system_getApplicationInfo():Promise<string|any>{
                     }
                 });
                 pm2.disconnect();
+                return reject("Process for 'EdgeBerry' not found");
             });
         })
     });
