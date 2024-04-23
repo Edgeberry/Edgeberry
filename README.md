@@ -1,10 +1,10 @@
 ![Edgeberry logo](assets/EdgeBerry_banner.png)
 
 
-The IoT Edge is one of the most compelling frontiers in information technology; the domain where the digital realm converges with the physical world through interconnected devices equipped with sensors and actuators. This technology empowers organizations to make data-driven decisions, streamline processes, enhance monitoring capabilities, ... So, for example, you can unload the laundry just-in-time (e.g. smart washing machine) before your partner noticeably gets upset (e.g. wearable heart rate monitor), significantly improving your quality of life.
+The IoT Edge is one of the most compelling frontiers in information technology; the domain where the digital realm converges with the physical world through interconnected devices equipped with sensors and actuators. This technology empowers data-driven decision making, streamlining of processes, enhance monitoring capabilities, ... So, for example, you can unload the laundry just-in-time (_smart washing machine_) before your partner noticeably gets upset (_wearable heart rate monitor_), significantly improving your quality of life.
 
 
-Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the Edgeberry project you turn your favorite single-board computer into an IoT Edge device in the blink of a cursor! Leveraging the robust foundation of this trusted, open-source, and widely supported computing system, EdgeBerry seamlessly integrates essential IoT functionalities allowing you to fully focus on your IoT idea.
+Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the Edgeberry project you turn your favorite single-board computer into an IoT Edge device in the blink of a cursor! Leveraging the robust foundation of this trusted, open-source, and widely supported computing system, EdgeBerry seamlessly integrates essential IoT functionalities allowing you to fully focus on bringing your IoT idea to life.
 
 ##### Edgeberry's device software provides:
 - An intuitive web interface for configuring the cloud connection and managing your application, available on your local network
