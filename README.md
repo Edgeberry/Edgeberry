@@ -1,11 +1,17 @@
 ![EdgeBerry](assets/EdgeBerry_banner.png)
 
-Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the EdgeBerry project you turn your favorite single-board computer platform into an IoT Edge device in the blink of a cursor!
 
-EdgeBerry is a stand-alone software packet that allows you to connect your device to the cloud without having to dive into the details, so you can put all your focus on your application. EdgeBerry comes with an intuitive user interface for configuration and monitoring the cloud connection, available on your local network.
+The IoT Edge is one of the most compelling frontiers in information technology; the domain where the digital realm converges with the physical world through interconnected devices equipped with sensors and actuators. This technology empowers organizations to make data-driven decisions, streamline processes, enhance monitoring capabilities, ... like making sure you finish the laundry just-in-time.
 
-##### Supported IoT platforms:
-- AWS IoT Core
+Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the EdgeBerry project you turn your favorite single-board computer into an IoT Edge device in the blink of a cursor! Leveraging the robust foundation of this trusted, open-source, and widely supported computing system, EdgeBerry seamlessly integrates essential IoT functionalities allowing you to fully focus on your IoT idea.
+
+##### Edgeberry's device software provides:
+- An intuitive web interface for configuring the cloud connection and managing your application, available on your local network
+- Reliable integration of device provisioning and connection processes for several popular IoT platforms
+- A comprihensive SDK to interface your edge device's application to the cloud
+
+##### Integrated IoT platforms:
+- AWS IoT Core (currently recommended)
 - Microsoft Azure IoT Hub
 
 ## Installation
@@ -20,7 +26,7 @@ http://<device_ip_address>:3000
 ```
 
 ### Raspberry Pi I/O setup
-When using Raspberry Pi as your edge device using EdgeBerry, you can add following IO features for a better user experience:
+When using Raspberry Pi as your edge device using EdgeBerry, you can add following features for a better user experience:
 
 | GPIO Pin | Feature          |
 |----------|------------------|
@@ -29,7 +35,7 @@ When using Raspberry Pi as your edge device using EdgeBerry, you can add followi
 | 19       | Red status LED   |
 | 26       | Green status LED |
 
-Note that these pins are controlled by the EdgeBerry application, and should not be used for your application to avoid unexpected behavior.
+These IO pins are controlled by the EdgeBerry application, and should not be used for your application to avoid unexpected behavior.
 
 ## Using the SDK
 When creating your IoT edge application for EdgeBerry, use the [EdgeBerry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the EdgeBerry application.
