@@ -39,7 +39,7 @@ When using Raspberry Pi as your edge device using EdgeBerry, you can add followi
 These IO pins are controlled by the Edgeberry application, and should not be used in your application to avoid unexpected behavior.
 
 # Application development
-When creating your IoT edge application for Edgeberry, use the [Edgeberry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the EdgeBerry application.
+When creating your IoT Edge application with Edgeberry, use the [Edgeberry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the cloud through the Edgeberry platform.
 
 ```
 NodeJS:
@@ -49,10 +49,10 @@ For information on using the SDK, check out the [SDK documentation](https://gith
 
 # Edgeberry Project
 
-The Edgeberry project aims to provide the essentials for using your Raspberry Pi in a wide range of IoT applications, increasing the accessability of the IoT edge.
+The Edgeberry project aims to provide the essentials for using your Raspberry Pi or compatible platform in a wide range of IoT applications, increasing the accessability of the IoT Edge and enabling rapid development of IoT applications.
 
 ### Edgeberry Hardware
-EdgeBerry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a 12V adaptor. Additionally, it includes indicators for providing device feedback and an expansion slot for integrating custom hardware. To improve reliability of your EdgeBerry setup in real-world environment deployments, use the [EdgeBerry enclosure](https://thingiverse.com/SpuQ) for enhanced protection.
+EdgeBerry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a 12V adaptor. Additionally, it includes indicators for providing status feedback, and an expansion slot for integrating custom hardware. To improve reliability of your EdgeBerry setup in real-world environment deployments, use the [EdgeBerry enclosure](https://thingiverse.com/SpuQ) for enhanced protection.
 
 ### Edgeberry Dashboard
 For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io](https://edgeberry.io/dashboard) and connect your IoT platform.
