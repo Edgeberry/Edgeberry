@@ -1,4 +1,4 @@
-![EdgeBerry](assets/EdgeBerry_banner.png)
+![Edgeberry logo](assets/EdgeBerry_banner.png)
 
 
 The IoT Edge is one of the most compelling frontiers in information technology; the domain where the digital realm converges with the physical world through interconnected devices equipped with sensors and actuators. This technology empowers organizations to make data-driven decisions, streamline processes, enhance monitoring capabilities, ... So, for example, you can unload the laundry just-in-time (e.g. smart washing machine) before your partner noticeably gets upset (e.g. wearable heart rate monitor), significantly improving your quality of life.
@@ -15,18 +15,18 @@ Whether you are a weathered engineer making a quick proof-of-concept for an IoT 
 - AWS IoT Core _(currently recommended)_
 - Microsoft Azure IoT Hub
 
-## Installation
-Install the EdgeBerry application by downloading and executing the installation script on your device.
+# Installation
+Install the Edgeberry application by downloading and executing the installation script on your device.
 ```
 wget -O install.sh https://github.com/SpuQ/EdgeBerry/releases/download/v2.3.1/install.sh
 sudo ./install.sh
 ```
-If everything was successful, you can now access your EdgeBerry's web interface on port 3000
+If everything was successful, you can now access your Edgeberry's web interface on port 3000
 ```
 http://<device_ip_address>:3000
 ```
 
-### Raspberry Pi I/O setup
+## Raspberry Pi I/O setup
 When using Raspberry Pi as your edge device using EdgeBerry, you can add following features for a better user experience:
 
 | GPIO Pin | Feature          |
@@ -36,24 +36,29 @@ When using Raspberry Pi as your edge device using EdgeBerry, you can add followi
 | 19       | Red status LED   |
 | 26       | Green status LED |
 
-These IO pins are controlled by the EdgeBerry application, and should not be used for your application to avoid unexpected behavior.
+These IO pins are controlled by the Edgeberry application, and should not be used in your application to avoid unexpected behavior.
 
-## Using the SDK
-When creating your IoT edge application for EdgeBerry, use the [EdgeBerry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the EdgeBerry application.
+# Application development
+When creating your IoT edge application for Edgeberry, use the [Edgeberry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the EdgeBerry application.
 
 ```
+NodeJS:
 npm install --save @spuq/edgeberry-sdk
 ```
 For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/EdgeBerry-SDK?tab=readme-ov-file#readme).
 
-## Edgeberry Hardware
+# Edgeberry Project
+
+The Edgeberry project aims to provide the essentials for using your Raspberry Pi in a wide range of IoT applications, increasing the accessability of the IoT edge.
+
+### Edgeberry Hardware
 EdgeBerry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a 12V adaptor. Additionally, it includes indicators for providing device feedback and an expansion slot for integrating custom hardware. To improve reliability of your EdgeBerry setup in real-world environment deployments, use the [EdgeBerry enclosure](https://thingiverse.com/SpuQ) for enhanced protection.
 
-## Edgeberry Asset manager
+### Edgeberry Dashboard
 For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io](https://edgeberry.io/dashboard) and connect your IoT platform.
 
-## License & Collaboration
-Copyright 2024 Sanne 'SpuQ' Santens. This project is licensed under the [MIT License](LICENSE.txt).
+# License & Collaboration
+Copyright 2024 Sanne 'SpuQ' Santens. The Edgeberry device software is licensed under the [MIT License](LICENSE.txt).
 
 If you'd like to contribute to this project, please follow these guidelines:
 1. Fork the repository and create your branch from `main`.
