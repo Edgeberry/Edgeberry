@@ -4,7 +4,7 @@
 The IoT Edge is one of the most compelling frontiers in information technology; the domain where the digital realm converges with the physical world through interconnected devices equipped with sensors and actuators. This technology empowers organizations to make data-driven decisions, streamline processes, enhance monitoring capabilities, ... So, for example, you can unload the laundry just-in-time (e.g. smart washing machine) before your partner noticeably gets upset (e.g. wearable heart rate monitor), significantly improving your quality of life.
 
 
-Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the EdgeBerry project you turn your favorite single-board computer into an IoT Edge device in the blink of a cursor! Leveraging the robust foundation of this trusted, open-source, and widely supported computing system, EdgeBerry seamlessly integrates essential IoT functionalities allowing you to fully focus on your IoT idea.
+Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the Edgeberry project you turn your favorite single-board computer into an IoT Edge device in the blink of a cursor! Leveraging the robust foundation of this trusted, open-source, and widely supported computing system, EdgeBerry seamlessly integrates essential IoT functionalities allowing you to fully focus on your IoT idea.
 
 ##### Edgeberry's device software provides:
 - An intuitive web interface for configuring the cloud connection and managing your application, available on your local network
@@ -45,6 +45,12 @@ When creating your IoT edge application for EdgeBerry, use the [EdgeBerry SDK](h
 npm install --save @spuq/edgeberry-sdk
 ```
 For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/EdgeBerry-SDK?tab=readme-ov-file#readme).
+
+## Edgeberry Hardware
+EdgeBerry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a 12V adaptor. Additionally, it includes indicators for providing device feedback and an expansion slot for integrating custom hardware. To improve reliability of your EdgeBerry setup in real-world environment deployments, use the [EdgeBerry enclosure](https://thingiverse.com/SpuQ) for enhanced protection.
+
+## Edgeberry Asset manager
+For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io](https://edgeberry.io/dashboard) and connect your IoT platform.
 
 ## License & Collaboration
 Copyright 2024 Sanne 'SpuQ' Santens. This project is licensed under the [MIT License](LICENSE.txt).
