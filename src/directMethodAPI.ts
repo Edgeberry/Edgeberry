@@ -6,7 +6,7 @@
 
 import { cloud, stateManager } from ".";
 import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "./application";
-import { system_getApplicationInfo, system_getPlatform, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system";
+import { system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system";
 
 
 /*
@@ -22,11 +22,14 @@ export function initializeDirectMethodAPI(){
     /* Update the connection parameters */
     cloud.registerDirectMethod('updateConnectionParameters', async(req:any, res:any)=>{
         // Check for the presence of the parameters in the payload
-        if( !req.payload || !req.payload?.parameters )
-        return res.status(400).send({message:'No parameters'});
-
+        if( !req.body )
+        return res.status(400).send({message:'No request body'});
+    
         try{
-            await cloud.updateConnectionParameters( req.payload.parameters );
+            const body = JSON.parse(req.body);
+            if( !body.parameters ) return res.status(400).send({message:'No parameters'});
+    
+            await cloud.updateConnectionParameters( body.parameters );
             return res.send({message:'Successfully updated the connection parameters'});
         } catch(err){
             return res.status(500).send({message:err});
@@ -41,11 +44,14 @@ export function initializeDirectMethodAPI(){
     /* Update the provisioning parameters */
     cloud.registerDirectMethod('updateProvisioningParameters', async(req:any, res:any)=>{
         // Check for the presence of the parameters in the payload
-        if( !req.payload || !req.payload?.parameters )
-        return res.status(400).send({message:'No parameters'});
+        if( !req.body )
+        return res.status(400).send({message:'No request body'});
 
         try{
-            await cloud.updateProvisioningParameters( req.payload.parameters );
+            const body = JSON.parse(req.body);
+            if( !body.parameters ) return res.status(400).send({message:'No parameters'});
+
+            await cloud.updateProvisioningParameters( body.parameters );
             return res.send({message:'Successfully updated the provisioning parameters'});
         } catch(err){
             return res.status(500).send({message:err});
