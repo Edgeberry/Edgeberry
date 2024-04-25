@@ -36,6 +36,17 @@ export function initializeDirectMethodAPI(){
         }
     });
 
+    /* (re)Connect */
+    cloud.registerDirectMethod('reconnect',async(req:any, res:any)=>{
+        try{
+            await cloud.connect();
+            res.send({message:'success'});
+        }
+        catch(err){
+            return res.status(500).send( {message:err} );
+        }
+    });
+
     /* Get the provisioning parameters */
     cloud.registerDirectMethod('getProvisioningParameters',(req:any, res:any)=>{
         return res.send( cloud.getProvisioningParameters() );
@@ -55,6 +66,17 @@ export function initializeDirectMethodAPI(){
             return res.send({message:'Successfully updated the provisioning parameters'});
         } catch(err){
             return res.status(500).send({message:err});
+        }
+    });
+
+    /* (re)Provision */
+    cloud.registerDirectMethod('reprovision',async(req:any, res:any)=>{
+        try{
+            await cloud.provision();
+            res.send({message:'success'});
+        }
+        catch(err){
+            return res.status(500).send( {message:err} );
         }
     });
 

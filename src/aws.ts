@@ -146,7 +146,7 @@ export class AWSClient extends EventEmitter {
             this.emit('connecting');
 
             // Disconnect the client first
-            this.disconnect();
+            //this.disconnect();
 
             // Make sure the connection parameters are set before we continue
             if( !this.connectionParameters ) return reject('Connection parameters not set');
@@ -193,6 +193,8 @@ export class AWSClient extends EventEmitter {
                 // Direct method invocations (Cloud-to-Device) are posted to the /methods/post topic
                 this.client.subscribe('edgeberry/things/'+this.connectionParameters.deviceId+'/methods/post', mqtt.QoS.AtMostOnce, (topic, payload)=>this.handleDirectMethod(topic, payload) );
 
+                // Application
+                this.client.subscribe('application/devices/'+this.connectionParameters.deviceId+'/methods/post', mqtt.QoS.AtMostOnce, (topic, payload)=>{});
 
                 // Register the event listeners
                 this.client.on('connect', ()=>this.clientConnectHandler());
@@ -243,7 +245,7 @@ export class AWSClient extends EventEmitter {
             // Publish the UTF-8 encoded message to topic 'devices/<deviceId>/messages/events'
             try{
                 const result = await this.client.publish(
-                                    'devices/'+this.connectionParameters?.deviceId+'/messages/events',
+                                    'application/devices/'+this.connectionParameters?.deviceId+'/messages/events',
                                     msg,
                                     mqtt.QoS.AtLeastOnce,
                                     false
