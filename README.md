@@ -17,18 +17,18 @@ Whether you are a weathered engineer making a quick proof-of-concept for an IoT 
 - Microsoft Azure IoT Hub
 
 # Installation
-Install the Edgeberry application by downloading and executing the installation script on your device.
+On your device, install the Edgeberry application by downloading and executing the installation script
 ```
 wget -O install.sh https://github.com/SpuQ/EdgeBerry/releases/download/v2.3.1/install.sh
 sudo ./install.sh
 ```
-If everything was successful, you can now access your Edgeberry's web interface
+If everything was successful, you can now access your Edgeberry's web interface in your local network
 ```
 http://<device_ip_address>:3000
 ```
 
 ## Raspberry Pi I/O setup
-When using Raspberry Pi as your edge device using EdgeBerry, you can add following features for a better user experience:
+When using Raspberry Pi as your edge device using Edgeberry, you can add following features for a better user experience:
 
 | GPIO Pin | Feature          |
 |----------|------------------|
@@ -53,7 +53,7 @@ For information on using the SDK, check out the [SDK documentation](https://gith
 The Edgeberry project aims to provide the essentials for using your Raspberry Pi or compatible platform in a wide range of IoT applications, increasing the accessability of the IoT Edge and enabling rapid development of IoT applications.
 
 ### Edgeberry Hardware
-EdgeBerry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a 12V adaptor. Additionally, it includes indicators for providing status feedback, and an expansion slot for integrating custom hardware. To improve durability and reliability of your Edgeberry setup in real-world environments, use the [EdgeBerry enclosure](https://www.thingiverse.com/thing:6595172) for enhanced protection.
+Edgeberry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a 12V adaptor. Additionally, it includes indicators for providing status feedback, and an expansion slot for integrating [custom hardware](https://edgeberry.io). To improve durability and reliability of your Edgeberry setup in real-world environments, use the [Edgeberry enclosure](https://www.thingiverse.com/thing:6595172) for enhanced protection.
 
 ### Edgeberry Dashboard
 For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io](https://edgeberry.io/dashboard) and connect your IoT platform.
