@@ -61,6 +61,10 @@ For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io
 # License & Collaboration
 Copyright 2024 Sanne 'SpuQ' Santens. The Edgeberry device software is licensed under the [MIT License](LICENSE.txt).
 
+**Note:** Edgeberry is released under a permissive license, granting you absolute freedom to utilize this project as you see fit. I've made this choice because I  believe that progress is best achieved through collaboration; by trusting each other's values and intentions, and by freely exchanging knowledge and technology. However, it's crucial to recognize that with great power comes great responsibility. As we gain access to increasingly potent tools and technologies, we possess the capability to create things with real impact. Therefore I ask you, fellow creator, to be mindful about your intentions and inventions.
+
+### Collaboration
+
 If you'd like to contribute to this project, please follow these guidelines:
 1. Fork the repository and create your branch from `main`.
 2. Make your changes and ensure they adhere to the project's coding style and conventions.
