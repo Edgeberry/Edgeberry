@@ -11,7 +11,6 @@
 APPNAME=EdgeBerry
 REPONAME=EdgeBerry
 REPOOWNER=SpuQ
-ACCESSTOKEN=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
 
 # Start a clean screen
 clear;
@@ -124,7 +123,7 @@ fi
 # Check for the latest release of the EdgeBerry application using the
 # GitHub API
 echo -n -e "\e[0mGetting latest ${APPNAME} release \e[0m"
-latest_release=$(curl -H "Authorization: token ${ACCESSTOKEN}" -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/${REPOOWNER}/${REPONAME}/releases/latest")
+latest_release=$(curl -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/${REPOOWNER}/${REPONAME}/releases/latest")
 asset_url=$(echo "$latest_release" | jq -r '.assets[] | select(.name | test("EdgeBerry-v[0-9]+\\.[0-9]+\\.[0-9]+\\.tar\\.gz")) | .url')
 # If we have an asset URL, download the tarball
 if [ -n "$asset_url" ]; then
@@ -133,7 +132,6 @@ if [ -n "$asset_url" ]; then
     echo -n -e "\e[0mDownloading the application \e[0m"
     curl -L \
     -H "Accept: application/octet-stream" \
-    -H "Authorization: Bearer ${ACCESSTOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     -o "repo.tar.gz" \
     "$asset_url" > /dev/null 2>&1
@@ -181,7 +179,7 @@ rm -rf repo.tar.gz
 
 # Get the latest release of the UI
 echo -n -e "\e[0mGetting latest ${APPNAME} UI release \e[0m"
-latest_release=$(curl -H "Authorization: token ${ACCESSTOKEN}" -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/${REPOOWNER}/${REPONAME}-ui/releases/latest")
+latest_release=$(curl -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/${REPOOWNER}/${REPONAME}-ui/releases/latest")
 asset_url=$(echo "$latest_release" | jq -r '.assets[] | select(.name | test("EdgeBerry-UI-v[0-9]+\\.[0-9]+\\.[0-9]+\\.tar\\.gz")) | .url')
 # If we have an asset URL, download the tarball
 if [ -n "$asset_url" ]; then
@@ -190,7 +188,6 @@ if [ -n "$asset_url" ]; then
     echo -n -e "\e[0mDownloading the latest ${APPNAME} UI \e[0m"
     curl -L \
     -H "Accept: application/octet-stream" \
-    -H "Authorization: Bearer ${ACCESSTOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     -o "ui.tar.gz" \
     "$asset_url" > /dev/null 2>&1
