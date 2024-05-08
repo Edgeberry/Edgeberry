@@ -36,9 +36,9 @@ npm install --save @spuq/edgeberry-sdk
 ```
 For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/EdgeBerry-SDK?tab=readme-ov-file#readme).
 <br/>
-| NOTE          |
-|:---------------------------|
-| Following IO pins are controlled by the Edgeberry application, and should not be used in your application to avoid unpredictable behavior. |
+
+> [!IMPORTANT]  
+> Following IO pins are controlled by the Edgeberry application, and should not be used in your application to avoid unpredictable behavior.
 
 | GPIO Pin | Feature          |
 |----------|------------------|
