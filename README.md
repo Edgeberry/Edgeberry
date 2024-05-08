@@ -53,12 +53,11 @@ For information on using the SDK, check out the [SDK documentation](https://gith
 The Edgeberry project aims to provide the essentials for using your Raspberry Pi or compatible platform in a wide range of IoT applications, increasing the accessability of the IoT Edge and enabling rapid development of IoT applications.
 
 ### Edgeberry Hardware
-<img align="left" src="assets/enclosure.jpg" height="200px" style="padding-right: 5px;"/>
+<img align="left" src="assets/hardware.jpg" height="200px" style="padding-right: 5px;"/>
 
 Edgeberry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a 12V adaptor. Additionally, it includes indicators for providing status feedback, and an expansion slot for integrating [custom hardware](https://edgeberry.io).
 
 <br clear="left"/>
-<br/>
 <img align="left" src="assets/enclosure.jpg" height="200px" style="padding-right: 5px;"/>
 
 To improve durability and reliability of your Edgeberry setup in real-world environments, use the [Edgeberry enclosure](https://www.thingiverse.com/thing:6595172) for enhanced protection.
