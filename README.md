@@ -19,7 +19,7 @@ Whether you are a weathered engineer making a quick proof-of-concept for an IoT 
 # Installation
 On your device, install the Edgeberry application by downloading and executing the installation script
 ```
-wget -O install.sh https://github.com/SpuQ/EdgeBerry/releases/download/v2.3.1/install.sh
+wget -O install.sh https://github.com/SpuQ/EdgeBerry/releases/download/v2.3.3/install.sh
 sudo ./install.sh
 ```
 If everything was successful, you can now access your Edgeberry's web interface in your local network
