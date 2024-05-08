@@ -27,18 +27,6 @@ If everything was successful, you can now access your Edgeberry's web interface 
 http://<device_ip_address>:3000
 ```
 
-## Raspberry Pi I/O setup
-When using Raspberry Pi as your edge device using Edgeberry, you can add following features for a better user experience:
-
-| GPIO Pin | Feature          |
-|----------|------------------|
-| 5        | Buzzer           |
-| 6        | Button           |
-| 19       | Red status LED   |
-| 26       | Green status LED |
-
-These IO pins are controlled by the Edgeberry application, and should not be used in your application to avoid unexpected behavior.
-
 # Application development
 When creating your IoT Edge application with Edgeberry, use the [Edgeberry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the cloud through the Edgeberry platform.
 
@@ -47,6 +35,17 @@ NodeJS:
 npm install --save @spuq/edgeberry-sdk
 ```
 For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/EdgeBerry-SDK?tab=readme-ov-file#readme).
+<br/>
+| NOTE          |
+|:---------------------------|
+| Following IO pins are controlled by the Edgeberry application, and should not be used in your application to avoid unpredictable behavior. |
+
+| GPIO Pin | Feature          |
+|----------|------------------|
+| 5        | Buzzer           |
+| 6        | Button           |
+| 19       | Red status LED   |
+| 26       | Green status LED |
 
 # Edgeberry Project
 
