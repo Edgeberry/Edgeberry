@@ -55,7 +55,7 @@ Edgeberry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhanc
 
 <img align="left" src="assets/cartridge.jpg" height="200px" style="padding-right: 5px;"/>
 
-Each IoT application has its own hardware requirements. We've covered the basics with the Edgeberry Hardware, but the rest is up to you! Design your appication-specific hardware to fit with the Edgeberry Hardware.
+Each IoT application has its own hardware requirements. We've covered some of the basics by using Raspberry Pi with the Edgeberry Hardware, but the rest is up to you! Choose a suitable [Edgeberry Hardware Cartridge](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware-cartridge) that fits your application, or [design your own](https://todo-edgeberry-hardware-cartridge-design-guide).
 
 <br clear="left"/>
 
