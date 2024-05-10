@@ -40,7 +40,7 @@ For information on using the SDK, check out the [SDK documentation](https://gith
 > [!IMPORTANT]  
 > Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED, red), **GPIO26** (status LED, green).
 
-# Edgeberry Project
+# The Edgeberry Project
 
 The Edgeberry project aims to provide the essentials for using your Raspberry Pi or compatible platform in a wide range of IoT applications, increasing the accessability of the IoT Edge and enabling rapid development of IoT applications.
 
@@ -73,7 +73,8 @@ For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io
 # License & Collaboration
 Copyright 2024 Sanne 'SpuQ' Santens. The Edgeberry device software is licensed under the [MIT License](LICENSE.txt).
 
-**Note:** Edgeberry is released under a permissive license, granting you absolute freedom to utilize this project as you see fit. I've made this choice because I  believe that progress is best achieved through collaboration; by trusting each other's values and intentions, and by freely exchanging knowledge and technology. However, it's crucial to recognize that with great power comes great responsibility. As we gain access to increasingly potent tools and technologies, we possess the capability to create things with real impact. Therefore I ask you, fellow creator, to be mindful about your intentions and inventions.
+> [!NOTE] 
+> Edgeberry is released under a permissive license, granting you absolute freedom to utilize this project as you see fit. I've made this choice because I believe that progress is best achieved through collaboration; by trusting each other's values and intentions, and by freely exchanging knowledge and technology. However, it's crucial to recognize that with great power comes great responsibility. As we gain access to increasingly potent tools and technologies, we possess the capability to create things with real impact. Therefore I ask you, fellow creator, to be mindful about your intentions and inventions.
 
 ### Collaboration
 
