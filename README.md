@@ -55,18 +55,23 @@ The Edgeberry project aims to provide the essentials for using your Raspberry Pi
 <img align="left" src="assets/hardware.jpg" height="200px" style="padding-right: 5px;"/>
 
 Edgeberry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a 12V adaptor. Additionally, it includes indicators for providing status feedback, and an expansion slot for integrating [custom hardware](https://edgeberry.io).
+
 <br clear="left"/>
 
 ### Edgeberry Hardware Cartridge
 
 <img align="left" src="assets/cartridge.jpg" height="200px" style="padding-right: 5px;"/>
-We're using the Raspberry Pi as our main system, but each IoT application has its own specific hardware requirements. Design your own hardware cartridge to fit in the Edgeberry hardware.
+
+Each IoT application has its own hardware requirements. We've covered the basics with the Edgeberry Hardware, but the rest is up to you! Design your appication-specific hardware to fit with the Edgeberry Hardware.
+
 <br clear="left"/>
 
 ### Edgeberry Enclosure
 
 <img align="left" src="assets/enclosure.jpg" height="200px" style="padding-right: 5px;"/>
-To improve durability and reliability of your Edgeberry setup in real-world environments, use the [Edgeberry enclosure](https://www.thingiverse.com/thing:6595172) for enhanced protection.
+
+We love the sight of bare circuit boards, right? But to improve durability and reliability of your Edgeberry setup in real-world environments, use the [Edgeberry enclosure](https://www.thingiverse.com/thing:6595172) for enhanced protection and some additional style.
+
 <br clear="left"/>
 
 ### Edgeberry Dashboard
