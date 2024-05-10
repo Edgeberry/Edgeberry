@@ -38,14 +38,7 @@ For information on using the SDK, check out the [SDK documentation](https://gith
 <br/>
 
 > [!IMPORTANT]  
-> Following IO pins are controlled by the Edgeberry application, and should not be used in your application to avoid unpredictable behavior.
-
-| GPIO Pin | Feature          |
-|----------|------------------|
-| 5        | Buzzer           |
-| 6        | Button           |
-| 19       | Red status LED   |
-| 26       | Green status LED |
+> Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED, red), **GPIO26** (status LED, green).
 
 # Edgeberry Project
 
