@@ -47,7 +47,8 @@ The Edgeberry project aims to provide the essentials for using your Raspberry Pi
 ### Edgeberry Hardware
 <img align="left" src="assets/hardware.jpg" height="200px" style="padding-right: 5px;"/>
 
-Edgeberry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a regular 12V adaptor. Additionally, it includes indicators for providing visible and audible status feedback, and an expansion slot for integrating application-specific hardware using a [Edgeberry Hardware Cartridge](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware-cartridge).
+Edgeberry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a regular 12V adaptor. Additionally, it includes indicators for providing visible and audible status feedback, and an expansion slot for integrating application-specific hardware using a [Edgeberry Hardware Cartridge](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware-cartridge). Check out the [Assembly Guide](assets/Assembly_Guide.pdf) to tickle your imagination.
+
 
 <br clear="left"/>
 
