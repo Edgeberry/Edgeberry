@@ -69,7 +69,12 @@ We love the sight of bare circuit boards, right? But to improve durability and r
 <br clear="left"/>
 
 ### Edgeberry Dashboard
+
+<img align="left" src="assets/dashboard.png" height="200px" style="padding-right: 5px;"/>
+
 For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io](https://edgeberry.io/dashboard) and connect your IoT platform.
+
+<br clear="left"/>
 
 # License & Collaboration
 Copyright 2024 Sanne 'SpuQ' Santens. The Edgeberry device software is licensed under the [MIT License](LICENSE.txt).
