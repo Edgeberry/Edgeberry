@@ -21,7 +21,7 @@ import { IPC_Client } from "@spuq/json-ipc";
 import { AzureClient } from "./azure";
 import { AWSClient } from "./aws";
 // System features
-import { system_beepBuzzer, system_getApplicationInfo, system_getPlatform } from "./system";
+import { system_beepBuzzer, system_board_getProductId, system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_board_getVendor, system_getApplicationInfo, system_getPlatform } from "./system";
 // API routes
 import connectivityRoutes from './routes/connectivity';
 import systemRoutes from './routes/system';
@@ -114,6 +114,13 @@ async function initialize():Promise<void>{
             console.error("Device provisioning failed: "+err);
         }
     }
+
+    // Initialize the Hardware info
+    console.log("vendor: "+system_board_getVendor());
+    console.log("Product name: "+system_board_getProductName());
+    console.log("Product ID: "+system_board_getProductId());
+    console.log("Product version: "+system_board_getProductVersion());
+    console.log("UUID: "+system_board_getUUID());
 }
 
 initialize();

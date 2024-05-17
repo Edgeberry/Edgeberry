@@ -7,6 +7,80 @@ import { stateManager } from ".";
 import pm2 from 'pm2';
 import { readFileSync } from "fs";
 
+
+/*
+ *  Edgeberry Hardware
+ *  The Edgeberry is a Raspberry Pi 'hat', with an on-board EEPROM that's flashed
+ *  with info and settings. Information about the vendor and the product are found
+ *  in the filesystem under the device tree '/proc/device-tree/hat'
+ */
+const system_board_rootFolder = '/proc/device-tree/hat'
+
+// Get the board vendor
+// The product vendor is a string
+export function system_board_getVendor(){
+    try{
+        const value = readFileSync(system_board_rootFolder+'/vendor');
+        return value;
+    } catch(err){
+        return null;
+    }
+}
+
+// Get the product name
+// The product name is a string
+export function system_board_getProductName(){
+    try{
+        const value = readFileSync(system_board_rootFolder+'/product');
+        return value;
+    } catch(err){
+        return null;
+    }
+}
+
+// Get the product ID
+// The hat's product_id is 2-bytes
+export function system_board_getProductId(){
+    try{
+        const value = readFileSync(system_board_rootFolder+'/product_id');
+        return value;
+    } catch(err){
+        return null;
+    }
+}
+
+// Get the product version
+// The hat's product_ver is 2 bytes. the first byte representing the
+// major version number, the second byte the minor version number (e.g. 0x0104)
+// We'll decode it to a string (e.g. "1.4")
+export function system_board_getProductVersion(){
+    try{
+        // the return value is, for example, "0x0102", we only want everything after the 'x'
+        const value = readFileSync(system_board_rootFolder+'/product_ver').toString().split('x')[1];
+        // convert to buffer of hexadecimal bytes
+        const buffer = Buffer.from(value, 'hex');
+        // first byte is te major number
+        const majorNumber = buffer.readIntBE(0, 1);
+        // second byte is te minor number
+        const minorNumber = buffer.readIntLE(1, 1);
+        // return as a formatted version string
+        return majorNumber+'.'+minorNumber;
+    } catch(err){
+        return null;
+    }
+}
+
+// Get the board's UUID
+// RFC4122 compliant UUID
+export function system_board_getUUID(){
+    try{
+        const value = readFileSync(system_board_rootFolder+'/uuid');
+        return value;
+    } catch(err){
+        return null;
+    }
+}
+
 /*
  *  Networking
  *  Everything related to the networking interfaces
