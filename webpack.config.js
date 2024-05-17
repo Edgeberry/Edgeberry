@@ -13,7 +13,7 @@ module.exports = {
     },
     // Specify where the output bundle should be created
     output: {
-      filename: 'bundle.js',
+      filename: 'index.js',
       libraryTarget: 'commonjs',
       path: path.resolve(__dirname, 'build')
     },
