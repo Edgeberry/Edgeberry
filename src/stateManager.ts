@@ -11,6 +11,9 @@ export type deviceState = {
         platform: string;               // hardware platform
         state: string;                  // Running | Restarting | Updating | Starting
         version: string;                // e.g. 1.1.0
+        board: string|null;             // e.g. 'Edgeberry'
+        board_version: string|null;     // e.g. '1.2'
+        uuid: string|null;              // RFC4122 UUID from EEPROM
     };
     connection:{
         state: string;                  // Provisioning | Connecting | Connected | Disconnected
@@ -35,7 +38,10 @@ export class StateManager extends EventEmitter{
             system:{
                 platform: 'unknown',
                 state: 'unknown',
-                version: 'unknown'
+                version: 'unknown',
+                board: 'unknown',
+                board_version: 'unknown',
+                uuid: 'unknown'
             },
             connection:{
                 state: 'unknown',
@@ -67,10 +73,11 @@ export class StateManager extends EventEmitter{
      */
 
     // Update the system state
-    public updateSystemState( key: keyof deviceState['system'], value:string|number|boolean ):void{
+    public updateSystemState( key: keyof deviceState['system'], value:string|number|boolean|null ):void{
         // update the local state
         if( this.state.system.hasOwnProperty(key)){
-            this.state.system[key] = typeof(value)!=='string'?value.toString():value ;
+            if( value === null) this.state.system[key] === 'unknown';
+            else this.state.system[key] = typeof(value)!=='string'?value.toString():value ;
         }
         this.updateState();
     }

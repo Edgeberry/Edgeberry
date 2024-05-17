@@ -20,7 +20,7 @@ const system_board_rootFolder = '/proc/device-tree/hat'
 // The product vendor is a string
 export function system_board_getVendor(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/vendor');
+        const value = readFileSync(system_board_rootFolder+'/vendor').toString();
         return value;
     } catch(err){
         return null;
@@ -31,7 +31,7 @@ export function system_board_getVendor(){
 // The product name is a string
 export function system_board_getProductName(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/product');
+        const value = readFileSync(system_board_rootFolder+'/product').toString();
         return value;
     } catch(err){
         return null;
@@ -42,7 +42,7 @@ export function system_board_getProductName(){
 // The hat's product_id is 2-bytes
 export function system_board_getProductId(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/product_id');
+        const value = readFileSync(system_board_rootFolder+'/product_id').toString();
         return value;
     } catch(err){
         return null;
@@ -74,7 +74,7 @@ export function system_board_getProductVersion(){
 // RFC4122 compliant UUID
 export function system_board_getUUID(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/uuid');
+        const value = readFileSync(system_board_rootFolder+'/uuid').toString();
         return value;
     } catch(err){
         return null;

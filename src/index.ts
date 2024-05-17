@@ -115,12 +115,10 @@ async function initialize():Promise<void>{
         }
     }
 
-    // Initialize the Hardware info
-    console.log("vendor: "+system_board_getVendor());
-    console.log("Product name: "+system_board_getProductName());
-    console.log("Product ID: "+system_board_getProductId());
-    console.log("Product version: "+system_board_getProductVersion());
-    console.log("UUID: "+system_board_getUUID());
+    // Update the (board) Hardware info in device shadow
+    stateManager.updateSystemState("board", system_board_getProductName() );
+    stateManager.updateSystemState("board_version", system_board_getProductVersion() );
+    stateManager.updateSystemState("uuid", system_board_getUUID() );
 }
 
 initialize();
