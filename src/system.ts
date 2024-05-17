@@ -20,7 +20,7 @@ const system_board_rootFolder = '/proc/device-tree/hat'
 // The product vendor is a string
 export function system_board_getVendor(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/vendor').toString();
+        const value = readFileSync(system_board_rootFolder+'/vendor').toString().replace(/\0.*$/g,'');
         return value;
     } catch(err){
         return null;
@@ -31,7 +31,7 @@ export function system_board_getVendor(){
 // The product name is a string
 export function system_board_getProductName(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/product').toString();
+        const value = readFileSync(system_board_rootFolder+'/product').toString().replace(/\0.*$/g,'');
         return value;
     } catch(err){
         return null;
@@ -74,7 +74,7 @@ export function system_board_getProductVersion(){
 // RFC4122 compliant UUID
 export function system_board_getUUID(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/uuid').toString();
+        const value = readFileSync(system_board_rootFolder+'/uuid').toString().replace(/\0.*$/g,'');
         return value;
     } catch(err){
         return null;
@@ -133,7 +133,7 @@ export function system_restart( timeoutMs?:number ){
 // Get the Raspberry Pi hardware version
 export async function system_getPlatform(){
     try{
-        const piVersion = execSync(`cat /proc/device-tree/model 2>/dev/null`).toString();
+        const piVersion = execSync(`cat /proc/device-tree/model 2>/dev/null`).toString().replace(/\0.*$/g,'');
         return piVersion;
     } catch(err){
         try{
