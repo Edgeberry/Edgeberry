@@ -47,7 +47,7 @@ The Edgeberry project aims to provide the essentials for using your Raspberry Pi
 ### Edgeberry Hardware
 <img align="left" src="assets/hardware.jpg" height="200px" style="padding-right: 5px;"/>
 
-Edgeberry features a [Raspberry Pi-compatible hat](https://edgeberry.io), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a regular 12V adaptor. Additionally, it includes indicators for providing visible and audible status feedback, and an expansion slot for integrating application-specific hardware using a [Edgeberry Hardware Cartridge](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware-cartridge). Check out the [Assembly Guide](assets/Assembly_Guide.pdf) to tickle your imagination.
+Edgeberry features a [Raspberry Pi-compatible hat](https://github.com/SpuQ/Edgeberry-hardware), enhancing its capabilities with a built-in 3A step-down power supply enabling you to power your device reliably using a regular 12V adaptor. Additionally, it includes indicators for providing visible and audible status feedback, and an expansion slot for integrating application-specific hardware using a [Edgeberry Hardware Cartridge](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware-cartridge). Check out the [Assembly Guide](assets/Assembly_Guide.pdf) to tickle your imagination.
 
 
 <br clear="left"/>
@@ -80,7 +80,10 @@ For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io
 Copyright 2024 Sanne 'SpuQ' Santens. The Edgeberry device software is licensed under the [MIT License](LICENSE.txt).
 
 > [!NOTE] 
-> Edgeberry is released under a permissive license, **granting you absolute freedom** to utilize this project as you see fit. I've made this choice because I believe that progress is best achieved through collaboration; by trusting each other's values and intentions, and by freely exchanging knowledge and technology. However, it's crucial to recognize that with great power comes great responsibility. As we gain access to increasingly potent tools and technologies, we possess the capability to create things with real impact. Therefore I ask you, fellow creator, to be mindful about your intentions and inventions. Now set [Earthrise](https://en.wikipedia.org/wiki/Earthrise#/media/File:NASA-Apollo8-Dec24-Earthrise.jpg) as your desktop background image, put on John Lennon's [Imagine](https://www.youtube.com/watch?v=_7IZxXMc_cc&ab_channel=APerfectCircle-Topic) on repeat-forever, and do your thing! :wink:
+> Edgeberry is released under a permissive license, **granting you absolute freedom** to utilize this project as you see fit. I've made this choice because I believe that progress is best achieved through collaboration; by trusting each other's values and intentions, and by freely exchanging knowledge and technology. However, it's crucial to recognize that with great power comes great responsibility. As we gain access to increasingly potent tools and technologies, we possess the capability to create things with real impact. Therefore I ask you, fellow creator, to be mindful about your intentions and inventions.
+
+>[!IMPORTANT]
+>Now set [Earthrise](https://en.wikipedia.org/wiki/Earthrise#/media/File:NASA-Apollo8-Dec24-Earthrise.jpg) as your desktop background image, put on John Lennon's [Imagine](https://www.youtube.com/watch?v=_7IZxXMc_cc&ab_channel=APerfectCircle-Topic) on repeat-forever, and do your thing! :wink:
 
 ### Collaboration
 
