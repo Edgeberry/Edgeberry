@@ -80,7 +80,7 @@ For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry device software is licensed under the **[GNU GPLv3](LICENSE.txt)**.
 
 >[!IMPORTANT]
->When your own application uses the Edgeberry API to interact with the Edgeberry software, **the GNU GPLv3 does not affect your project**, and you are free to publish (or not publish) your project however you like. I know reading "GNU GPL" in a repository can be intimidating, but no worries there!
+>When your own application uses the Edgeberry API to interact with the Edgeberry software, **the GNU GPLv3 does <ins>not</ins> affect your project**, and you are free to publish (or not publish) your project however you like. I know reading "GNU GPL" in a repository can be intimidating, but no worries there!
 
 ### Collaboration
 
