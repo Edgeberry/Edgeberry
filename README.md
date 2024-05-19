@@ -77,13 +77,10 @@ For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io
 <br clear="left"/>
 
 # License & Collaboration
-Copyright 2024 Sanne 'SpuQ' Santens. The Edgeberry device software is licensed under the [MIT License](LICENSE.txt).
-
-> [!NOTE] 
-> Edgeberry is released under a permissive license, **granting you absolute freedom** to utilize this project as you see fit. I've made this choice because I believe that progress is best achieved through collaboration; by trusting each other's values and intentions, and by freely exchanging knowledge and technology. However, it's crucial to recognize that with great power comes great responsibility. As we gain access to increasingly potent tools and technologies, we possess the capability to create things with real impact. Therefore I ask you, fellow creator, to be mindful about your intentions and inventions.
+**Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry device software is licensed under the **[GNU GPLv3](LICENSE.txt)**.
 
 >[!IMPORTANT]
->Now set [Earthrise](https://en.wikipedia.org/wiki/Earthrise#/media/File:NASA-Apollo8-Dec24-Earthrise.jpg) as your desktop background image, put on John Lennon's [Imagine](https://www.youtube.com/watch?v=_7IZxXMc_cc&ab_channel=APerfectCircle-Topic) on repeat-forever, and do your thing! :wink:
+>When your own application uses the Edgeberry API to interact with the Edgeberry software, **the GNU GPLv3 does not affect your project**, and you are free to publish (or not publish) your project however you like. I know reading "GNU GPL" in a repository can be intimidating, but no worries there!
 
 ### Collaboration
 
