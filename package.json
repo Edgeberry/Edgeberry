@@ -3,7 +3,7 @@
   "version": "2.5.0",
   "description": "Turn your Raspberry Pi into an IoT edge device!",
   "author": "Sanne 'SpuQ' Santens",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "private": false,
   "main": "build/index.js",
   "scripts": {
