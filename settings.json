@@ -1,0 +1,11 @@
+{
+  "interface": {
+    "port": 8080
+  },
+  "provisioning": {
+    "hostName": "a11fkxltf4r89e-ats.iot.eu-north-1.amazonaws.com",
+    "certificateFile": "certificates/provisioning_cert.pem",
+    "privateKeyFile": "certificates/provisioning_key.pem",
+    "rootCertificateFile": "certificates/provisioning_rootCA.pem"
+  }
+}

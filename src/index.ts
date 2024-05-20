@@ -76,20 +76,16 @@ async function initialize():Promise<void>{
     // Check if the board ID is the same as the client ID
     // If this is not the case, remove the previous ID settings
     const boardId = system_board_getUUID();
-    if( boardId !== null && boardId !== settings.connection?.deviceId ){
+    if( boardId !== null && boardId !== settings?.connection?.deviceId ){
         console.error('\x1b[33mWarning: The board UUID does not match the Dashboard ID!\x1b[37m');
         console.log('\x1b[90mBoard ID: '+boardId+'\x1b[37m');
-        console.log('\x1b[90mClient ID: '+settings.provisioning.deviceId+'\x1b[37m');
+        console.log('\x1b[90mClient ID: '+settings?.connection?.deviceId+'\x1b[37m');
         // Delete the connection settings
         console.log('\x1b[33mDeleting connection parameters\x1b[37m');
         settings_deleteConnectionParameters();
         // Change the provisioning client ID to the board ID
         console.error('\x1b[90m\tUpdating provisioning clientID to the board UUID\x1b[37m');
         settings.provisioning.clientId = boardId.toString();
-        // TODO this is soooooo dirty!
-            settings.provisioning.certificate = readFileSync( settings.provisioning.certificateFile ).toString();
-            settings.provisioning.privateKey =  readFileSync( settings.provisioning.privateKeyFile ).toString();
-            settings.provisioning.rootCertificate = readFileSync( settings.provisioning.rootCertificateFile ).toString();
         // Save the provisioning parameters
         settings_storeProvisioningParameters( settings.provisioning );
     }
