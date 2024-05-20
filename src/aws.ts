@@ -424,7 +424,7 @@ export class AWSClient extends EventEmitter {
                 // reconnects to the broker, enabling it to resume previous subscriptions and receive queued messages.
                 config_builder.with_clean_session(false);
                 // Set the MQTT Client ID
-                config_builder.with_client_id( 'New_Edgeberry_ID'+this.provisioningParameters.clientId );
+                config_builder.with_client_id( 'Edgeberry-ID'+this.provisioningParameters.clientId );
                 // Set the AWS endpoint (host)
                 config_builder.with_endpoint( this.provisioningParameters.hostName );
                 const config = config_builder.build();
@@ -465,7 +465,7 @@ export class AWSClient extends EventEmitter {
                 // Registration: subscribe to the registration accepted topic
                 provisioningClient.subscribe('$aws/provisioning-templates/EdgeBerry-provisioning/provision/json/accepted', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
                     const response = JSON.parse(new TextDecoder().decode(payload));
-                    console.log(response);
+                    //console.log(response);
 
                     const connectionParameters = {
                         hostName: this.provisioningParameters?.hostName,
