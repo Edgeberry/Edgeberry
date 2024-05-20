@@ -64,6 +64,12 @@ export function settings_storeConnectionParameters( params:any ){
     saveSettings();
 }
 
+// Delete connection parameters
+export function settings_deleteConnectionParameters(){
+    delete settings.connection;
+    saveSettings();
+}
+
 // Store provisioning parameters
 export function settings_storeProvisioningParameters( params:any ){
     var parameters = JSON.parse(JSON.stringify(params));    // hard copy the parameters, otherwise this is by reference

@@ -16,7 +16,6 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <https://www.gnu.org/licenses/>.
- * 
  */
 
 import { readFileSync } from "fs";
@@ -24,11 +23,10 @@ import express from 'express';
 import { StateManager } from "./stateManager";
 import cors from 'cors';
 import { IPC_Client } from "@spuq/json-ipc";
-// Cloud clients
-import { AzureClient } from "./azure";
+// Dashboard cloud client
 import { AWSClient } from "./aws";
 // System features
-import { system_beepBuzzer, system_board_getProductId, system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_board_getVendor, system_getApplicationInfo, system_getPlatform } from "./system";
+import { system_beepBuzzer, system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system";
 // API routes
 import connectivityRoutes from './routes/connectivity';
 import systemRoutes from './routes/system';
@@ -36,7 +34,7 @@ import applicationRoutes from './routes/application';
 // Direct Methods
 import { initializeDirectMethodAPI } from "./directMethodAPI";
 // Persistent settings
-import { settings, settings_storeConnectionParameters } from './persistence';
+import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './persistence';
 
 /* State Manager */
 export const stateManager = new StateManager();
@@ -58,11 +56,7 @@ app.get('*', (req:any, res:any)=>{
     return res.sendFile('index.html',{ root: __dirname+'/public' });
 });
 // Start the webserver
-app.listen( port, ()=>{ console.log('\x1b[32mEdgeBerry UI server running on port '+port+'\x1b[30m')});
-
-
-/* Azure IoT Hub Connection */
-//export const cloud = new AzureClient();
+app.listen( port, ()=>{ console.log('\x1b[32mEdgeberry UI server running on port '+port+'\x1b[30m')});
 
 /* AWS IoT Core */
 export const cloud = new AWSClient();
@@ -70,9 +64,31 @@ export const cloud = new AWSClient();
 async function initialize():Promise<void>{
     // initialize system state
     try{
+        // Update the hardware platform
         stateManager.updateSystemState('platform', (await system_getPlatform()) );
+        // Update the (board) Hardware info
+        stateManager.updateSystemState("board", system_board_getProductName() );
+        stateManager.updateSystemState("board_version", system_board_getProductVersion() );
+        stateManager.updateSystemState("uuid", system_board_getUUID() );
     }
     catch(err){}
+
+    // Check if the board ID is the same as the client ID
+    // If this is not the case, remove the previous ID settings
+    const boardId = system_board_getUUID();
+    if( boardId !== null && boardId !== settings.provisioning.clientId ){
+        console.error('\x1b[33mWarning: The board ID does not match the Dashboard ID!\x1b[37m');
+        console.log('\x1b[90m\tBoard ID: '+boardId+'\x1b[37m');
+        console.log('\x1b[90m\tClient ID: '+settings.provisioning.clientId+'\x1b[37m');
+        // Delete the connection settings
+        console.error('\x1b[33m\tDeleting connection parameters\x1b[37m');
+        settings_deleteConnectionParameters();
+        // Change the provisioning client ID to the board ID
+        console.error('\x1b[33m\tUpdating provisioning ID to the board ID\x1b[37m');
+        settings.provisioning.clientId = boardId.toString();
+        // Save the provisioning parameters
+        settings_storeProvisioningParameters( settings.provisioning );
+    }
 
     // load the settings
     try{
@@ -121,11 +137,6 @@ async function initialize():Promise<void>{
             console.error("Device provisioning failed: "+err);
         }
     }
-
-    // Update the (board) Hardware info in device shadow
-    stateManager.updateSystemState("board", system_board_getProductName() );
-    stateManager.updateSystemState("board_version", system_board_getProductVersion() );
-    stateManager.updateSystemState("uuid", system_board_getUUID() );
 }
 
 initialize();

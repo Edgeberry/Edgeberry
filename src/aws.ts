@@ -424,7 +424,7 @@ export class AWSClient extends EventEmitter {
                 // reconnects to the broker, enabling it to resume previous subscriptions and receive queued messages.
                 config_builder.with_clean_session(false);
                 // Set the MQTT Client ID
-                config_builder.with_client_id( this.provisioningParameters.clientId );
+                config_builder.with_client_id( 'New_Edgeberry_ID'+this.provisioningParameters.clientId );
                 // Set the AWS endpoint (host)
                 config_builder.with_endpoint( this.provisioningParameters.hostName );
                 const config = config_builder.build();
@@ -432,7 +432,6 @@ export class AWSClient extends EventEmitter {
                 const mqttClient = new mqtt.MqttClient();
                 // Create the MQTT connection
                 const provisioningClient = mqttClient.new_connection( config );
-
 
                 var certificate = '';
                 var privateKey = '';
