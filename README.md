@@ -57,9 +57,9 @@ We love the sight of bare circuit boards, right? But to improve durability and r
 
 ### Edgeberry Dashboard
 
-<img src="assets/dashboard.png"/>
+<img src="assets/dashboard.png" style="border: 1px solid #1c1c1c"/>
 
-Use the [Edgeberry Dashboard](https://edgeberry.io/dashboard) or managing all your Edgeberry devices in one place. Wherever they are, wherever you are.
+Use the [Edgeberry Dashboard](https://edgeberry.io/dashboard) for managing all your Edgeberry devices in one place. Wherever they are, wherever you are, you're always connected.
 
 
 # License & Collaboration
