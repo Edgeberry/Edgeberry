@@ -1,4 +1,4 @@
-![Edgeberry logo](assets/EdgeBerry_banner.png)
+![Edgeberry logo](assets/Edgeberry_banner.png)
 
 
 The IoT Edge is one of the most compelling frontiers in information technology; the domain where the digital realm converges with the physical world through interconnected devices equipped with sensors and actuators. This technology empowers data-driven decision making, streamlining of processes, enhanced monitoring capabilities, ... So, for example, you can unload the laundry just-in-time (_smart washing machine_) before your partner noticeably gets upset (_wearable heart rate monitor_), significantly improving your quality of life.
@@ -6,20 +6,10 @@ The IoT Edge is one of the most compelling frontiers in information technology; 
 
 Whether you are a weathered engineer making a quick proof-of-concept for an IoT solution, or a student of the information technology arts dipping your toes in the shallow part of the connected devices pool. With the Edgeberry project you turn your favorite single-board computer into an IoT Edge device in the blink of a cursor! Leveraging the robust foundation of this trusted, open-source, and widely supported computing system, Edgeberry seamlessly integrates essential IoT functionalities allowing you to fully focus on bringing your IoT idea to life.
 
-##### Edgeberry's device software provides:
-- An intuitive web interface for configuring the cloud connection and managing your application, available on your local network
-- Reliable integration of device provisioning and connection processes for several popular IoT platforms
-- A comprihensive SDK to interface your edge device application to the cloud
-- Out-of-the-box compatibility with the Edgeberry Dashboard
-
-##### Integrated IoT platforms:
-- AWS IoT Core _(currently recommended)_
-- Microsoft Azure IoT Hub
-
 # Installation
 On your device, install the Edgeberry application by downloading and executing the installation script
 ```
-wget -O install.sh https://github.com/SpuQ/EdgeBerry/releases/download/v2.3.3/install.sh
+wget -O install.sh https://github.com/SpuQ/Edgeberry/releases/download/v2.4.0/install.sh
 sudo ./install.sh
 ```
 If everything was successful, you can now access your Edgeberry's web interface in your local network
@@ -28,14 +18,10 @@ http://<device_ip_address>:3000
 ```
 
 # Application development
-When creating your IoT Edge application with Edgeberry, use the [Edgeberry SDK](https://github.com/SpuQ/EdgeBerry-SDK) for interacting with the cloud through the Edgeberry platform.
+When creating your IoT Edge application with Edgeberry, use the **Edgeberry SDK**.
 
-```
-NodeJS:
-npm install --save @spuq/edgeberry-sdk
-```
-For information on using the SDK, check out the [SDK documentation](https://github.com/SpuQ/EdgeBerry-SDK?tab=readme-ov-file#readme).
-<br/>
+> [!WARNING]
+> The SDK is currently undergoing substantial changes in architecture. Because of this, no information is currently available or published. But we'll get to it as soon as possible!
 
 > [!IMPORTANT]  
 > Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED, red), **GPIO26** (status LED, green).
