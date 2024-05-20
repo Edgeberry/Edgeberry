@@ -10,6 +10,7 @@ Whether you are a weathered engineer making a quick proof-of-concept for an IoT 
 On your device, install the Edgeberry application by downloading and executing the installation script
 ```
 wget -O install.sh https://github.com/SpuQ/Edgeberry/releases/download/v2.4.0/install.sh
+chmod +x ./install.sh
 sudo ./install.sh
 ```
 If everything was successful, you can now access your Edgeberry's web interface in your local network
@@ -56,11 +57,10 @@ We love the sight of bare circuit boards, right? But to improve durability and r
 
 ### Edgeberry Dashboard
 
-<img align="left" src="assets/dashboard.png" height="200px" style="padding-right: 5px;"/>
+<img src="assets/dashboard.png"/>
 
-For managing your fleet of Edgeberry devices, create an account on [Edgeberry.io](https://edgeberry.io/dashboard) and connect your IoT platform.
+Use the [Edgeberry Dashboard](https://edgeberry.io/dashboard) or managing all your Edgeberry devices in one place. Wherever they are, wherever you are.
 
-<br clear="left"/>
 
 # License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry device software is licensed under the **[GNU GPLv3](LICENSE.txt)**.
