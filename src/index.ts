@@ -25,7 +25,7 @@ import cors from 'cors';
 // Dashboard cloud client
 import { AWSClient } from "./aws";
 // System features
-import { system_beepBuzzer, system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system";
+import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system";
 // API routes
 import connectivityRoutes from './routes/connectivity';
 import systemRoutes from './routes/system';
@@ -34,8 +34,8 @@ import applicationRoutes from './routes/application';
 import { initializeDirectMethodAPI } from "./directMethodAPI";
 // Persistent settings
 import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './persistence';
-// IPC
-import './ipc';
+// Commandline Interface (for inter-process communication)
+import './cli';
 
 /* State Manager */
 export const stateManager = new StateManager();
@@ -199,6 +199,9 @@ cloud.on('warning', (warning)=>{
 
 cloud.on('status', (status)=>{});
 
+// TODO:
+// We did it this way to reduce constant data exchange with the 'device shadow',
+// but we should report each state update independantly.
 stateManager.on('state', (state)=>{
     // Update the system state
     cloud.updateState('system', state )
@@ -206,42 +209,12 @@ stateManager.on('state', (state)=>{
         .catch(()=>{});
 });
 
-// Test sending messages
-/*setInterval(()=>{
-    cloud.sendMessage({data:'blub ik ben een string', properties:[{key:"zee", value:"meermin"}]})
-},3000);*/
-
-
-// Initialize Direct Method API
-initializeDirectMethodAPI();
-
 /*
- *  EdgeBerry SDK
- *  Communication with another application through 
- *  inter-process communication.
- 
-const ipc = new IPC_Client( true , "EdgeBerry-SDK","./sdk-ipc");
-
-// receiving data from the other process
-ipc.on('data', async(data:any)=>{
-    //console.log(data);
-    // When a method is called from the IPC
-    if(data?.method){
-        switch(data.method){
-            case 'beep':        system_beepBuzzer('short');
-                                break;
-            // Send Message
-            case 'sendMessage': if(!data?.data || !data?.properties) return;
-                                try{
-                                    await cloud.sendMessage( {data:data.data, properties:data.properties} );
-                                } catch(err){}
-                                break;
-            // Unrecognized method
-            default:
-                                break;
-        }
-    }
-});*/
+ *  Initialize Direct Method API
+ *  The 'Direct Method API' is for direct communication with the Dashboard. It enables
+ *  the dashboard to make function calls and receive responses from the device.
+ */
+initializeDirectMethodAPI();
 
 // When we got here, the system has started
 stateManager.updateSystemState('state', 'running');

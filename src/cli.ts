@@ -1,8 +1,9 @@
 /*
  *  Edgeberry CLI
  *  InterProcess Communication using stdin for interacting with Edgeberry
+ *  through the attachment to PM2.
  * 
- *  Example: $ pm2 send 0 hello
+ *  Example: $ pm2 send 0 identify
  */
 
 import { stateManager } from ".";
