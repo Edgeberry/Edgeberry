@@ -128,8 +128,10 @@ export class StateManager extends EventEmitter{
     // Interrupt te status indicators for a special event
     public interruptIndicators( event?:string ){
         switch( event ){
-            case 'identify':    system_beepBuzzer('long');
-                                system_setStatusLed( 'green', 30, 'red' );
+            case 'identify':    system_setStatusLed( 'green', 40, 'red' );
+                                system_beepBuzzer('short');
+                                setTimeout(()=>{system_beepBuzzer('short')},150);
+                                setTimeout(()=>{system_beepBuzzer('short')},300);
                                 break;
             case 'beep'     :   system_beepBuzzer('short');
                                 break;
