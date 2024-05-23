@@ -114,7 +114,7 @@ export async function system_getWirelessAddress( networkInterface:string ){
 
 // Reboot the system
 export function system_restart( timeoutMs?:number ){
-    stateManager.updateSystemState('state', 'rebooting');
+    stateManager.updateSystemState('state', 'restarting');
     try{
         if( typeof(timeoutMs) !== 'number' ){
             // Reboot Now
@@ -188,6 +188,7 @@ export function system_getApplicationInfo():Promise<string|any>{
 // Update system application
 export function system_updateApplication():Promise<string>{
     return new Promise<string>((resolve, reject)=>{
+        stateManager.updateSystemState('state','updating');
         try{
             const URL = "https://github.com/SpuQ/EdgeBerry/archive/refs/heads/main.tar.gz"
             const TMPDIR = "/tmp/EdgeBerry"

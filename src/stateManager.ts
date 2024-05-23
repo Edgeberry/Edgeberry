@@ -103,7 +103,12 @@ export class StateManager extends EventEmitter{
     // LED and buzzer indicators
     private updateStatusIndication():void{
         if( this.state.system.state !== 'running' ){
-            system_setStatusLed( 'red' );
+            switch( this.state.system.state ){
+                case 'updating':    system_setStatusLed( 'orange', 70, 'red' );
+                                    break;
+                default:            system_setStatusLed( 'red', true );
+                                    break;
+            }
         }
         else if( this.state.connection.provision === 'disabled' ||
                  this.state.connection.provision === 'provisioned'){
