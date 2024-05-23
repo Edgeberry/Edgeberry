@@ -45,7 +45,7 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "mkdir ~/
 
 # Copy project to the device
 echo -e '\e[0;32mCopying project to device...\e[m'
-sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./webpack.config.js ${USER}@${HOST}:temp/
+sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./webpack.config.js ./edgeberry_cli.sh ${USER}@${HOST}:temp/
 
 # Install the application on remote device
 sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF 
@@ -71,6 +71,10 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
 
     echo -e '\e[0;32mBuilding the project... \e[m'
     npm run build --verbose
+
+    # Create the symlink to the application's CLI script
+    echo -e '\e[0;32mCreating CLI symlink... \e[m'
+    ln -s $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
 
     # (re)start application
     echo -e '\e[0;32mRestarting the application... \e[m'

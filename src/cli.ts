@@ -4,6 +4,8 @@
  *  through the attachment to PM2.
  * 
  *  Example: $ pm2 send 0 identify
+ *  resources:
+ *      https://fig.io/manual/pm2/logs
  */
 
 import { stateManager } from ".";
