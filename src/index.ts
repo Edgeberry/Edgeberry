@@ -22,7 +22,6 @@ import { readFileSync } from "fs";
 import express from 'express';
 import { StateManager } from "./stateManager";
 import cors from 'cors';
-import { IPC_Client } from "@spuq/json-ipc";
 // Dashboard cloud client
 import { AWSClient } from "./aws";
 // System features
@@ -35,6 +34,8 @@ import applicationRoutes from './routes/application';
 import { initializeDirectMethodAPI } from "./directMethodAPI";
 // Persistent settings
 import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './persistence';
+// IPC
+import './ipc';
 
 /* State Manager */
 export const stateManager = new StateManager();
@@ -70,6 +71,8 @@ async function initialize():Promise<void>{
         stateManager.updateSystemState("board", system_board_getProductName() );
         stateManager.updateSystemState("board_version", system_board_getProductVersion() );
         stateManager.updateSystemState("uuid", system_board_getUUID() );
+        // Update the app info
+        stateManager.updateSystemState('version', (await system_getApplicationInfo())?.version );
     }
     catch(err){}
 
@@ -194,11 +197,7 @@ cloud.on('warning', (warning)=>{
     console.error('\x1b[33mCloud Connection: '+warning+'\x1b[37m');
 });
 
-
-cloud.on('status', (status)=>{
-    // inform the application about the status
-    ipc.send( status );
-});
+cloud.on('status', (status)=>{});
 
 stateManager.on('state', (state)=>{
     // Update the system state
@@ -220,7 +219,7 @@ initializeDirectMethodAPI();
  *  EdgeBerry SDK
  *  Communication with another application through 
  *  inter-process communication.
- */
+ 
 const ipc = new IPC_Client( true , "EdgeBerry-SDK","./sdk-ipc");
 
 // receiving data from the other process
@@ -242,34 +241,8 @@ ipc.on('data', async(data:any)=>{
                                 break;
         }
     }
-});
-
-// Connection status
-ipc.on('connected', ()=>{
-    stateManager.updateApplicationState('connection', 'connected');
-    console.log('\x1b[32mSDK: Application connected\x1b[37m');
-});
-
-ipc.on('disconnected', ()=>{
-    stateManager.updateApplicationState('connection', 'disconnected');
-    console.error('\x1b[33mSDK: Application disconnected\x1b[37m');
-});
-
-setInterval(()=>{
-    ipc.send({ping:'ping'});
-},2000);
-
-
-// ToDo: Update state with system version etc!
-async function setDeviceState() {
-    try{
-        const sysAppInfo = await system_getApplicationInfo()
-        stateManager.updateSystemState('version', sysAppInfo?.version );
-    } catch( err ){
-        console.error('\x1b[33mDevice State not updated '+err+'\x1b[37m');
-    }
-}
-setDeviceState();
+});*/
 
 // When we got here, the system has started
 stateManager.updateSystemState('state', 'running');
+

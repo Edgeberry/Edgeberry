@@ -45,7 +45,6 @@
     "webpack-node-externals": "^3.0.0"
   },
   "dependencies": {
-    "@spuq/json-ipc": "^1.1.0",
     "aws-iot-device-sdk-v2": "^1.19.1",
     "azure-iot-device": "^1.18.3",
     "azure-iot-device-mqtt": "^1.16.3",
