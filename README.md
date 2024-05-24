@@ -5,7 +5,7 @@ The Edgeberry Device Software is lorem ipsum dolores si amet ...
 # Installation
 On your device, install the Edgeberry application by downloading and executing the installation script
 ```
-wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/download/2.4.4/install.sh;
+wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/download/v2.4.4/install.sh;
 chmod +x ./install.sh;
 sudo ./install.sh;
 ```
