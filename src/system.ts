@@ -214,9 +214,10 @@ export function system_updateApplication():Promise<string>{
                         exit 0;
             `,(err)=>{
                 if(err) return reject('Error: '+err);
-                setTimeout(()=>{exec(`pm2 restart ${APPNAME}`)},1000);
+                // Restart system application and resolve
                 stateManager.updateSystemState('state','restart');
-                return resolve('Application updated, restarting now');
+                setTimeout(()=>{resolve('Application updated, restarting now')});
+                setTimeout(()=>{exec(`pm2 restart ${APPNAME}`)},1000);
             });
         } catch(err){
             return reject('Error: '+err);
