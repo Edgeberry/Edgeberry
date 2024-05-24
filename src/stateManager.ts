@@ -100,16 +100,33 @@ export class StateManager extends EventEmitter{
         //this.updateState();
     }
 
-    // LED and buzzer indicators
+    /*
+     *  Device Status Indicators
+     *  The status indicators are essential to provide local visible and autdible
+     *  feedback to the user about the current state of the device, in an intuitive
+     *  way. This part of the code manages the status indicators.
+     * 
+     *  e.g.    -> slowly blinking green means intuitively 'steady, as she goes'
+     *          -> red blinking fast is 'very critical error', need attention
+     *          -> constant red or nothing, meaning 'I died, game over'.
+     */
+
     private updateStatusIndication():void{
+        // SYSTEM STATUS has priority over any other system
+        // state, because everything else depends on it.
         if( this.state.system.state !== 'running' ){
             switch( this.state.system.state ){
+                // Preforming system software update
                 case 'updating':    system_setStatusLed( 'orange', 70, 'red' );
                                     break;
+                // Anything else is probably a critical error
                 default:            system_setStatusLed( 'red', true );
                                     break;
             }
         }
+        // CLOUD CONNECTION STATUS is next in line, if the system is
+        // ok. For most IoT application, a constant connection to the
+        // cloud is an essential aspect.
         else if( this.state.connection.provision === 'disabled' ||
                  this.state.connection.provision === 'provisioned'){
 
@@ -133,6 +150,8 @@ export class StateManager extends EventEmitter{
     // Interrupt te status indicators for a special event
     public interruptIndicators( event?:string ){
         switch( event ){
+            // Device identifyication appears a key feature for instantly
+            // knowing which device on the dashboard is which physical device
             case 'identify':    system_setStatusLed( 'green', 40, 'red' );
                                 system_beepBuzzer('short');
                                 setTimeout(()=>{system_beepBuzzer('short')},150);
