@@ -5,7 +5,7 @@
 import { exec, execSync } from "child_process";
 import { stateManager } from ".";
 import pm2 from 'pm2';
-import { readFileSync, stat } from "fs";
+import { readFileSync } from "fs";
 
 
 /*
@@ -160,9 +160,9 @@ export function system_getApplicationInfo():Promise<string|any>{
                 if (err) return reject(err);
                 // Loop through processes
                 processes.forEach((process:any) => {
-                    if(process.name === 'EdgeBerry'){
+                    if(process.name === 'Edgeberry'){
                         try{
-                            var packageJson = JSON.parse(readFileSync('/opt/EdgeBerry/package.json').toString());
+                            var packageJson = JSON.parse(readFileSync('/opt/Edgeberry/package.json').toString());
                         }
                         catch(err){
                             packageJson = {}
@@ -179,7 +179,7 @@ export function system_getApplicationInfo():Promise<string|any>{
                     }
                 });
                 pm2.disconnect();
-                return reject("Process for 'EdgeBerry' not found");
+                return reject("Process for 'Edgeberry' not found");
             });
         })
     });
@@ -215,7 +215,7 @@ export function system_updateApplication():Promise<string>{
             `,(err)=>{
                 if(err) return reject('Error: '+err);
                 // Restart system application and resolve
-                stateManager.updateSystemState('state','restart');
+                stateManager.updateSystemState('state','restarting');
                 setTimeout(()=>{resolve('Application updated, restarting now')});
                 setTimeout(()=>{exec(`pm2 restart ${APPNAME}`)},1000);
             });
