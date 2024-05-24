@@ -1,6 +1,6 @@
 {
   "name": "edgeberry",
-  "version": "2.4.1",
+  "version": "2.4.4",
   "description": "Edgeberry device software",
   "author": "Sanne 'SpuQ' Santens",
   "license": "GPL-3.0-only",
@@ -45,6 +45,7 @@
     "webpack-node-externals": "^3.0.0"
   },
   "dependencies": {
+    "aws-crt": "^1.21.2",
     "aws-iot-device-sdk-v2": "^1.19.1",
     "azure-iot-device": "^1.18.3",
     "azure-iot-device-mqtt": "^1.16.3",
