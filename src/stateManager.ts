@@ -119,6 +119,9 @@ export class StateManager extends EventEmitter{
                 // Preforming system software update
                 case 'updating':    system_setStatusLed( 'orange', 70, 'red' );
                                     break;
+                // Rebooting the system
+                case 'restarting':  system_setStatusLed( 'red');
+                                    break;
                 // Anything else is probably a critical error
                 default:            system_setStatusLed( 'red', true );
                                     break;
