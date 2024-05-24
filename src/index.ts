@@ -52,9 +52,9 @@ app.use('/api/connectivity', connectivityRoutes );
 app.use('/api/system', systemRoutes );
 app.use('/api/application', applicationRoutes );
 // Serve the public directory and a static HTML index file
-app.use(express.static( __dirname+'build/public/'));
+app.use(express.static( __dirname+'/public/'));
 app.get('*', (req:any, res:any)=>{
-    return res.sendFile('index.html',{ root: __dirname+'/build/public' });
+    return res.sendFile('index.html',{ root: __dirname+'/public' });
 });
 // Start the webserver
 app.listen( port, ()=>{ console.log('\x1b[32mEdgeberry UI server running on port '+port+'\x1b[30m')});
@@ -90,7 +90,7 @@ async function initialize():Promise<void>{
         console.error('\x1b[90m\tUpdating provisioning clientID to the board UUID\x1b[37m');
         settings.provisioning.clientId = boardId.toString();
         // Save the provisioning parameters
-        // settings_storeProvisioningParameters( settings.provisioning );
+        // settings_storeProvisioningParameters( settings.provisioning ); --- this currently erases cert/key files -_-
     }
 
     // load the settings

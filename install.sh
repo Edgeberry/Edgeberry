@@ -269,15 +269,6 @@ fi
 # Create the symlink to the application's CLI script
 echo -e '\e[0;32mCreating CLI symlink... \e[m'
 ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
-# Test the CLI API
-echo -e '\e[0;32mTesting CLI API... \e[m'
-edgeberry identify;
-if [ $? -eq 0 ]; then
-    echo -e "\e[0;32m[Success]\e[0m"
-else
-    echo -e "\e[0;33mFailed! Exit.\e[0m";
-    exit 1;
-fi
 
 # We're done. Some notes before
 # we're leaving.
@@ -287,7 +278,8 @@ echo ""
 
 ip_address=$(awk '/inet / && $2 != "127.0.0.1"{print $2}' <(ifconfig))
 echo -e "Access the \033[1m${APPNAME} web interface\033[0m on your local network by"
-echo -e "opening a browser and going to \033[4mhttp://${ip_address}:3000\033[0m"
+echo -e "opening a browser and going to \033[4mhttp://${ip_address}:3000\033[0m, and try"
+echo -e "out the commandline interface by executing \033[4m$ sudo edgeberry identify\033[0m"
 echo ""
 
 # Exit success

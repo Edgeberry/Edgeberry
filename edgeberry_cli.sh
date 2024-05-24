@@ -57,7 +57,7 @@ EOF
     ;;
 
   "identify")
-    APPID=$(pm2 id EdgeBerry | sed -z 's/[^0-9]*//g')
+    APPID=$(pm2 id $APPNAME | sed -z 's/[^0-9]*//g')
     pm2 send $APPID $1 2>&1 > /dev/null
     # Check if command succeeded
     if [ $? -eq 0 ]; then
