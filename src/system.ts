@@ -5,7 +5,7 @@
 import { exec, execSync } from "child_process";
 import { stateManager } from ".";
 import pm2 from 'pm2';
-import { readFileSync } from "fs";
+import { readFileSync, stat } from "fs";
 
 
 /*
@@ -114,11 +114,11 @@ export async function system_getWirelessAddress( networkInterface:string ){
 
 // Reboot the system
 export function system_restart( timeoutMs?:number ){
-    stateManager.updateSystemState('state', 'restarting');
+    stateManager.updateSystemState('state', 'rebooting');
     try{
         if( typeof(timeoutMs) !== 'number' ){
             // Reboot Now
-            setTimeout(()=>{exec(`shutdown -r now`)},1000);
+            setTimeout(()=>{exec(`shutdown -r now`)},1500);
         }
         else{
             // Reboot after timeout 
@@ -190,9 +190,9 @@ export function system_updateApplication():Promise<string>{
     return new Promise<string>((resolve, reject)=>{
         stateManager.updateSystemState('state','updating');
         try{
-            const URL = "https://github.com/SpuQ/EdgeBerry/archive/refs/heads/main.tar.gz"
-            const TMPDIR = "/tmp/EdgeBerry"
-            const APPNAME = "EdgeBerry"
+            const URL = "https://github.com/Edgeberry/Edgeberry/archive/refs/heads/main.tar.gz"
+            const TMPDIR = "/tmp/Edgeberry"
+            const APPNAME = "Edgeberry"
 
             exec(`
                         mkdir -p ${TMPDIR}
@@ -215,6 +215,7 @@ export function system_updateApplication():Promise<string>{
             `,(err)=>{
                 if(err) return reject('Error: '+err);
                 setTimeout(()=>{exec(`pm2 restart ${APPNAME}`)},1000);
+                stateManager.updateSystemState('state','restart');
                 return resolve('Application updated, restarting now');
             });
         } catch(err){
