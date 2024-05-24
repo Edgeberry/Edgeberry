@@ -18,7 +18,10 @@ http://<device_ip_address>:3000
 In your own application, you can send commands to the **Edgeberry CLI**.
 
 > [!WARNING]
-> The SDK is currently undergoing substantial changes in architecture. Because of this, no information is currently available or published. But we'll get to it as soon as possible!
+> The **Edgeberry CLI** is under active development. Run the 'help' command to get an overview of its current possibilities.
+```
+sudo edgeberry help
+```
 
 > [!IMPORTANT]  
 > Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED, red), **GPIO26** (status LED, green).
