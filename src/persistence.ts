@@ -2,10 +2,11 @@
  *  Settings file
  */
 
+import { execSync } from "child_process";
 import { readFileSync, writeFileSync } from "fs";
 
 const settingsFilePath = 'settings.json';
-const certificatesFolder = 'certificates'
+const certificatesFolder = 'certificates';
 // Provisioning certificates
 const provisioningCertificateFile = certificatesFolder+'/provisioning_cert.pem';
 const provisioningPrivateKeyFile = certificatesFolder+'/provisioning_key.pem';
@@ -20,8 +21,10 @@ export var settings:any = {};
 // attempt to read the settings from the file
 try{
     console.log('\x1b[90mReading settings from settings file...\x1b[37m');
+    console.log(''+execSync('pwd'));
     settings = JSON.parse(readFileSync(settingsFilePath).toString());
     console.log('\x1b[32mSettings read from settings file \x1b[37m');
+    console.log(settings);
 } catch(err){
     console.error('\x1b[31mCould not read settings file! \x1b[37m');
     // ToDo: create settings file?
