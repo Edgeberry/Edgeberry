@@ -23,7 +23,7 @@
 #   along with this program. If not, see <https://www.gnu.org/licenses/>.
 ##
 
-APPNAME="EdgeBerry"
+APPNAME="Edgeberry"
 
 if [ $# -eq 0 ]
   then
