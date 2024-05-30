@@ -160,8 +160,8 @@ export class StateManager extends EventEmitter{
             // knowing which device on the dashboard is which physical device
             case 'identify':    system_setStatusLed( 'green', 40, 'red' );
                                 system_beepBuzzer('short');
-                                setTimeout(()=>{system_beepBuzzer('short')},150);
-                                setTimeout(()=>{system_beepBuzzer('short')},300);
+                                setTimeout(()=>{system_beepBuzzer('short')},110);
+                                setTimeout(()=>{system_beepBuzzer('short')},220);
                                 break;
             case 'beep'     :   system_beepBuzzer('short');
                                 break;
