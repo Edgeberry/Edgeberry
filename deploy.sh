@@ -80,7 +80,8 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
 
     # Create the symlink to the application's CLI script
     echo -e '\e[0;32mCreating CLI symlink... \e[m'
-    ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
+    ln -sf $APPDIR/edgeberry_cli.sh /usr/local/bin/edgeberry
+
 
     # (re)start application
     echo -e '\e[0;32mRestarting the application... \e[m'
