@@ -295,11 +295,35 @@ async function initialize(){
         execSync('pinctrl set 26 op dl >/dev/null 2>&1');
         // initialize the red LED (gpio19) as digital output (and digital low)
         execSync('pinctrl set 19 op dl >/dev/null 2>&1');
-
         // initialize the buzzer (gpio5) as digital output (and digital low)
         execSync('pinctrl set 5 op dl >/dev/null 2>&1');
+
     } catch (err){
-        console.error('\x1b[31mStatus indicators not inititialized!\x1b[37m');
+        console.error('\x1b[31mEdgeberry Hardware outputs not inititialized!\x1b[37m');
+        console.error('\x1b[31m'+err+'\x1b[37m');
+    }
+
+    // initialize the button
+    try{
+
+        // We've tried libraries like 'onoff', but that doesn't work for every
+        // model because it uses the BCM pin numbers, which differ for each Pi.
+        // So for now we'll just poll the pin. #ThisIsWhyImHot
+        execSync('pinctrl set 6 ip');
+        setInterval(async()=>{
+            try{
+                // With pinctrl we get the value with some overhead, with sed we get out the 'hi' or 'lo'
+                const state = execSync("pinctrl get 6 | sed -n 's/.*| \\([^ ]*\\).*/\\1/p'").toString().split('\n')[0];
+                buttonEventHandler(state);
+            }
+            catch(err){
+                
+            }
+        }, 500);
+    }
+    catch(err){
+        console.error('\x1b[31mEdgeberry button not inititialized!\x1b[37m');
+        console.error('\x1b[31m'+err+'\x1b[37m');
     }
 }
 
@@ -345,5 +369,52 @@ function setBuzzerState( state:string ){
         }
     } catch(err){
         // Todo: do something with this error
+    }
+}
+
+// Button
+// Initialize pin 6 as GPIO that triggers on both
+// flanks
+let lastValue = 'hi'        // stores the last known button value - default is 'hi' (button is active low)
+let pressStart = 0;         // stores the time when a button was pressed
+
+function buttonEventHandler(value:string){
+    // Check for rising or falling edge
+    if( value !== lastValue ){
+        lastValue = value;
+        switch(value){
+            // rising edge (button release)
+            case 'hi':  buttonPressTime(Date.now())
+                        break;
+            // falling edge (button press)
+            case 'lo':  pressStart = Date.now();
+                        break;
+            default:    console.log('something odd happened with the button value');
+                        break;
+        }
+    }
+}
+
+// Button press time
+// Calculate the time the button has been pressed,
+// relatively (short/long/...) and call the appropriate
+// function
+function buttonPressTime( pressEnd:number ){
+    // 10 second press or longer
+    if( (pressStart + 10000) < pressEnd){
+        // TODO: Reset device to defaults
+    }
+    // 5 second press
+    else if((pressStart + 5000) <= pressEnd){
+        system_restart();
+    }
+    // long press
+    else if((pressStart + 1700) <= pressEnd ){
+        // TODO: User API 'long press' event
+    }
+    // short press
+    else{
+        // TODO: User API 'short press' event
+        system_beepBuzzer('short');
     }
 }
