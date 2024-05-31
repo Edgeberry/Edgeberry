@@ -6,7 +6,7 @@
 
 import { cloud, stateManager } from ".";
 import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "./application";
-import { system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system";
+import { system_button, system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system";
 
 
 /*
@@ -33,6 +33,29 @@ export function initializeDirectMethodAPI(){
             return res.send({message:'Successfully updated the connection parameters'});
         } catch(err){
             return res.status(500).send({message:err});
+        }
+    });
+
+    /*
+     *  Link To User Account
+     *  When linking the device to a user account, the user must press the
+     *  button in the claim procedure.
+     */
+    cloud.registerDirectMethod('linkToUserAccount',async(req:any, res:any)=>{
+        try{
+            // Indcator in link modus
+            stateManager.interruptIndicators('link');
+            // After 10 seconds, time's up
+            setTimeout(()=>{
+                return res.status(408).send( {message:'too slow'} );
+            }, 10*1000);
+            // Return success if the button is clicked
+            system_button.on('click',()=>{
+                return res.send( {message:'success'} );
+            });
+        }
+        catch(err){
+            return res.status(500).send( {message:err} );
         }
     });
 

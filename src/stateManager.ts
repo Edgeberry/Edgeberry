@@ -163,7 +163,9 @@ export class StateManager extends EventEmitter{
                                 setTimeout(()=>{system_beepBuzzer('short')},110);
                                 setTimeout(()=>{system_beepBuzzer('short')},220);
                                 break;
-            case 'beep'     :   system_beepBuzzer('short');
+            case 'beep':        system_beepBuzzer('short');
+                                break;
+            case 'link':        system_setStatusLed( 'green', 40 );
                                 break;
             default:            system_beepBuzzer('short');
                                 break;
