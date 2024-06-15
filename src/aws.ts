@@ -17,6 +17,9 @@ import { mqtt, iot } from 'aws-iot-device-sdk-v2';
 import { EventEmitter } from "events";
 import { TextDecoder, TextEncoder } from 'util';
 
+// The AWS IoT Core provisioning template name
+const provisioningTemplateName = "Edgeberry-provisioning-template"; 
+
 /* Types for AWS IoT Core client */
 export type AWSConnectionParameters = {
     hostName: string;                       // Name of the AWS endpoint to connect to (e.g. a11fkxltf4r89e-ats.iot.eu-north-1.amazonaws.com)
@@ -453,17 +456,18 @@ export class AWSClient extends EventEmitter {
                         }
                     }
                     // Publish registration request
-                    provisioningClient.publish('$aws/provisioning-templates/EdgeBerry-provisioning/provision/json', parameters,mqtt.QoS.AtMostOnce);
+                    provisioningClient.publish('$aws/provisioning-templates/'+provisioningTemplateName+'/provision/json', parameters,mqtt.QoS.AtMostOnce);
                 });
 
                 // Provisioning: subscribe to the certificate creation
                 // rejection topic
                 provisioningClient.subscribe('$aws/certificates/create/json/rejected', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
+                    console.error("Provisioning: Certificate creation rejected: "+new TextDecoder().decode(payload));
                     return reject(new TextDecoder().decode(payload));
                 });
 
                 // Registration: subscribe to the registration accepted topic
-                provisioningClient.subscribe('$aws/provisioning-templates/EdgeBerry-provisioning/provision/json/accepted', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
+                provisioningClient.subscribe('$aws/provisioning-templates/'+provisioningTemplateName+'/provision/json/accepted', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
                     const response = JSON.parse(new TextDecoder().decode(payload));
                     //console.log(response);
 
