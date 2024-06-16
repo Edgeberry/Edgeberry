@@ -1,10 +1,9 @@
 {
   "name": "edgeberry",
-  "version": "2.4.4",
+  "version": "2.5.0",
   "description": "Edgeberry device software",
   "author": "Sanne 'SpuQ' Santens",
   "license": "GPL-3.0-only",
-  "private": false,
   "main": "build/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -25,7 +24,6 @@
     "raspberry",
     "pi",
     "aws",
-    "azure",
     "mqtt"
   ],
   "bugs": {

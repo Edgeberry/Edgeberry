@@ -27,36 +27,50 @@ APPNAME="Edgeberry"
 
 if [ $# -eq 0 ]
   then
-    echo "No arguments were passed. Run 'edgeberry help' for info."
+    echo "No arguments were passed. Run 'edgeberry --help' for info."
     exit -1;
 fi
 
 case $1 in
 
-  "help")
+  "--help")
+    echo ""
     echo -e "Edgeberry CLI:"
-    column -t -s'--' << EOF 
-        start       --Start the $APPNAME application
-        stop        --Stop the $APPNAME application
-        restart     --Restart the $APPNAME application
-                    --
-        identify    --Beep the buzzer and blink the LED to identify this device
+    echo ""
+    column -t -s'&&' << EOF
+      --help      &&This helpful information sheet 
+      --setup     &&Setup the $APPNAME variables
+      --version   &&Version of the $APPNAME application
+                  &&
+      --start     &&Start the $APPNAME application
+      --stop      &&Stop the $APPNAME application
+      --restart   &&Restart the $APPNAME application
+                  &&
+      --identify  &&Physically identify this device with indicators
 EOF
+    echo ""
+    ;;
+  "--setup")
+    bash /opt/$APPNAME/setup.sh
     ;;
 
-  "start")
+  "--version"|"-v")
+    jq -r .version /opt/$APPNAME/package.json
+    ;;
+
+  "--start")
     pm2 start $APPNAME
     ;;
 
-  "stop")
+  "--stop")
     pm2 stop $APPNAME
     ;;
 
-  "restart")
+  "--restart")
     pm2 restart $APPNAME
     ;;
 
-  "identify")
+  "--identify")
     APPID=$(pm2 id $APPNAME | sed -z 's/[^0-9]*//g')
     pm2 send $APPID $1 2>&1 > /dev/null
     # Check if command succeeded
