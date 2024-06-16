@@ -171,8 +171,8 @@ export class AWSClient extends EventEmitter {
                 config_builder.with_client_id( this.connectionParameters.deviceId );
                 // Set the AWS endpoint (host)
                 config_builder.with_endpoint( this.connectionParameters.hostName );
-                // Set keep alive to 20 seconds (more agressive connectivity checks)
-                config_builder.with_keep_alive_seconds( 20 );
+                // Set keep alive to 240 seconds (more agressive connectivity checks - default is 1200 seconds)
+                config_builder.with_keep_alive_seconds( 240 );
                 const config = config_builder.build();
 
                 // Create the MQTT client
