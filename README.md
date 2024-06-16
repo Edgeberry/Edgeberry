@@ -1,15 +1,15 @@
-![Edgeberry logo](assets/Edgeberry_banner.png)
+![Edgeberry Banner](https://raw.githubusercontent.com/Edgeberry/.github/main/brand/EdgeBerry_banner_device_software.png)
 
-The Edgeberry Device Software is lorem ipsum dolores si amet ...
+The **Edgeberry Device Software** connects your device to the Edgeberry Dashboard, enabeling remote device management. It manages the on-board status indicators for providing useful feedback and assigns essential functions, like device reset, to the physical button. The Edgeberry Device Software offers a commandline interface for interacting with the software.
 
-# Installation
-On your device, install the Edgeberry application by downloading and executing the installation script
+## Installation
+On your device, install the Edgeberry Device Software by downloading and executing the installation script
 ```
 wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/latest/download/install.sh;
 chmod +x ./install.sh;
 sudo ./install.sh;
 ```
-If everything was successful, you can now access your Edgeberry's web interface in your local network
+If the installation was successful, you can now access your Edgeberry's web interface from your local network
 ```
 http://<device_ip_address>:3000
 ```
@@ -18,19 +18,19 @@ or you can access the Edgeberry Commandline Interface (CLI):
 $ sudo edgeberry --help
 ```
 
-# Application development
+## Application development
 In your own application, you can send commands to the **Edgeberry CLI**.
 
 > [!WARNING]
 > The **Edgeberry CLI** is under active development. Run the 'help' command to get an overview of its current possibilities.
 ```
-sudo edgeberry help
+sudo edgeberry --help
 ```
 
 > [!IMPORTANT]  
 > Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED, red), **GPIO26** (status LED, green).
 
-# License & Collaboration
+## License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry device software is licensed under the **[GNU GPLv3](LICENSE.txt)**.
 
 >[!IMPORTANT]
