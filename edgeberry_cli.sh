@@ -46,8 +46,9 @@ case $1 in
       --stop      &&Stop the $APPNAME application
       --restart   &&Restart the $APPNAME application
                   &&
-      --identify  &&Physically identify this device with indicators
       --hardware-id &&Get this device's hardware UUID
+      --hardware-version &&Get the device's base board version
+      --identify  &&Physically identify this device with indicators
 EOF
     echo ""
     ;;
@@ -90,6 +91,18 @@ EOF
       echo "null"
     fi
     ;;
+
+    "--hardware-version")
+    if [ -f /proc/device-tree/hat/product_ver ]; then
+      hex_version=$(tr -d '\0' </proc/device-tree/hat/product_ver);
+      echo "$((16#${hex_version:2:2})).$((16#${hex_version:4:2}))";
+      exit 0;
+    else
+      echo "null"
+      exit -1;
+    fi
+    ;;
+
 
   *)
     echo "Unknown command. Run 'edgeberry help' for info."
