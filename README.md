@@ -20,15 +20,12 @@ $ sudo edgeberry --help
 
 ## Application development
 In your own application, you can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
-
-> [!WARNING]
-> The **Edgeberry CLI** is under active development. Run the 'help' command to get an overview of its current possibilities.
 ```
 sudo edgeberry --help
 ```
 
-  
-**Note:** Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/Edgeberry/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED red), **GPIO26** (status LED green).
+#### Important  
+Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/Edgeberry/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED red), **GPIO26** (status LED green).
 
 ## License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**.
