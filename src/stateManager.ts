@@ -163,9 +163,13 @@ export class StateManager extends EventEmitter{
                                 setTimeout(()=>{system_beepBuzzer('short')},110);
                                 setTimeout(()=>{system_beepBuzzer('short')},220);
                                 break;
+            // Just a little beep
             case 'beep':        system_beepBuzzer('short');
                                 break;
-            case 'link':        system_setStatusLed( 'green', 40 );
+            // When the device announces the procedure to link this
+            // device to a user account on the dashboard.
+            case 'link':        system_beepBuzzer('short');
+                                system_setStatusLed( 'green', 40 );
                                 break;
             default:            system_beepBuzzer('short');
                                 break;
