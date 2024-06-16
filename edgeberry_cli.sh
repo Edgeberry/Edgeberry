@@ -47,6 +47,7 @@ case $1 in
       --restart   &&Restart the $APPNAME application
                   &&
       --identify  &&Physically identify this device with indicators
+      --hardware-id &&Get this device's hardware UUID
 EOF
     echo ""
     ;;
@@ -78,6 +79,15 @@ EOF
         exit 0;
     else
         exit -1;
+    fi
+    ;;
+
+  "--hardware-id")
+    if [ -f /proc/device-tree/hat/uuid ]; then
+      cat /proc/device-tree/hat/uuid
+      echo ""
+    else
+      echo "null"
     fi
     ;;
 
