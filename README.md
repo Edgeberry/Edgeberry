@@ -19,7 +19,7 @@ $ sudo edgeberry --help
 ```
 
 ## Application development
-In your own application, you can send commands to the **Edgeberry CLI**.
+In your own application, you can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
 
 > [!WARNING]
 > The **Edgeberry CLI** is under active development. Run the 'help' command to get an overview of its current possibilities.
@@ -27,14 +27,11 @@ In your own application, you can send commands to the **Edgeberry CLI**.
 sudo edgeberry --help
 ```
 
-> [!IMPORTANT]  
-> Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/SpuQ/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED, red), **GPIO26** (status LED, green).
+  
+**Note:** Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/Edgeberry/EdgeBerry?tab=readme-ov-file#edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED red), **GPIO26** (status LED green).
 
 ## License & Collaboration
-**Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry device software is licensed under the **[GNU GPLv3](LICENSE.txt)**.
-
->[!IMPORTANT]
->When your own application uses the Edgeberry API to interact with the Edgeberry software, **the GNU GPLv3 does <ins>not</ins> affect your project**, and you are free to publish (or not publish) your project however you like. I know reading "GNU GPL" in a repository can be intimidating, but no worries there!
+**Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**.
 
 ### Collaboration
 
