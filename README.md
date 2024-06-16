@@ -5,13 +5,17 @@ The Edgeberry Device Software is lorem ipsum dolores si amet ...
 # Installation
 On your device, install the Edgeberry application by downloading and executing the installation script
 ```
-wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/download/v2.4.7/install.sh;
+wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/latest/download/install.sh;
 chmod +x ./install.sh;
 sudo ./install.sh;
 ```
 If everything was successful, you can now access your Edgeberry's web interface in your local network
 ```
 http://<device_ip_address>:3000
+```
+or you can access the Edgeberry Commandline Interface (CLI):
+```
+$ sudo edgeberry --help
 ```
 
 # Application development
