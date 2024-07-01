@@ -36,19 +36,6 @@ touch $CERTDIR/provisioning_cert.pem
 touch $CERTDIR/provisioning_key.pem
 touch $CERTDIR/provisioning_rootCA.pem
 
-read -p "Hostname: " HOSTNAME
-if [[ -z "$HOSTNAME" ]]; then
-    echo -e "\e[0;31mHostname cannot be empty\e[0m"
-    echo -e "\e[0mExit\e[0m"
-    exit 1;
-fi
-
-# Populate the provisioning certificate file
-echo -e "\e[0mPopulating the provisioning certificate file...\e[0m"
-nano $CERTDIR/provisioning_cert.pem
-# Populate the provisioning private key file
-echo -e "\e[0mPopulating the provisioning private key...\e[0m"
-nano $CERTDIR/provisioning_key.pem
 
 # Get the UUID from the EEPROM of the device - if it's not
 # present, generate a clientId
@@ -61,6 +48,41 @@ else
     echo -e "\e[0mGenerating a random ID\e[0m"
     UUID=Edgeberry_$(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 32)
 fi
+
+# Get the provisioning data from the Dashboard.
+# This requires an official Edgeberry Hardware ID
+echo -e "\e[0mGetting device provisioning data from $APPNAME Dashboard...\e[0m"
+PROVISIONINGDATA=$(curl --silent -X GET -d "{\"hardwareId\":\"$UUID\"}" -H 'Content-Type: application/json' https://dashboard.edgeberry.io/api/things/provisioningparameters )
+if [[ -n "$PROVISIONINGDATA" ]]; then
+    PROVHOSTNAME=$(echo "$PROVISIONINGDATA" | jq -r '.endpoint')
+    PROVCERT=$(echo "$PROVISIONINGDATA" | jq -r ".certificate")
+    PROVKEY=$(echo "$PROVISIONINGDATA" | jq -r ".privateKey")
+fi
+
+read -e -i "$PROVHOSTNAME" -p "Hostname: " HOSTNAME
+if [[ -z "$HOSTNAME" ]]; then
+    if [[ "$PROVHOSTNAME" != "null" ]]; then
+        HOSTNAME=$PROVHOSTNAME;
+    fi
+    if [[ -z "$HOSTNAME" ]]; then
+        echo -e "\e[0;31mHostname cannot be empty\e[0m"
+        echo -e "\e[0mExit\e[0m"db46f9d6-f5e0-471d-a52f-a5aec5abcc3b
+        exit 1;
+    fi
+fi
+
+# Populate the provisioning certificate file
+echo -e "\e[0mPopulating the provisioning certificate file...\e[0m"
+if [[ "$PROVCERT" != "null" ]]; then
+    echo -e "$PROVCERT" > $CERTDIR/provisioning_cert.pem
+fi
+nano $CERTDIR/provisioning_cert.pem
+# Populate the provisioning private key file
+echo -e "\e[0mPopulating the provisioning private key...\e[0m"
+if [[ "$PROVCERT" != "null" ]]; then
+    echo -e "$PROVKEY" > $CERTDIR/provisioning_key.pem
+fi
+nano $CERTDIR/provisioning_key.pem
 
 
 # Create the settings file
