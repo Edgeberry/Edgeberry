@@ -77,12 +77,12 @@ EOF
   
   "--disable")
     pm2 stop $APPNAME
-    pm2 save $APPNAME
+    pm2 save
     ;;
 
   "--enable")
     pm2 start $APPNAME
-    pm2 save $APPNAME
+    pm2 save
     ;;
 
   "--identify")
