@@ -42,6 +42,9 @@ case $1 in
       --setup     &&Setup the $APPNAME variables
       --version   &&Version of the $APPNAME application
                   &&
+      --enable    &&Enable the $APPNAME application (enabled by default)
+      --disable   &&Disable the $APPNAME application
+                  &&
       --start     &&Start the $APPNAME application
       --stop      &&Stop the $APPNAME application
       --restart   &&Restart the $APPNAME application
@@ -70,6 +73,16 @@ EOF
 
   "--restart")
     pm2 restart $APPNAME
+    ;;
+  
+  "--disable")
+    pm2 stop $APPNAME
+    pm2 save $APPNAME
+    ;;
+
+  "--enable")
+    pm2 start $APPNAME
+    pm2 save $APPNAME
     ;;
 
   "--identify")
@@ -102,7 +115,6 @@ EOF
       exit -1;
     fi
     ;;
-
 
   *)
     echo "Unknown command. Run 'edgeberry help' for info."
