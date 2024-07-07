@@ -2,9 +2,9 @@
 
 ##
 #   deploy.sh
-#   For development on the Edgeberry Device Software, this
-#   script automates the deployment of your current project
-#   to an Edgeberry device on your local network (using sshpass).
+#   For Edgeberry Device Software development, this script
+#   automates the deployment of your current project to an
+#   Edgeberry device on your local network (using sshpass).
 ##
 
 DEFAULT_USER=spuq
