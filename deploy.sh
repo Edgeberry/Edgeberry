@@ -27,12 +27,12 @@ echo -e '\e[0;33m For accessing the remote device, the  \e[m'
 echo -e '\e[0;33m login credentials are required.       \e[m'
 echo -e '\e[0;33m-------------------------------------- \e[m'
 # Enter the IP address of the Edgeberry device
-read -p "Host ($DEFAULT_HOST): " HOST
+read -e -i "$DEFAULT_HOST" -p "Hostname: " HOST
 if [[ -z "$HOST" ]]; then
     HOST=$DEFAULT_HOST
 fi
 # Enter the remote user name
-read -p "User ($DEFAULT_USER): " USER
+read -e -i "$DEFAULT_USER" -p "User: " USER
 if [[ -z "$USER" ]]; then
     USER=$DEFAULT_USER
 fi
