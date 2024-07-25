@@ -26,7 +26,7 @@ fi
 echo -e "Starting the \033[1m${APPNAME} Device Software\033[0m installation process..."
 echo -e "Some steps can take a while with few feedback, but just have patience.\033[0m"
 echo ""
-echo -e "\e[0;33mNOTE: Please ensure a stable internet connecton. Some parts of\e[0m";
+echo -e "\e[0;33mNOTE: Please ensure a stable internet connection. Some parts of\e[0m";
 echo -e "\e[0;33mthe installation process are known to stall when internet is very\e[0m";
 echo -e "\e[0;33mslow or connection is temporarly lost. If this happens, just retry\e[0m";
 echo -e "\e[0;33mthe installation process.\e[0m";
