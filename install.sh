@@ -255,6 +255,7 @@ case "$response" in
         bash ./setup.sh
         ;;
 esac
+
 ##
 #   Finish installation
 ##
