@@ -293,7 +293,7 @@ echo ""
 ip_address=$(awk '/inet / && $2 != "127.0.0.1"{print $2}' <(ifconfig))
 echo -e "Access the \033[1m${APPNAME} web interface\033[0m on your local network by"
 echo -e "opening a browser and going to \033[4mhttp://${ip_address}:3000\033[0m, and try"
-echo -e "out the commandline interface by executing \033[4m$ sudo edgeberry identify\033[0m"
+echo -e "out the commandline interface by executing \e[3m$ sudo edgeberry --identify\033[0m"
 echo ""
 
 # Exit success
