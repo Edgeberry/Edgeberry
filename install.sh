@@ -274,6 +274,16 @@ ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
 echo -e '\e[0;32mInstalling D-Bus policy... \e[m'
 mv -f /opt/$APPNAME/edgeberry-dbus.conf /etc/dbus-1/system.d/
 
+# Prompt the user to run the setup script
+read -r -p "Run setup? [Y/n]: " response
+case "$response" in
+    [nN])
+        ;;
+    *) 
+        bash ./setup.sh
+        ;;
+esac
+
 # We're done. Some notes before
 # we're leaving.
 echo ""

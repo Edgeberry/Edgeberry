@@ -66,7 +66,7 @@ if [[ -z "$HOSTNAME" ]]; then
     fi
     if [[ -z "$HOSTNAME" ]]; then
         echo -e "\e[0;31mHostname cannot be empty\e[0m"
-        echo -e "\e[0mExit\e[0m"db46f9d6-f5e0-471d-a52f-a5aec5abcc3b
+        echo -e "\e[0mExit\e[0m"
         exit 1;
     fi
 fi
