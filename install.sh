@@ -239,6 +239,7 @@ fi
 rm -rf ui.tar.gz
 
 # Create the symlink to the application's CLI script
+cd /opt/${APPNAME}
 echo -e '\e[0;32mCreating CLI symlink... \e[m'
 ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
 
@@ -262,7 +263,6 @@ esac
 
 # Start the application using PM2
 echo -n -e "\e[0mStarting ${APPNAME} for the first time using PM2 \e[0m"
-cd /opt/${APPNAME}
 pm2 start npm --name ${APPNAME} -- start > /dev/null 2>&1
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
