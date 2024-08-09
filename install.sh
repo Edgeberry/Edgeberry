@@ -238,6 +238,23 @@ fi
 # Cleanup the download
 rm -rf ui.tar.gz
 
+# Create the symlink to the application's CLI script
+echo -e '\e[0;32mCreating CLI symlink... \e[m'
+ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
+
+# Move the dbus policy to the /etc/dbus-1/system.d directory
+echo -e '\e[0;32mInstalling D-Bus policy... \e[m'
+mv -f /opt/$APPNAME/edgeberry-dbus.conf /etc/dbus-1/system.d/
+
+# Prompt the user to run the setup script
+read -r -p "Run setup? [Y/n]: " response
+case "$response" in
+    [nN])
+        ;;
+    *) 
+        bash ./setup.sh
+        ;;
+esac
 ##
 #   Finish installation
 ##
@@ -265,24 +282,6 @@ else
     echo -e "\e[0;33mFailed! Exit.\e[0m";
     exit 1;
 fi
-
-# Create the symlink to the application's CLI script
-echo -e '\e[0;32mCreating CLI symlink... \e[m'
-ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
-
-# Move the dbus policy to the /etc/dbus-1/system.d directory
-echo -e '\e[0;32mInstalling D-Bus policy... \e[m'
-mv -f /opt/$APPNAME/edgeberry-dbus.conf /etc/dbus-1/system.d/
-
-# Prompt the user to run the setup script
-read -r -p "Run setup? [Y/n]: " response
-case "$response" in
-    [nN])
-        ;;
-    *) 
-        bash ./setup.sh
-        ;;
-esac
 
 # We're done. Some notes before
 # we're leaving.
