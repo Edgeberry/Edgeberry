@@ -270,6 +270,10 @@ fi
 echo -e '\e[0;32mCreating CLI symlink... \e[m'
 ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
 
+# Move the dbus policy to the /etc/dbus-1/system.d directory
+echo -e '\e[0;32mInstalling D-Bus policy... \e[m'
+mv -f /opt/$APPNAME/edgeberry-dbus.conf /etc/dbus-1/system.d/
+
 # We're done. Some notes before
 # we're leaving.
 echo ""

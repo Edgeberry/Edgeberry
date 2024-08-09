@@ -35,7 +35,7 @@ import { initializeDirectMethodAPI } from "./directMethodAPI";
 // Persistent settings
 import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './persistence';
 // Commandline Interface (for inter-process communication)
-import './cli';
+import './dbus_interface';
 
 /* State Manager */
 export const stateManager = new StateManager();
@@ -218,4 +218,3 @@ initializeDirectMethodAPI();
 
 // When we got here, the system has started
 stateManager.updateSystemState('state', 'running');
-

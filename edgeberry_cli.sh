@@ -86,8 +86,7 @@ EOF
     ;;
 
   "--identify")
-    APPID=$(pm2 id $APPNAME | sed -z 's/[^0-9]*//g')
-    pm2 send $APPID "identify" 2>&1 > /dev/null
+    dbus-send --system --print-reply --dest=io.edgeberry.Service  /io/edgeberry/Object io.edgeberry.Interface.Identify 1> /dev/null
     # Check if command succeeded
     if [ $? -eq 0 ]; then
         exit 0;
