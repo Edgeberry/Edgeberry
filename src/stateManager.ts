@@ -133,6 +133,7 @@ export class StateManager extends EventEmitter{
         // CLOUD CONNECTION STATUS is next in line, if the system is
         // ok. For most IoT application, a constant connection to the
         // cloud is an essential aspect.
+        else if(this.state.connection.network !== 'connected') system_setStatusLed('red', 300 );
         else if( this.state.connection.provision === 'disabled' ||
                  this.state.connection.provision === 'provisioned'){
 
