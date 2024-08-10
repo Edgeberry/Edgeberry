@@ -10,6 +10,7 @@
  *      dbus-send --system --print-reply --dest=io.edgeberry.Service /io/edgeberry/Object io.edgeberry.Interface.Identify
  */
 
+import { disconnect } from "process";
 import { stateManager } from ".";
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
@@ -58,3 +59,58 @@ systemBus.exportInterface( serviceObject, objectPath, {
     },
     signals: {}
 });
+
+
+/*
+ *  D-Bus Network Manager
+ *  concept implementation of listening for the network
+ *  manager state change, and calling a method to get the
+ *  current state.
+ * 
+ *  TODO:  This does not belong here, and is a quick POC
+ *         implementation !
+ */
+
+let networkManagerInterface:any = null;
+
+async function initializeNetworkConnectionState(){
+    // Connect to the system D-Bus Network Manager interface
+    try{
+    systemBus.getService('org.freedesktop.NetworkManager').getInterface( '/org/freedesktop/NetworkManager',
+        'org.freedesktop.NetworkManager',
+        (err:string|null, iface:any)=>{
+            networkManagerInterface = iface;
+            // Get the current connectivity state
+            updateNetworkConnectivityState();
+            // Listen for state change events
+            networkManagerInterface.on('StateChanged', ()=>{updateNetworkConnectivityState()} );
+        }
+       );
+    } catch(err){}
+}
+
+function updateNetworkConnectivityState(){
+    try{
+        networkManagerInterface.CheckConnectivity((err:string|null, res:number)=>{
+            if(err) return; 
+            stateManager.updateConnectionState('network', res>=4?'connected':'disconnected');
+            let stateName:string;
+            switch(res){
+                case(1):    stateName = 'None';
+                            break;
+                case(2):    stateName = 'Portal';
+                            break;
+                case(3):    stateName = 'Limited';
+                            break;
+                case(4):    stateName = 'Full';
+                            break;
+                default:    stateName = 'Unknown'
+                            break;
+            }
+            console.log('Connectivity state: '+stateName);
+        });
+    } catch(err){}
+}
+
+// Initialize the network connection state
+initializeNetworkConnectionState();
