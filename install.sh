@@ -48,7 +48,7 @@ if which node >/dev/null 2>&1; then
 else 
     echo -e "\e[0;33m[Not installed] \e[0m";
     echo -n -e "\e[0mInstalling Node using apt \e[0m";
-    apt install -y node > /dev/null 2>&1;
+    apt install -y nodejs > /dev/null 2>&1;
     # Check if the last command succeeded
     if [ $? -eq 0 ]; then
         echo -e "\e[0;32m[Success]\e[0m"
