@@ -2,8 +2,8 @@
 
 ##
 #   Install.sh
-#   Installation script for the EdgeBerry application and
-#   software it relies on. (npm, node, cmake, pm2, ...)
+#   Installation script for the Edgeberry device software and
+#   the software it relies on. (npm, node, cmake, pm2, ...)
 #
 #   by Sanne 'SpuQ' Santens
 ##
