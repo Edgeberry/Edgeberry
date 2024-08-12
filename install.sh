@@ -23,6 +23,15 @@ if [ "$EUID" -ne 0 ]; then
     exit 1;
 fi
 
+echo -e "\033[1m    ______    _            _                             "
+echo -e "   |  ____|  | |          | |                            "
+echo -e "   | |__   __| | __ _  ___| |__   ___ _ __ _ __ _   _  \e[0mTM\033[1m"
+echo -e "   |  __| / _' |/ _' |/ _ \ '_ \ / _ \ '__| '__| | | |   "
+echo -e "   | |___| (_| | (_| |  __/ |_) |  __/ |  | |  | |_| |   "
+echo -e "   |______\__,_|\__, |\___|_.__/ \___|_|  |_|   \__, |   "
+echo -e "                 __/ |                           __/ |   "
+echo -e "                |___/                           |___/    \e[0m"
+echo ""
 echo -e "Starting the \033[1m${APPNAME} Device Software\033[0m installation process..."
 echo -e "Some steps can take a while with few feedback, but just have patience.\033[0m"
 echo ""
