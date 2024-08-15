@@ -30,8 +30,15 @@ echo ""
 
 # Create the certificates directory and all
 # required files
-echo -e "\e[0mCreating the certificates directory and content... \e[0m"
+echo -e -n "\e[0mCreating the certificates directory and content... \e[0m"
 mkdir -p $CERTDIR
+# Check if the last command succeeded
+if [ $? -eq 0 ]; then
+    echo -e "\e[0;32m[Success]\e[0m"
+else
+    echo -e "\e[0;33mFailed! Exit.\e[0m";
+    exit 1;
+fi
 touch $CERTDIR/provisioning_cert.pem
 touch $CERTDIR/provisioning_key.pem
 touch $CERTDIR/provisioning_rootCA.pem
@@ -39,54 +46,70 @@ touch $CERTDIR/provisioning_rootCA.pem
 
 # Get the UUID from the EEPROM of the device - if it's not
 # present, generate a clientId
-echo -e "\e[0mChecking Edgeberry Hardware UUID... \e[0m"
+echo -e -n "\e[0mChecking Edgeberry Hardware UUID... \e[0m"
 if [ -f $HWIDFILE ]; then
-    echo -e "\e[0mHardware UUID found\e[0m"
+    echo -e "\e[0;32m [Success]\e[0m"
     UUID=$(cat $HWIDFILE)
 else
-    echo -e "\e[0mHardware UUID not found\e[0m"
-    echo -e "\e[0mGenerating a random ID\e[0m"
+    echo -e "\e[0;33m[Not found]\e[0m"
+    echo -e "\e[0mProceeding with a random ID... \e[0m"
     UUID=Edgeberry_$(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 32)
 fi
 
 # Get the provisioning data from the Dashboard.
 # This requires an official Edgeberry Hardware ID
-echo -e "\e[0mGetting device provisioning data from $APPNAME Dashboard...\e[0m"
-PROVISIONINGDATA=$(curl --silent -X GET -d "{\"hardwareId\":\"$UUID\"}" -H 'Content-Type: application/json' https://dashboard.edgeberry.io/api/things/provisioningparameters )
-if [[ -n "$PROVISIONINGDATA" ]]; then
-    PROVHOSTNAME=$(echo "$PROVISIONINGDATA" | jq -r '.endpoint')
-    PROVCERT=$(echo "$PROVISIONINGDATA" | jq -r ".certificate")
-    PROVKEY=$(echo "$PROVISIONINGDATA" | jq -r ".privateKey")
+echo -e -n "\e[0mGetting device provisioning data from $APPNAME Dashboard... \e[0m"
+RESPONSE=$(curl -s -X GET -w ";%{http_code}" -d "{\"hardwareId\":\"$UUID\"}" -H 'Content-Type: application/json' https://dashboard.edgeberry.io/api/things/provisioningparameters )
+# Split the response in an array based on the ';' character
+IFS=';' read -r -a RESULT <<< "$RESPONSE"
+PROVISIONINGDATA="${RESULT[0]}"
+STATUSCODE="${RESULT[1]}"
+# If the HTTP GET request was successful, use the data
+# from the result
+if [[ "$STATUSCODE" = "200" ]]; then
+    echo -e "\e[0;32m[Success]\e[0m"
+else
+    echo -e "\e[0;33m[Failed]\e[0m";
+    echo -e "\e[0mProceeding with manually adding necessary data...\e[0m"
 fi
 
-read -e -i "$PROVHOSTNAME" -p "Hostname: " HOSTNAME
+PROVHOSTNAME=$(echo "$PROVISIONINGDATA" | jq -r ".endpoint")
+PROVCERT=$(echo "$PROVISIONINGDATA" | jq -r ".certificate")
+PROVKEY=$(echo "$PROVISIONINGDATA" | jq -r ".privateKey")
+
+# If not hostname was fetched, provide the hostname
+# manually
+if [[ "$PROVHOSTNAME" = "null" ]]; then
+    read -r -p "Hostname: " HOSTNAME
+fi
+
+if [[ "$PROVHOSTNAME" != "null" ]]; then
+    HOSTNAME=$PROVHOSTNAME;
+fi
 if [[ -z "$HOSTNAME" ]]; then
-    if [[ "$PROVHOSTNAME" != "null" ]]; then
-        HOSTNAME=$PROVHOSTNAME;
-    fi
-    if [[ -z "$HOSTNAME" ]]; then
-        echo -e "\e[0;31mHostname cannot be empty\e[0m"
-        echo -e "\e[0mExit\e[0m"
-        exit 1;
-    fi
+    echo -e "\e[0;31mHostname cannot be empty\e[0m"
+    echo -e "\e[0mExit\e[0m"
+    exit 1;
 fi
 
 # Populate the provisioning certificate file
-echo -e "\e[0mPopulating the provisioning certificate file...\e[0m"
+echo -e "\e[0mPopulating the provisioning certificate file... \e[0m"
 if [[ "$PROVCERT" != "null" ]]; then
     echo -e "$PROVCERT" > $CERTDIR/provisioning_cert.pem
+else
+    nano $CERTDIR/provisioning_cert.pem
 fi
-nano $CERTDIR/provisioning_cert.pem
+
 # Populate the provisioning private key file
-echo -e "\e[0mPopulating the provisioning private key...\e[0m"
+echo -e "\e[0mPopulating the provisioning private key... \e[0m"
 if [[ "$PROVCERT" != "null" ]]; then
     echo -e "$PROVKEY" > $CERTDIR/provisioning_key.pem
+else
+    nano $CERTDIR/provisioning_key.pem
 fi
-nano $CERTDIR/provisioning_key.pem
-
 
 # Create the settings file
-echo -e "\e[0mCreating the settings file...\e[0m"
+echo -e -n "\e[0mCreating the settings file... \e[0m"
 touch $SETTINGSFILE
 echo "{
     \"provisioning\": {
@@ -98,13 +121,14 @@ echo "{
     }
 }" > $SETTINGSFILE
 # Check the settings file
-nano $SETTINGSFILE
+#nano $SETTINGSFILE
 
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
 else
-    echo -e "\e[0;33mFailed! Exit.\e[0m";
+    echo -e "\e[0;33m[Failed]\e[0m";
+    echo -e "\e[0;33mExit\e[0m";
     exit 1;
 fi
 
