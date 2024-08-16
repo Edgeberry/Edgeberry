@@ -4,10 +4,8 @@
  */
 import { exec, execSync } from "child_process";
 import { stateManager } from ".";
-import pm2 from 'pm2';
 import { readFileSync } from "fs";
 import { EventEmitter } from "stream";
-
 
 /*
  *  Edgeberry Hardware
@@ -152,37 +150,23 @@ export async function system_getPlatform(){
  */
 
 // Get system application info
-// Using PM2
 export function system_getApplicationInfo():Promise<string|any>{
     return new Promise<string|any>((resolve, reject)=>{
-        pm2.connect((err:any)=>{
-            if (err) return reject(err.toString());
-            pm2.list((err:any, processes:any) => {
-                if (err) return reject(err);
-                // Loop through processes
-                processes.forEach((process:any) => {
-                    if(process.name === 'Edgeberry'){
-                        try{
-                            var packageJson = JSON.parse(readFileSync('/opt/Edgeberry/package.json').toString());
-                        }
-                        catch(err){
-                            packageJson = {}
-                        }
-                        const data = {
+        try{
+                var packageJson = JSON.parse(readFileSync('/opt/Edgeberry/package.json').toString());
+            }
+        catch(err){
+            packageJson = {}
+        }
+
+        const data = {
                             name: packageJson?.name,
                             version: packageJson?.version,
-                            cpuUsage: process.monit.cpu+'%',
-                            memUsage: Math.round(parseInt(process.monit.memory)/100000)+' MB',
-                            status: process.pm2_env.status
+                            cpuUsage: 'unknown',
+                            memUsage: 'unknown',    // TODO
+                            status: 'unknown'
                         }
-                        pm2.disconnect();
-                        return resolve( data );
-                    }
-                });
-                pm2.disconnect();
-                return reject("Process for 'Edgeberry' not found");
-            });
-        })
+        return resolve( data );
     });
 }
 

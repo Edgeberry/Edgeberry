@@ -31,12 +31,6 @@ case "$response" in
         ;;
 esac
 
-# Delete the Edgeberry process from PM2
-echo -n -e "\e[0mDeleting the $APPNAME process... \e[0m"
-pm2 delete $APPNAME
-pm2 save --force
-echo -e "\e[0;32m[Done] \e[0m";
-
 # Delete the Edgeberry software directory
 echo -n -e "\e[0mDeleting the $APPNAME software... \e[0m"
 rm -rf /opt/$APPNAME
