@@ -47,6 +47,11 @@ echo -n -e "\e[0mDeleting the $APPNAME D-Bus policy... \e[0m"
 rm  /etc/dbus-1/system.d/edgeberry-dbus.conf
 echo -e "\e[0;32m[Done] \e[0m";
 
+# Delete systemd service file for Edgeberry
+echo -n -e "\e[0mDeleting the $APPNAME systemd service... \e[0m"
+rm  /etc/systemd/system/io.edgeberry.service
+echo -e "\e[0;32m[Done] \e[0m";
+
 # Done uninstalling
 echo -e "The Edgeberry software was successfully removed"
 exit 0;
