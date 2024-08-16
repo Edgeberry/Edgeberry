@@ -1,0 +1,13 @@
+[Unit]
+Description=Edgeberry service
+Documentation=https://github.com/edgeberry
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/Edgeberry/
+Type=simple
+ExecStart=/usr/bin/node /opt/Edgeberry/build/index.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
