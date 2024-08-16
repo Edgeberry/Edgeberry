@@ -24,6 +24,7 @@
 ##
 
 APPNAME="Edgeberry"
+SERVICENAME="io.edgeberry.service"
 
 if [ $# -eq 0 ]
   then
@@ -64,25 +65,25 @@ EOF
     ;;
 
   "--start")
-    pm2 start $APPNAME
+    systemctl restart $SERVICENAME
     ;;
 
   "--stop")
-    pm2 stop $APPNAME
+    systemctl stop $SERVICENAME
     ;;
 
   "--restart")
-    pm2 restart $APPNAME
+    systemctl restart $SERVICENAME
     ;;
   
   "--disable")
-    pm2 stop $APPNAME
-    pm2 save
+    systemctl stop $SERVICENAME
+    systemctl disable $SERVICENAME
     ;;
 
   "--enable")
-    pm2 start $APPNAME
-    pm2 save
+    systemctl restart $SERVICENAME
+    systemctl enable $SERVICENAME
     ;;
 
   "--identify")

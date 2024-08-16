@@ -10,7 +10,6 @@
  *      dbus-send --system --print-reply --dest=io.edgeberry.Service /io/edgeberry/Object io.edgeberry.Interface.Identify
  */
 
-import { disconnect } from "process";
 import { stateManager } from ".";
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
