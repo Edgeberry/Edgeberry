@@ -24,9 +24,6 @@ In your own application, you can interact with the Edgeberry Device Software usi
 sudo edgeberry --help
 ```
 
-#### Important  
-Following IO pins are controlled by the Edgeberry application to use with the [Edgeberry Hardware](https://github.com/Edgeberry/Edgeberry-hardware), and should not be used in your application to avoid unpredictable behavior: **GPIO5** (buzzer), **GPIO6** (button), **GPIO19** (status LED red), **GPIO26** (status LED green).
-
 ## License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
 
