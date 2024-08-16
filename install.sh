@@ -75,30 +75,6 @@ else
     fi
 fi
 
-# Check for PM2. If it's not installed, install it.
-echo -n -e "\e[0mChecking for Node Process Manager (PM2) \e[0m"
-if which pm2 >/dev/null 2>&1; then 
-    echo -e "\e[0;32m[Installed] \e[0m"; 
-else 
-    echo -e "\e[0;33m[Not installed] \e[0m";
-    echo -n -e "\e[0mInstalling PM2 using npm \e[0m";
-    npm install -g pm2 > /dev/null 2>&1;
-    # Check if the last command succeeded
-    if [ $? -eq 0 ]; then
-        echo -e "\e[0;32m[Success]\e[0m"
-        echo -n -e"\e[0mMaking sure PM2 runs on boot \e[0m";
-        pm2 startup systemd
-        if [ $? -eq 0 ]; then
-            echo -e "\e[0;32m[Success]\e[0m"
-        else
-            echo -e "\e[0;33m[Failed]\e[0m";
-        fi
-    else
-        echo -e "\e[0;33mFailed! Exit.\e[0m";
-        exit 1;
-    fi
-fi
-
 # Check for CMAKE (required by AWS SDK). If it's not installed,
 # install it.
 echo -n -e "\e[0mChecking for cmake \e[0m"
@@ -252,6 +228,24 @@ cd /opt/${APPNAME}
 echo -e '\e[0;32mCreating CLI symlink... \e[m'
 ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
 
+# Install the Edgeberry systemd service
+echo -e -n '\e[0;32mInstalling systemd service... \e[m'
+mv -f /opt/$APPNAME/io.edgeberry.service /etc/systemd/system/
+systemctl daemon-reload
+if [ $? -eq 0 ]; then
+    echo -e "\e[0;32m[Success]\e[0m"
+else
+    echo -e "\e[0;33m[Failed]\e[0m";
+fi
+# Enable the Edgeberry service to run on boot
+echo -e -n '\e[0;32mEnabling service to run on boot... \e[m'
+systemctl enable io.edgeberry.service
+if [ $? -eq 0 ]; then
+    echo -e "\e[0;32m[Success]\e[0m"
+else
+    echo -e "\e[0;33m[Failed]\e[0m";
+fi
+
 # Move the dbus policy to the /etc/dbus-1/system.d directory
 echo -e '\e[0;32mInstalling D-Bus policy... \e[m'
 mv -f /opt/$APPNAME/edgeberry-dbus.conf /etc/dbus-1/system.d/
@@ -271,20 +265,8 @@ esac
 ##
 
 # Start the application using PM2
-echo -n -e "\e[0mStarting ${APPNAME} for the first time using PM2 \e[0m"
-pm2 start npm --name ${APPNAME} -- start > /dev/null 2>&1
-# Check if the last command succeeded
-if [ $? -eq 0 ]; then
-    echo -e "\e[0;32m[Success]\e[0m"
-else
-    echo -e "\e[0;33mFailed! Exit.\e[0m";
-    exit 1;
-fi
-
-# Save the PM2 state, so the application will automatically
-# run after a reboot
-echo -n -e "\e[0mSaving the current PM2 state \e[0m"
-pm2 save > /dev/null 2>&1
+echo -n -e "\e[0mStarting ${APPNAME} for the first time... \e[0m"
+systemctl start io.edgeberry.service
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
