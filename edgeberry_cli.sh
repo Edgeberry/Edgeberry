@@ -2,8 +2,7 @@
 
 ##
 #   Edgeberry CLI
-#   Command line interface script that interacts with Edgeberry's stdin
-#   through PM2.
+#   Command line interface script for interacting with the Edgeberry application
 #
 #   symlink this script in '/bin' or '/usr/local/bin' (ln -s ./edgeberry_cli.sh /usr/local/bin/edgeberry) 
 #   

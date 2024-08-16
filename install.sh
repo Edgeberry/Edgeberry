@@ -3,7 +3,7 @@
 ##
 #   Install.sh
 #   Installation script for the Edgeberry device software and
-#   the software it relies on. (npm, node, cmake, pm2, ...)
+#   the software it relies on. (npm, node, cmake, ...)
 #
 #   by Sanne 'SpuQ' Santens
 ##
@@ -23,22 +23,20 @@ if [ "$EUID" -ne 0 ]; then
     exit 1;
 fi
 
-echo -e "\033[1m    ______    _            _                             "
-echo -e "   |  ____|  | |          | |                            "
-echo -e "   | |__   __| | __ _  ___| |__   ___ _ __ _ __ _   _  \e[0mTM\033[1m"
-echo -e "   |  __| / _' |/ _' |/ _ \ '_ \ / _ \ '__| '__| | | |   "
-echo -e "   | |___| (_| | (_| |  __/ |_) |  __/ |  | |  | |_| |   "
-echo -e "   |______\__,_|\__, |\___|_.__/ \___|_|  |_|   \__, |   "
-echo -e "                 __/ |                           __/ |   "
-echo -e "                |___/                           |___/    \e[0m"
+echo -e "\033[1m    ______    _            _                      ";
+echo -e "   |  ____|  | |          | |                            ";
+echo -e "   | |__   __| | __ _  ___| |__   ___ _ __ _ __ _   _  \e[0mTM\033[1m";
+echo -e "   |  __| / _' |/ _' |/ _ \ '_ \ / _ \ '__| '__| | | |   ";
+echo -e "   | |___| (_| | (_| |  __/ |_) |  __/ |  | |  | |_| |   ";
+echo -e "   |______\__,_|\__, |\___|_.__/ \___|_|  |_|   \__, |   ";
+echo -e "                 __/ |                           __/ |   ";
+echo -e "                |___/                           |___/    \e[0m";
 echo ""
-echo -e "Starting the \033[1m${APPNAME} Device Software\033[0m installation process..."
-echo -e "Some steps can take a while with few feedback, but just have patience.\033[0m"
+echo -e "Starting the \033[1m${APPNAME} Device Software\033[0m installation process...";
+echo -e "Some steps can take a while with few feedback, so go grab a coffee with an";
+echo -e "extra spoon of patience.\033[0m"
 echo ""
-echo -e "\e[0;33mNOTE: Please ensure a stable internet connection. Some parts of\e[0m";
-echo -e "\e[0;33mthe installation process are known to stall when internet is very\e[0m";
-echo -e "\e[0;33mslow or connection is temporarly lost. If this happens, just retry\e[0m";
-echo -e "\e[0;33mthe installation process.\e[0m";
+echo -e "\e[0;33mNOTE: Please ensure a stable internet connection! \e[0m";
 echo ""
 
 # Check for NodeJS. If it's not installed, install it.
