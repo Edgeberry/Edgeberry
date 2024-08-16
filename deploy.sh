@@ -10,6 +10,7 @@
 DEFAULT_USER=spuq
 DEFAULT_HOST=192.168.1.102
 APPNAME=Edgeberry
+SERVICENAME="io.edgeberry.service"
 APPDIR=/opt/${APPNAME}
 
 # Let's start with an empty terminal
@@ -88,7 +89,7 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
 
     # (re)start application
     echo -e '\e[0;32mRestarting the application... \e[m'
-    pm2 restart $APPNAME
+    systemctl restart $SERVICENAME
     
 EOF
 
