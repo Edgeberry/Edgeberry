@@ -25,14 +25,15 @@ jobs:
         run: npm run build
 
       - name: Gather required files
-        run: mkdir tempdir;                         \
-             mv ./package.json ./tempdir/;          \
-             mv ./build ./tempdir/;                 \
-             mv ./edgeberry-dbus.conf ./tempdir/;   \
-             mv ./edgeberry_cli.sh ./tempdir/;      \
-             mv ./setup.sh ./tempdir/;              \
-             mv ./io.edgeberry.service ./tempdir/;  \
-             mv ./uninstall.sh ./tempdir/;
+        run: |
+            mkdir tempdir;                         \
+            mv ./package.json ./tempdir/;          \
+            mv ./build ./tempdir/;                 \
+            mv ./edgeberry-dbus.conf ./tempdir/;   \
+            mv ./edgeberry_cli.sh ./tempdir/;      \
+            mv ./setup.sh ./tempdir/;              \
+            mv ./io.edgeberry.service ./tempdir/;  \
+            mv ./uninstall.sh ./tempdir/;
 
       - name: Create tarball
         run: tar -C ./tempdir -zcvf package.tar.gz .
