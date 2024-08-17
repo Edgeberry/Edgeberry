@@ -61,6 +61,24 @@ systemBus.exportInterface( serviceObject, objectPath, {
 
 
 /*
+ *  D-Bus system interface
+ */
+
+// Listen for system shutdown event
+systemBus.getService('org.freedesktop.login1').getInterface(    '/org/freedesktop/login1', 
+                                                                'org.freedesktop.login1.Manager',
+                                                                (err:any, iface:any)=>{
+                                                                    if(err) return console.log(err);
+                                                                    iface.on('PrepareForShutdown', (shutdown:boolean)=>{
+                                                                        if(shutdown){
+                                                                            stateManager.updateSystemState('state', 'restarting');
+                                                                            console.log('System shutting down');
+                                                                        }
+                                                                    });
+                                                                }
+                                                            );
+
+/*
  *  D-Bus Network Manager
  *  concept implementation of listening for the network
  *  manager state change, and calling a method to get the
