@@ -229,7 +229,7 @@ ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
 
 # Install the Edgeberry systemd service
 echo -e -n '\e[0;32mInstalling systemd service... \e[m'
-mv -f /opt/${APPNAME}/${APPCOMP}/io.edgeberry.core /etc/systemd/system/
+mv -f /opt/${APPNAME}/${APPCOMP}/io.edgeberry.core.service /etc/systemd/system/
 systemctl daemon-reload
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"

@@ -32,7 +32,7 @@ jobs:
             mv ./edgeberry-core.conf ./tempdir/;   \
             mv ./edgeberry_cli.sh ./tempdir/;      \
             mv ./setup.sh ./tempdir/;              \
-            mv ./io.edgeberry.core ./tempdir/;  \
+            mv ./io.edgeberry.core.service ./tempdir/;  \
             mv ./uninstall.sh ./tempdir/;
 
       - name: Create tarball
