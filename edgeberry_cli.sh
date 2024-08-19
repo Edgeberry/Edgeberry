@@ -86,7 +86,7 @@ EOF
     ;;
 
   "--identify")
-    dbus-send --system --print-reply --dest=io.edgeberry.Service  /io/edgeberry/Object io.edgeberry.Interface.Identify 1> /dev/null
+    dbus-send --system --print-reply --dest=io.edgeberry.Core  /io/edgeberry/Object io.edgeberry.Interface.Identify 1> /dev/null
     # Check if command succeeded
     if [ $? -eq 0 ]; then
         exit 0;
