@@ -29,10 +29,10 @@ jobs:
             mkdir tempdir;                         \
             mv ./package.json ./tempdir/;          \
             mv ./build ./tempdir/;                 \
-            mv ./edgeberry-dbus.conf ./tempdir/;   \
+            mv ./edgeberry-core.conf ./tempdir/;   \
             mv ./edgeberry_cli.sh ./tempdir/;      \
             mv ./setup.sh ./tempdir/;              \
-            mv ./io.edgeberry.service ./tempdir/;  \
+            mv ./io.edgeberry.core ./tempdir/;  \
             mv ./uninstall.sh ./tempdir/;
 
       - name: Create tarball
