@@ -23,7 +23,7 @@
 ##
 
 APPNAME="Edgeberry"
-SERVICENAME="io.edgeberry.service"
+SERVICENAME="io.edgeberry.core"
 
 if [ $# -eq 0 ]
   then
