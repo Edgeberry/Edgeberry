@@ -153,7 +153,7 @@ fi
 
 #Untar the application in the application folder
 echo -n -e "\e[0mUnpacking the application \e[0m"
-mkdir /opt/${APPNAME}/${APPCOMP}  > /dev/null 2>&1;
+mkdir -p /opt/${APPNAME}/${APPCOMP}  > /dev/null 2>&1;
 tar -xvzf repo.tar.gz -C /opt/${APPNAME}/${APPCOMP} > /dev/null 2>&1
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
@@ -265,7 +265,7 @@ esac
 
 # Start the application using PM2
 echo -n -e "\e[0mStarting ${APPNAME} for the first time... \e[0m"
-systemctl start io.edgeberry.Core
+systemctl start io.edgeberry.core
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"

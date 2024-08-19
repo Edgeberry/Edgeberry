@@ -11,7 +11,7 @@ DEFAULT_USER=spuq
 DEFAULT_HOST=192.168.1.103
 APPNAME=Edgeberry
 APPCOMP=Core
-SERVICENAME="io.edgeberry.service"
+SERVICENAME="io.edgeberry.core"
 APPDIR=/opt/${APPNAME}/${APPCOMP}
 
 # Let's start with an empty terminal
@@ -53,14 +53,14 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "mkdir ~/
 
 # Copy the relevant project files to the device
 echo -e '\e[0;32mCopying project to device...\e[m'
-sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./webpack.config.js ./edgeberry_cli.sh ./edgeberry-dbus.conf ./setup.sh ${USER}@${HOST}:temp/
+sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./webpack.config.js ./edgeberry_cli.sh ./edgeberry-core.conf ./setup.sh ${USER}@${HOST}:temp/
 
 # Install the application on remote device
 sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF 
 
     sudo su
     echo -e '\e[0;32mCreating project directory... \e[m'
-    mkdir $APPDIR
+    mkdir -p $APPDIR
     if [ $? -eq 0 ]; then
         echo -e "\e[0;90mNot a new installation!\e[0m"
         # ToDo: Backup certificate files etc
@@ -74,7 +74,7 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
     rm -rf ./temp
 
     echo -e '\e[0;32mInstalling project dependencies... \e[m'
-    cd $APPDIR
+    cd $APPDIR/
     npm install --include=dev --verbose
 
     echo -e '\e[0;32mBuilding the project... \e[m'
@@ -86,7 +86,7 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
 
     # Move the D-Bus config file to /etc/dbus-1/system.d
     echo -e '\e[0;32mMoving D-Bus config file to /etc/dbus-1/system.d... \e[m'
-    mv -f $APPDIR/edgeberry-dbus.conf /etc/dbus-1/system.d/
+    mv -f $APPDIR/edgeberry-core.conf /etc/dbus-1/system.d/
 
     # (re)start application
     echo -e '\e[0;32mRestarting the application... \e[m'

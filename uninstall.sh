@@ -44,7 +44,7 @@ echo -e "\e[0;32m[Done] \e[0m";
 
 # Delete systemd service file for Edgeberry
 echo -n -e "\e[0mDeleting the $APPNAME systemd service... \e[0m"
-rm  /etc/systemd/system/io.edgeberry.Core
+rm  /etc/systemd/system/io.edgeberry.core.service
 echo -e "\e[0;32m[Done] \e[0m";
 
 # Done uninstalling

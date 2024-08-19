@@ -56,11 +56,11 @@ EOF
     echo ""
     ;;
   "--setup")
-    bash /opt/$APPNAME/setup.sh
+    bash /opt/$APPNAME/Core/setup.sh
     ;;
 
   "--version"|"-v")
-    jq -r .version /opt/$APPNAME/package.json
+    jq -r .version /opt/$APPNAME/Core/package.json
     ;;
 
   "--start")

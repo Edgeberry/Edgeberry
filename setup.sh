@@ -9,8 +9,9 @@
 ##
 
 APPNAME=Edgeberry
-CERTDIR=/opt/$APPNAME/certificates
-SETTINGSFILE=/opt/$APPNAME/settings.json
+APPCOMP=Core
+CERTDIR=/opt/$APPNAME/$APPCOMP/certificates
+SETTINGSFILE=/opt/$APPNAME/$APPCOMP/settings.json
 HWIDFILE=/proc/device-tree/hat/uuid
 
 # Start a clean screen
