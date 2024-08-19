@@ -9,6 +9,7 @@
 ##
 
 APPNAME=Edgeberry
+APPCOMP=Core
 REPONAME=Edgeberry
 REPOOWNER=Edgeberry
 
@@ -152,8 +153,8 @@ fi
 
 #Untar the application in the application folder
 echo -n -e "\e[0mUnpacking the application \e[0m"
-mkdir /opt/${APPNAME}  > /dev/null 2>&1;
-tar -xvzf repo.tar.gz -C /opt/${APPNAME} > /dev/null 2>&1
+mkdir /opt/${APPNAME}/${APPCOMP}  > /dev/null 2>&1;
+tar -xvzf repo.tar.gz -C /opt/${APPNAME}/${APPCOMP} > /dev/null 2>&1
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
@@ -164,7 +165,7 @@ fi
 
 # Install package dependencies
 echo -n -e "\e[0mInstalling dependencies \e[0m"
-npm install --prefix /opt/${APPNAME}
+npm install --prefix /opt/${APPNAME}/${APPCOMP}
 # > /dev/null 2>&1
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
@@ -222,13 +223,13 @@ rm -rf repo.tar.gz
 #rm -rf ui.tar.gz
 
 # Create the symlink to the application's CLI script
-cd /opt/${APPNAME}
+cd /opt/${APPNAME}/${APPCOMP}
 echo -e '\e[0;32mCreating CLI symlink... \e[m'
 ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
 
 # Install the Edgeberry systemd service
 echo -e -n '\e[0;32mInstalling systemd service... \e[m'
-mv -f /opt/$APPNAME/io.edgeberry.service /etc/systemd/system/
+mv -f /opt/${APPNAME}/${APPCOMP}/io.edgeberry.core /etc/systemd/system/
 systemctl daemon-reload
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
@@ -237,7 +238,7 @@ else
 fi
 # Enable the Edgeberry service to run on boot
 echo -e -n '\e[0;32mEnabling service to run on boot... \e[m'
-systemctl enable io.edgeberry.service
+systemctl enable io.edgeberry.core
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
 else
@@ -246,7 +247,7 @@ fi
 
 # Move the dbus policy to the /etc/dbus-1/system.d directory
 echo -e '\e[0;32mInstalling D-Bus policy... \e[m'
-mv -f /opt/$APPNAME/edgeberry-dbus.conf /etc/dbus-1/system.d/
+mv -f /opt/${APPNAME}/${APPCOMP}/edgeberry-core.conf /etc/dbus-1/system.d/
 
 # Prompt the user to run the setup script
 read -r -p "Run setup? [Y/n]: " response
@@ -264,7 +265,7 @@ esac
 
 # Start the application using PM2
 echo -n -e "\e[0mStarting ${APPNAME} for the first time... \e[0m"
-systemctl start io.edgeberry.service
+systemctl start io.edgeberry.Core
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"

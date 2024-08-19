@@ -8,6 +8,7 @@
 ##
 
 APPNAME=Edgeberry
+APPCOMP=Core
 
 # Start a clean screen
 clear;
@@ -38,12 +39,12 @@ echo -e "\e[0;32m[Done] \e[0m";
 
 # Delete the D-Bus policy for Edgeberry
 echo -n -e "\e[0mDeleting the $APPNAME D-Bus policy... \e[0m"
-rm  /etc/dbus-1/system.d/edgeberry-dbus.conf
+rm  /etc/dbus-1/system.d/edgeberry-core.conf
 echo -e "\e[0;32m[Done] \e[0m";
 
 # Delete systemd service file for Edgeberry
 echo -n -e "\e[0mDeleting the $APPNAME systemd service... \e[0m"
-rm  /etc/systemd/system/io.edgeberry.service
+rm  /etc/systemd/system/io.edgeberry.Core
 echo -e "\e[0;32m[Done] \e[0m";
 
 # Done uninstalling

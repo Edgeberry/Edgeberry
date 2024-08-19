@@ -14,7 +14,7 @@ import { stateManager } from ".";
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
-const serviceName = 'io.edgeberry.Service';
+const serviceName = 'io.edgeberry.Core';
 const objectPath = '/io/edgeberry/Object';
 const interfaceName = 'io.edgeberry.Interface';
 

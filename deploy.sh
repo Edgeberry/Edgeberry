@@ -8,10 +8,11 @@
 ##
 
 DEFAULT_USER=spuq
-DEFAULT_HOST=192.168.1.102
+DEFAULT_HOST=192.168.1.103
 APPNAME=Edgeberry
+APPCOMP=Core
 SERVICENAME="io.edgeberry.service"
-APPDIR=/opt/${APPNAME}
+APPDIR=/opt/${APPNAME}/${APPCOMP}
 
 # Let's start with an empty terminal
 clear;

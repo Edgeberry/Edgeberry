@@ -1,12 +1,12 @@
 [Unit]
-Description=Edgeberry service
+Description=Edgeberry Core service
 Documentation=https://github.com/edgeberry
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/Edgeberry/
+WorkingDirectory=/opt/Edgeberry/Core/
 Type=simple
-ExecStart=/usr/bin/node /opt/Edgeberry/build/index.js
+ExecStart=/usr/bin/node /opt/Edgeberry/Core/build/index.js
 Restart=on-failure
 
 [Install]
