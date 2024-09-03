@@ -37,6 +37,10 @@ echo -n -e "\e[0mDeleting the $APPNAME software... \e[0m"
 rm -rf /opt/$APPNAME
 echo -e "\e[0;32m[Done] \e[0m";
 
+# Stop the systemd service
+systemctl stop io.edgeberry.core
+systemctl daemon-reload
+
 # Delete the D-Bus policy for Edgeberry
 echo -n -e "\e[0mDeleting the $APPNAME D-Bus policy... \e[0m"
 rm  /etc/dbus-1/system.d/edgeberry-core.conf
