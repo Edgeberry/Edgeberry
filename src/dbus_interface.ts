@@ -11,6 +11,7 @@
  */
 
 import { stateManager } from ".";
+import { app_setApplicationInfo } from "./application";
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
@@ -41,6 +42,16 @@ const serviceObject = {
         stateManager.interruptIndicators('identify');
         return;
     },
+    SetApplicationInfo:(arg:string)=>{
+        try{
+            const info = JSON.parse(arg.toString());
+            app_setApplicationInfo(info);
+            return 'ok';
+        }
+        catch(err){
+            return 'err';
+        }
+    },
     AnotherMethod: (arg:string)=>{
         console.log("Another Method was called");
         console.log(arg);
@@ -54,6 +65,7 @@ systemBus.exportInterface( serviceObject, objectPath, {
     name: interfaceName,
     methods: {
         Identify:['',''],
+        SetApplicationInfo:['s','s'],
         AnotherMethod:['s','s']
     },
     signals: {}

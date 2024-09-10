@@ -7,13 +7,9 @@ const router = Router();
 
 /* Get the system application info */
 router.get('/info', (req:any, res:any)=>{
-    app_getApplicationInfo()
-        .then((appInfo:any)=>{
-            return res.send(appInfo);
-        })
-        .catch((err)=>{
-            return res.status(500).send({message:err});
-        });
+    const appinfo = app_getApplicationInfo();
+    if( appinfo ) return res.send(appinfo);
+    return res.status(404).send({message:'No application info available'});
 });
 
 /* Update the system application */

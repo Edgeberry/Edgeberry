@@ -161,15 +161,11 @@ export function initializeDirectMethodAPI(){
      *  Application
      */
 
-    /* Get the system application info */
-    cloud.registerDirectMethod('getApplicationInfo', async(req:any, res:any)=>{
-        app_getApplicationInfo()
-            .then((appInfo:any)=>{
-                return res.send(appInfo);
-            })
-            .catch((err)=>{
-                return res.status(500).send({message:err});
-            });
+    /* Get the application info */
+    cloud.registerDirectMethod('getApplicationInfo', (req:any, res:any)=>{
+        const appinfo = app_getApplicationInfo();
+        if( appinfo ) return res.send(appinfo);
+        return res.status(404).send({message:'No application info available'});
     });
 
     /* Update the system application */
