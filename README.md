@@ -19,10 +19,17 @@ $ sudo edgeberry --help
 ```
 
 ## Application development
+### CLI
 In your own application, you can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
 ```
 sudo edgeberry --help
 ```
+### D-BUS API
+
+| Object           | Method            | Argument                                                    | 
+|------------------|-------------------|-------------------------------------------------------------|
+|io.edgeberry.Core |SetApplicationInfo | {"name":[string],"version":[string],"description":[string]} |
+
 
 ## License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
