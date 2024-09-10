@@ -10,16 +10,17 @@ export type ApplicationInfo = {
 }
 
 // Application info
-let applicationInfo:ApplicationInfo|null = null;
+let app_applicationInfo:ApplicationInfo|null = null;
 
 // Get system application info
 export function app_getApplicationInfo(){
-    return applicationInfo;
+    return app_applicationInfo;
 }
 
 // Set the application info
 export function app_setApplicationInfo( applicationInfo:ApplicationInfo ){
-    applicationInfo = applicationInfo;
+    app_applicationInfo = applicationInfo;
+    console.log(app_applicationInfo);
 }
 
 // Restart the application

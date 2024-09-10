@@ -11,7 +11,7 @@
  */
 
 import { stateManager } from ".";
-import { app_setApplicationInfo } from "./application";
+import { app_setApplicationInfo, ApplicationInfo } from "./application";
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
@@ -44,7 +44,7 @@ const serviceObject = {
     },
     SetApplicationInfo:(arg:string)=>{
         try{
-            const info = JSON.parse(arg.toString());
+            const info = JSON.parse(arg.toString()) as ApplicationInfo;
             app_setApplicationInfo(info);
             return 'ok';
         }
