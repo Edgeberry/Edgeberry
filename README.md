@@ -25,10 +25,12 @@ In your own application, you can interact with the Edgeberry Device Software usi
 sudo edgeberry --help
 ```
 ### D-BUS API
+Edgeberry uses inter-process communication through D-Bus to interact with other applications.
 
-| Object           | Method            | Argument                                                    | 
-|------------------|-------------------|-------------------------------------------------------------|
-|io.edgeberry.Core |SetApplicationInfo | {"name":[string],"version":[string],"description":[string]} |
+| Object           | Method              | Argument                                                    | 
+|------------------|---------------------|-------------------------------------------------------------|
+|io.edgeberry.Core |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
+|                  |SetApplicationStatus | {"status":[ok|warning|error],"message":[string]}            |
 
 
 ## License & Collaboration

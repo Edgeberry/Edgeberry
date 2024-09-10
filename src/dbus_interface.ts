@@ -52,6 +52,17 @@ const serviceObject = {
             return 'err';
         }
     },
+    SetApplicationStatus:(arg:string)=>{
+        try{
+            const status = JSON.parse(arg.toString());
+            if(status.status === 'ok') stateManager.updateApplicationState('state', 'running');
+            else stateManager.updateApplicationState('state', '');
+            return 'ok';
+        }
+        catch(err){
+            return 'err';
+        }
+    },
     AnotherMethod: (arg:string)=>{
         console.log("Another Method was called");
         console.log(arg);
@@ -66,6 +77,7 @@ systemBus.exportInterface( serviceObject, objectPath, {
     methods: {
         Identify:['',''],
         SetApplicationInfo:['s','s'],
+        SetApplicationStatus:['s','s'],
         AnotherMethod:['s','s']
     },
     signals: {}

@@ -97,7 +97,7 @@ export class StateManager extends EventEmitter{
         if( this.state.application.hasOwnProperty(key)){
             this.state.application[key] = typeof(value)!=='string'?value.toString():value ;
         }
-        //this.updateState();
+        this.updateState();
     }
 
     /*
