@@ -55,8 +55,7 @@ const serviceObject = {
     SetApplicationStatus:(arg:string)=>{
         try{
             const status = JSON.parse(arg.toString());
-            if(status.status === 'ok') stateManager.updateApplicationState('state', 'running');
-            else stateManager.updateApplicationState('state', '');
+            stateManager.updateApplicationState('state', status.status );
             return 'ok';
         }
         catch(err){
