@@ -142,8 +142,15 @@ export class StateManager extends EventEmitter{
                 case 'connecting':  system_setStatusLed( 'orange', 70, 'green' );
                                     break;
                 // Connected
-                case 'connected':   //system_setStatusLed( 'green', true );
-                                    system_setStatusLed( 'green', true, 'green', true); // double-blink
+                case 'connected':   // Blink twice; heartbeat.
+                                    switch(this.state.application.state){
+                                        case 'ok':  system_setStatusLed( 'green', true, 'green', true);
+                                                    break;
+                                        case 'warning': system_setStatusLed( 'green', true, 'orange', true);
+                                                    break;
+                                        default:    system_setStatusLed( 'green', true, 'red', true);
+                                                    break;
+                                    }
                                     break;
                 // Disconnected/Unknown/...
                 default:            system_setStatusLed( 'red', true );
