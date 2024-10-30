@@ -142,7 +142,8 @@ export class StateManager extends EventEmitter{
                 case 'connecting':  system_setStatusLed( 'orange', 70, 'green' );
                                     break;
                 // Connected
-                case 'connected':   system_setStatusLed( 'green', true );
+                case 'connected':   //system_setStatusLed( 'green', true );
+                                    system_setStatusLed( 'green', true, 'green', true); // double-blink
                                     break;
                 // Disconnected/Unknown/...
                 default:            system_setStatusLed( 'red', true );

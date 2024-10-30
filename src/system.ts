@@ -224,7 +224,7 @@ let primary:boolean=true;
 let blinkInterval:any = null;
 
 // Set Status indication on the LED
-export function system_setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string ){
+export function system_setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string, doubleblink?:boolean ){
     // Clear the previous state
     if( blinkInterval ) clearInterval( blinkInterval );
     primary=true;
@@ -234,18 +234,40 @@ export function system_setStatusLed( color:string, blink?:boolean|number, second
     if( typeof(blink) === 'undefined' || (typeof(blink) === 'boolean' && blink === false) )
     return setLedColor( color );
 
-    // Blinking colors
-    blinkInterval = setInterval(()=>{
-        if( primary ){
-            setLedColor( color );
-        }
-        else{
-            setLedColor( secondaryColor?secondaryColor:'off' );
-        }
-        // Toggle
-        primary = !primary;
+    if(!doubleblink){
+        // Blinking colors
+        blinkInterval = setInterval(()=>{
+            if( primary ){
+                setLedColor( color );
+            }
+            else{
+                setLedColor( secondaryColor?secondaryColor:'off' );
+            }
+            // Toggle
+            primary = !primary;
 
-    }, (typeof(blink)==='number'?blink:600));
+        }, (typeof(blink)==='number'?blink:600));
+    }
+    else{
+        // Blink two colors after each other
+        blinkTwice( color, secondaryColor?secondaryColor:'red' );
+        blinkInterval = setInterval(()=>{
+            blinkTwice( color, secondaryColor?secondaryColor:'red' );
+        },1400);
+    }
+}
+
+function blinkTwice(color:string, secondaryColor:string){
+    setLedColor(color);
+    setTimeout(()=>{
+        setLedColor('off');
+        setTimeout(()=>{
+            setLedColor(secondaryColor?secondaryColor:'red');
+            setTimeout(()=>{
+                setLedColor('off');
+            },90);
+        },150);
+    },90);
 }
 
 // Set status indication on the buzzer
