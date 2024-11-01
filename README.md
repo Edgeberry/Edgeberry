@@ -30,7 +30,7 @@ Edgeberry uses inter-process communication through D-Bus to interact with other 
 | Object           | Method              | Argument                                                    | 
 |------------------|---------------------|-------------------------------------------------------------|
 |io.edgeberry.Core |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
-|                  |SetApplicationStatus | {"status":[ok/warning/error],"message":[string]}            |
+|                  |SetApplicationStatus | {"status":[ok/warning/error/critical],"message":[string]}   |
 
 
 ## License & Collaboration

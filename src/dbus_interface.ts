@@ -16,8 +16,8 @@ import { app_setApplicationInfo, ApplicationInfo } from "./application";
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
 const serviceName = 'io.edgeberry.Core';
-const objectPath = '/io/edgeberry/Object';
-const interfaceName = 'io.edgeberry.Interface';
+const objectPath = '/io/edgeberry/Core';
+const interfaceName = 'io.edgeberry.Core';
 
 // Connect to the session bus
 const systemBus = dbus.systemBus();
