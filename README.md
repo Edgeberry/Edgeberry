@@ -14,9 +14,23 @@ If the installation was successful, you can access the Edgeberry Commandline Int
 $ sudo edgeberry --help
 ```
 
+## CLI
+You can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
+```
+sudo edgeberry --help
+```
+
 ## Application development
+### Python SDK
+Edgeberry provides a SDK for Python applications
+```
+pip install edgeberry
+```
+Check out the [SDK documentation](https://github.com/Edgeberry/Edgeberry-Python-SDK) for more info.
+
 ### D-Bus API
-Edgeberry uses inter-process communication through D-Bus to interact with other applications.
+Edgeberry uses inter-process communication through `D-Bus` to interact with other applications. If there's no SDK available in your favorite language 
+you can use D-Bus directly.
 
 | Object           | Method              | Argument                                                    | 
 |------------------|---------------------|-------------------------------------------------------------|
@@ -29,19 +43,6 @@ dbus-send --system --type=method_call --print-reply \
           --dest=io.edgeberry.Core \
           /io/edgeberry/Core \
           org.freedesktop.DBus.Introspectable.Introspect
-```
-
-### Python SDK
-Edgeberry provides a SDK for Python applications
-```
-pip install edgeberry
-```
-Check out the [SDK documentation](https://github.com/Edgeberry/Edgeberry-Python-SDK) for more info.
-
-## CLI
-You can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
-```
-sudo edgeberry --help
 ```
 
 ## License & Collaboration
