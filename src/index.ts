@@ -1,5 +1,5 @@
 /*
- *  EdgeBerry
+ *  Edgeberry device software
  *  An application for using your Raspberry Pi as an edge device for your IoT project.
  * 
  *  Copyright 2024 Sanne 'SpuQ' Santens
@@ -19,17 +19,11 @@
  */
 
 import { readFileSync } from "fs";
-import express from 'express';
 import { StateManager } from "./stateManager";
-import cors from 'cors';
 // Dashboard cloud client
 import { AWSClient } from "./aws";
 // System features
 import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system";
-// API routes
-import connectivityRoutes from './routes/connectivity';
-import systemRoutes from './routes/system';
-import applicationRoutes from './routes/application';
 // Direct Methods
 import { initializeDirectMethodAPI } from "./directMethodAPI";
 // Persistent settings
@@ -40,24 +34,6 @@ import './dbus_interface';
 /* State Manager */
 export const stateManager = new StateManager();
 stateManager.updateSystemState('state', 'starting');
-
-/* Express Web/API server */
-const app = express();
-const port = settings?.interface?.port?settings.interface.port:3000     // default webui port: 3000
-// Express tools
-app.use(express.json());        // JSON API
-app.use(cors({origin:'*'}));    // Cross-origin references
-// Use the API Routers
-app.use('/api/connectivity', connectivityRoutes );
-app.use('/api/system', systemRoutes );
-app.use('/api/application', applicationRoutes );
-// Serve the public directory and a static HTML index file
-app.use(express.static( __dirname+'/public/'));
-app.get('*', (req:any, res:any)=>{
-    return res.sendFile('index.html',{ root: __dirname+'/public' });
-});
-// Start the webserver
-app.listen( port, ()=>{ console.log('\x1b[32mEdgeberry UI server running on port '+port+'\x1b[30m')});
 
 /* AWS IoT Core */
 export const cloud = new AWSClient();

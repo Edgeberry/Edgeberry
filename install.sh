@@ -178,50 +178,6 @@ fi
 # Cleanup the download
 rm -rf repo.tar.gz
 
-##
-#   Application UI
-##
-
-# Get the latest release of the UI
-#echo -n -e "\e[0mGetting latest ${APPNAME} UI release \e[0m"
-#latest_release=$(curl -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/${REPOOWNER}/${REPONAME}-ui/releases/latest")
-#asset_url=$(echo "$latest_release" | jq -r '.assets[] | select(.name | test("Edgeberry-UI-v[0-9]+\\.[0-9]+\\.[0-9]+\\.tar\\.gz")) | .url')
-# If we have an asset URL, download the tarball
-#if [ -n "$asset_url" ]; then
-#    #echo -e "\e[0;32mGot URL:\e[0m ${asset_url}"; 
-#    echo -e "\e[0;32m[Success]\e[0m"; 
-#    echo -n -e "\e[0mDownloading the latest ${APPNAME} UI \e[0m"
-#    curl -L \
-#    -H "Accept: application/octet-stream" \
-#    -H "X-GitHub-Api-Version: 2022-11-28" \
-#    -o "ui.tar.gz" \
-#    "$asset_url" > /dev/null 2>&1
-    # Check if the download was successful
-#    if [ $? -eq 0 ]; then
-#        echo -e "\e[0;32m[Success]\e[0m"
-#    else
-#        echo -e "\e[0;33mFailed! Exit.\e[0m";
-#        exit 1;
-#    fi
-#else
-#    echo -e "\e[0;33mFailed! Exit.\e[0m";
-#    exit 1;
-#fi
-
-# Unpack the UI in the build/public folder of the application
-#echo -n -e "\e[0mUnpacking the application \e[0m"
-#tar -xvzf ui.tar.gz -C /opt/${APPNAME}/build/public > /dev/null 2>&1
-# Check if the last command succeeded
-#if [ $? -eq 0 ]; then
-#    echo -e "\e[0;32m[Success]\e[0m"
-#else
-#    echo -e "\e[0;33mFailed! Exit.\e[0m";
-#    exit 1;
-#fi
-
-# Cleanup the download
-#rm -rf ui.tar.gz
-
 # Create the symlink to the application's CLI script
 cd /opt/${APPNAME}/${APPCOMP}
 echo -e '\e[0;32mCreating CLI symlink... \e[m'
@@ -278,12 +234,6 @@ fi
 # we're leaving.
 echo ""
 echo -e "\e[0;32m\033[1m${APPNAME} was successfully installed! \033[0m\e[0m"; 
-echo ""
-
-ip_address=$(awk '/inet / && $2 != "127.0.0.1"{print $2}' <(ifconfig))
-echo -e "Access the \033[1m${APPNAME} web interface\033[0m on your local network by"
-echo -e "opening a browser and going to \033[4mhttp://${ip_address}:3000\033[0m, and try"
-echo -e "out the commandline interface by executing \e[3m$ sudo edgeberry --identify\033[0m"
 echo ""
 
 # Exit success

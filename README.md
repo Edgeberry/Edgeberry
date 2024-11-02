@@ -9,11 +9,7 @@ wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/latest/downlo
 chmod +x ./install.sh;
 sudo ./install.sh;
 ```
-If the installation was successful, you can now access your Edgeberry's web interface from your local network
-```
-http://<device_ip_address>:3000
-```
-or you can access the Edgeberry Commandline Interface (CLI):
+If the installation was successful, you can access the Edgeberry Commandline Interface (CLI):
 ```
 $ sudo edgeberry --help
 ```
