@@ -28,6 +28,12 @@ Edgeberry uses inter-process communication through D-Bus to interact with other 
 |io.edgeberry.Core |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
 |                  |SetApplicationStatus | {"status":[ok/warning/error/critical],"message":[string]}   |
 
+## Python SDK
+Edgeberry provides a SDK for Python applications
+```
+pip install edgeberry
+```
+Check out the [SDK documentation](https://github.com/Edgeberry/Edgeberry-Python-SDK) for more info.
 
 ## License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
