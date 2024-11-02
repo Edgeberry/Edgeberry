@@ -20,7 +20,7 @@ In your own application, you can interact with the Edgeberry Device Software usi
 ```
 sudo edgeberry --help
 ```
-### D-BUS API
+### D-Bus API
 Edgeberry uses inter-process communication through D-Bus to interact with other applications.
 
 | Object           | Method              | Argument                                                    | 
@@ -28,7 +28,7 @@ Edgeberry uses inter-process communication through D-Bus to interact with other 
 |io.edgeberry.Core |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
 |                  |SetApplicationStatus | {"status":[ok/warning/error/critical],"message":[string]}   |
 
-## Python SDK
+### Python SDK
 Edgeberry provides a SDK for Python applications
 ```
 pip install edgeberry
