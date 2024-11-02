@@ -23,6 +23,14 @@ Edgeberry uses inter-process communication through D-Bus to interact with other 
 |io.edgeberry.Core |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
 |                  |SetApplicationStatus | {"status":[ok/warning/error/critical],"message":[string]}   |
 
+Using `dbus-send`, you can request a description (introspection) of the available methods, properties, and signals on the io.edgeberry.Core object. 
+```sh
+dbus-send --system --type=method_call --print-reply \
+          --dest=io.edgeberry.Core \
+          /io/edgeberry/Core \
+          org.freedesktop.DBus.Introspectable.Introspect
+```
+
 ### Python SDK
 Edgeberry provides a SDK for Python applications
 ```
