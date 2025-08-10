@@ -53,7 +53,7 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "mkdir ~/
 
 # Copy the relevant project files to the device
 echo -e '\e[0;32mCopying project to device...\e[m'
-sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./webpack.config.js ./edgeberry_cli.sh ./edgeberry-core.conf ./setup.sh ${USER}@${HOST}:temp/
+sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./edgeberry_cli.sh ./edgeberry-core.conf ./setup.sh ${USER}@${HOST}:temp/
 
 # Install the application on remote device
 sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF 

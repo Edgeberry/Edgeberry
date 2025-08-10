@@ -9,12 +9,12 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "deploy": "bash ./deploy.sh",
-    "dev": "nodemon --watch src src/index.ts",
+    "dev": "nodemon --watch src --exec ts-node src/index.ts",
     "start": "node build/index.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SpuQ/Edgeberry.git"
+    "url": "git+https://github.com/Edgeberry/Edgeberry.git"
   },
   "keywords": [
     "iot",
@@ -27,9 +27,9 @@
     "mqtt"
   ],
   "bugs": {
-    "url": "https://github.com/SpuQ/Edgeberry/issues"
+    "url": "https://github.com/Edgeberry/Edgeberry/issues"
   },
-  "homepage": "https://github.com/SpuQ/Edgeberry#readme",
+  "homepage": "https://github.com/Edgeberry/Edgeberry#readme",
   "devDependencies": {
     "@types/node": "^20.11.30",
     "nodemon": "^3.1.0",
