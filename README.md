@@ -1,6 +1,13 @@
 ![Edgeberry Banner](https://raw.githubusercontent.com/Edgeberry/.github/main/brand/EdgeBerry_banner_device_software.png)
 
-The **Edgeberry Device Software** connects your device to the Edgeberry Dashboard, enabeling remote device management. It manages the on-board status indicators for providing useful feedback and assigns essential functions, like device reset, to the physical button. The Edgeberry Device Software offers a commandline interface for interacting with the software.
+Edgeberry Device Software turns a Linux device (e.g., Raspberry Pi) into a managed Edgeberry client. It provisions the device to the Edgeberry cloud (AWS IoT Core), maintains a secure MQTT connection, and publishes device state. Designed for the Edgeberry Baseboard, it reads the HAT EEPROM to identify the board/UUID, drives the baseboard’s status LED and buzzer, and listens to the user button for actions like identify and link‑to‑user. On‑device it runs as a systemd service with a CLI (`edgeberry`) and a D‑Bus API for apps, providing secure fleet onboarding (X.509, fleet provisioning), consistent shadow/state management, and remote operations (reboot, update, reconnect) so teams can focus on application logic.
+
+## Key features
+- Edgeberry Dashboard integration: secure provisioning (X.509, fleet provisioning), persistent MQTT, and device shadow sync.
+- Remote control from the cloud: reboot, update, reconnect, and link‑to‑user via direct methods.
+- Hardware integration with the Edgeberry Baseboard: EEPROM identity (vendor/product/version/UUID), status LED & buzzer patterns, and user button actions.
+- Runs as a systemd service with a simple CLI (`edgeberry`) and a D‑Bus API (`io.edgeberry.Core`) for local apps.
+- Network/platform detection and safe persistence of settings and certificates.
 
 ## Installation
 On your device, install the Edgeberry Device Software by downloading and executing the installation script
