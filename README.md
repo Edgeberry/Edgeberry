@@ -2,7 +2,7 @@
 
 Edgeberry Device Software turns a Linux device (e.g., Raspberry Pi) into a managed Edgeberry client. It provisions the device to the Edgeberry cloud (AWS IoT Core), maintains a secure MQTT connection, and publishes device state. Designed for the Edgeberry Baseboard, it reads the HAT EEPROM to identify the board/UUID, drives the baseboard’s status LED and buzzer, and listens to the user button for actions like identify and link‑to‑user. On‑device it runs as a systemd service with a CLI (`edgeberry`) and a D‑Bus API for apps, providing secure fleet onboarding (X.509, fleet provisioning), consistent shadow/state management, and remote operations (reboot, update, reconnect) so teams can focus on application logic.
 
-## Key features
+#### Key features
 - Edgeberry Dashboard integration: secure provisioning (X.509, fleet provisioning), persistent MQTT, and device shadow sync.
 - Remote control from the cloud: reboot, update, reconnect, and link‑to‑user via direct methods.
 - Hardware integration with the Edgeberry Baseboard: EEPROM identity (vendor/product/version/UUID), status LED & buzzer patterns, and user button actions.
