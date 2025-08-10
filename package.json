@@ -7,7 +7,7 @@
   "main": "build/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc && webpack --config webpack.config.js && rm -rf build/bundle.js jsbuild/",
+    "build": "tsc",
     "deploy": "bash ./deploy.sh",
     "dev": "nodemon --watch src src/index.ts",
     "start": "node build/index.js"
@@ -32,13 +32,9 @@
   "homepage": "https://github.com/SpuQ/Edgeberry#readme",
   "devDependencies": {
     "@types/node": "^20.11.30",
-    "babel-loader": "^9.1.3",
     "nodemon": "^3.1.0",
-    "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.3",
-    "webpack-cli": "^5.1.4",
-    "webpack-node-externals": "^3.0.0"
+    "typescript": "^5.4.3"
   },
   "dependencies": {
     "aws-iot-device-sdk-v2": "^1.19.1",
