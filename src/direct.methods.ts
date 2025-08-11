@@ -4,9 +4,9 @@
  *  a convenient interface for calling remote actions on the device from Cloud Platform.
  */
 
-import { cloud, stateManager } from ".";
-import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "./application";
-import { system_button, system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system";
+import { cloud, stateManager } from "./main";
+import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "./application.service";
+import { system_button, system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system.service";
 
 
 /*

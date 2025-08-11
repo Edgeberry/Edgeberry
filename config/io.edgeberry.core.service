@@ -6,7 +6,7 @@ After=network.target
 [Service]
 WorkingDirectory=/opt/Edgeberry/Core/
 Type=simple
-ExecStart=/usr/bin/node /opt/Edgeberry/Core/build/index.js
+ExecStart=/usr/bin/node /opt/Edgeberry/Core/build/main.js
 Restart=on-failure
 
 [Install]

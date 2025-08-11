@@ -10,8 +10,8 @@
  *      dbus-send --system --print-reply --dest=io.edgeberry.Service /io/edgeberry/Object io.edgeberry.Interface.Identify
  */
 
-import { stateManager } from ".";
-import { app_setApplicationInfo, ApplicationInfo } from "./application";
+import { stateManager } from "./main";
+import { app_setApplicationInfo, ApplicationInfo } from "./application.service";
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 

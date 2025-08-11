@@ -4,7 +4,7 @@
  */
 
 import EventEmitter from "events";
-import { system_beepBuzzer, system_setStatusLed } from "./system";
+import { system_beepBuzzer, system_setStatusLed } from "./system.service";
 
 export type deviceState = {
     system:{

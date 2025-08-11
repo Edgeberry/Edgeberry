@@ -19,17 +19,17 @@
  */
 
 import { readFileSync } from "fs";
-import { StateManager } from "./stateManager";
+import { StateManager } from "./state.manager";
 // Dashboard cloud client
-import { AWSClient } from "./aws";
+import { AWSClient } from "./aws.client";
 // System features
-import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system";
+import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system.service";
 // Direct Methods
-import { initializeDirectMethodAPI } from "./directMethodAPI";
+import { initializeDirectMethodAPI } from "./direct.methods";
 // Persistent settings
-import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './persistence';
+import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './settings.store';
 // Commandline Interface (for inter-process communication)
-import './dbus_interface';
+import './dbus.interface';
 
 /* State Manager */
 export const stateManager = new StateManager();

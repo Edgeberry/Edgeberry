@@ -3,7 +3,7 @@
  *  Interaction with system-related features.
  */
 import { exec, execSync } from "child_process";
-import { stateManager } from ".";
+import { stateManager } from "./main";
 import { readFileSync } from "fs";
 import { EventEmitter } from "stream";
 
