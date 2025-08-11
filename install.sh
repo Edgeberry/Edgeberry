@@ -16,10 +16,11 @@
 #   - Internet connectivity
 #
 # Usage:
-#   sudo ./install.sh [-y|--yes]
+#   sudo ./install.sh [-y|--yes] [--dev]
 #
 # Options:
 #   -y, --yes   Auto-confirm all prompts (non-interactive mode)
+#   --dev       Install latest development build (including pre-releases)
 ##
 
 APPNAME=Edgeberry
@@ -29,11 +30,16 @@ REPOOWNER=Edgeberry
 
 # Parse arguments
 # -y | --yes  -> answer 'yes' to all prompts in this script
+# --dev       -> install latest development build instead of stable release
 ALL_YES=false
+DEV_BUILD=false
 for arg in "$@"; do
   case "$arg" in
     -y|--yes)
       ALL_YES=true
+      ;;
+    --dev)
+      DEV_BUILD=true
       ;;
   esac
 done
@@ -254,13 +260,36 @@ fi
 
 # Step 4: Check for the latest release of the EdgeBerry application using the GitHub API
 mark_step_busy 4
-latest_release=$(curl -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/${REPOOWNER}/${REPONAME}/releases/latest")
+if [ "$DEV_BUILD" = true ]; then
+    # For dev builds, get the latest release (including pre-releases)
+    latest_release=$(curl -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/${REPOOWNER}/${REPONAME}/releases" | jq '.[0]')
+    echo -e "\e[0;36mInstalling latest development build...\e[0m"
+else
+    # For stable builds, get the latest stable release only
+    latest_release=$(curl -H "Accept: application/vnd.github.v3+json" -s "https://api.github.com/repos/${REPOOWNER}/${REPONAME}/releases/latest")
+    echo -e "\e[0;36mInstalling latest stable release...\e[0m"
+fi
 # Check if this was successful
-if [ -n "$latest_release" ]; then
+if [ -n "$latest_release" ] && [ "$latest_release" != "null" ]; then
+    # Extract and display version info
+    release_tag=$(echo "$latest_release" | jq -r '.tag_name')
+    release_name=$(echo "$latest_release" | jq -r '.name')
+    is_prerelease=$(echo "$latest_release" | jq -r '.prerelease')
+    
+    if [ "$is_prerelease" = "true" ]; then
+        echo -e "\e[0;33mNote: Installing pre-release version: $release_name ($release_tag)\e[0m"
+    else
+        echo -e "\e[0;32mInstalling stable version: $release_name ($release_tag)\e[0m"
+    fi
+    
     mark_step_completed 4
 else
     mark_step_failed 4
-    echo -e "\e[0;33mFailed to get latest ${APPNAME} release info! Exit.\e[0m";
+    if [ "$DEV_BUILD" = true ]; then
+        echo -e "\e[0;33mFailed to get latest ${APPNAME} development release info! Exit.\e[0m";
+    else
+        echo -e "\e[0;33mFailed to get latest ${APPNAME} release info! Exit.\e[0m";
+    fi
     exit 1;
 fi
 # Step 5: Get the asset download URL from the release info
