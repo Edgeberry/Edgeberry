@@ -56,7 +56,7 @@ EOF
     echo ""
     ;;
   "--setup")
-    bash /opt/$APPNAME/Core/setup.sh
+    bash /opt/$APPNAME/Core/scripts/setup.sh
     ;;
 
   "--version"|"-v")

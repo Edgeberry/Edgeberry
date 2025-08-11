@@ -29,11 +29,12 @@ jobs:
             mkdir tempdir;                         \
             mv ./package.json ./tempdir/;          \
             mv ./build ./tempdir/;                 \
-            mv ./edgeberry-core.conf ./tempdir/;   \
-            mv ./edgeberry_cli.sh ./tempdir/;      \
-            mv ./setup.sh ./tempdir/;              \
-            mv ./io.edgeberry.core.service ./tempdir/;  \
-            mv ./uninstall.sh ./tempdir/;
+            mkdir ./tempdir/scripts ./tempdir/config; \
+            mv ./scripts/edgeberry_cli.sh ./tempdir/scripts/; \
+            mv ./scripts/setup.sh ./tempdir/scripts/; \
+            mv ./config/edgeberry-core.conf ./tempdir/config/; \
+            mv ./config/io.edgeberry.core.service ./tempdir/config/; \
+            mv ./scripts/uninstall.sh ./tempdir/scripts/;
 
       - name: Create tarball
         run: tar -C ./tempdir -zcvf package.tar.gz .

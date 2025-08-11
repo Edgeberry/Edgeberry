@@ -361,7 +361,7 @@ fi
 
 # Step 10: Install the Edgeberry systemd service
 mark_step_busy 10
-mv -f /opt/${APPNAME}/${APPCOMP}/io.edgeberry.core.service /etc/systemd/system/
+mv -f /opt/${APPNAME}/${APPCOMP}/config/io.edgeberry.core.service /etc/systemd/system/
 systemctl daemon-reload
 if [ $? -eq 0 ]; then
     mark_step_completed 10
@@ -381,7 +381,7 @@ fi
 
 # Step 12: Move the dbus policy to the /etc/dbus-1/system.d directory
 mark_step_busy 12
-mv -f /opt/${APPNAME}/${APPCOMP}/edgeberry-core.conf /etc/dbus-1/system.d/
+mv -f /opt/${APPNAME}/${APPCOMP}/config/edgeberry-core.conf /etc/dbus-1/system.d/
 if [ $? -eq 0 ]; then
     mark_step_completed 12
 else
@@ -401,7 +401,7 @@ case "$response" in
         mark_step_skipped 13
         ;;
     *) 
-        bash ./setup.sh
+        bash ./scripts/setup.sh
         if [ $? -eq 0 ]; then
             mark_step_completed 13
         else

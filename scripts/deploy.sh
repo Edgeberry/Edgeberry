@@ -53,7 +53,7 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "mkdir ~/
 
 # Copy the relevant project files to the device
 echo -e '\e[0;32mCopying project to device...\e[m'
-sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./edgeberry_cli.sh ./edgeberry-core.conf ./setup.sh ${USER}@${HOST}:temp/
+sshpass -p ${PASSWORD} scp -r ./src ./package.json ./tsconfig.json ./scripts/edgeberry_cli.sh ./config/edgeberry-core.conf ./scripts/setup.sh ${USER}@${HOST}:temp/
 
 # Install the application on remote device
 sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF 
@@ -82,11 +82,11 @@ sshpass -p ${PASSWORD} ssh -o StrictHostKeyChecking=no ${USER}@${HOST} << EOF
 
     # Create the symlink to the application's CLI script
     echo -e '\e[0;32mCreating CLI symlink... \e[m'
-    ln -sf $APPDIR/edgeberry_cli.sh /usr/local/bin/edgeberry
+    ln -sf $APPDIR/scripts/edgeberry_cli.sh /usr/local/bin/edgeberry
 
     # Move the D-Bus config file to /etc/dbus-1/system.d
     echo -e '\e[0;32mMoving D-Bus config file to /etc/dbus-1/system.d... \e[m'
-    mv -f $APPDIR/edgeberry-core.conf /etc/dbus-1/system.d/
+    mv -f $APPDIR/config/edgeberry-core.conf /etc/dbus-1/system.d/
 
     # (re)start application
     echo -e '\e[0;32mRestarting the application... \e[m'

@@ -1,6 +1,6 @@
 {
   "name": "edgeberry",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "description": "Edgeberry device software",
   "author": "Sanne 'SpuQ' Santens",
   "license": "GPL-3.0-only",
@@ -8,7 +8,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "deploy": "bash ./deploy.sh",
+    "deploy": "bash ./scripts/deploy.sh",
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
     "start": "node build/index.js"
   },
