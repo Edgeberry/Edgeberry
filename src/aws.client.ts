@@ -477,10 +477,7 @@ export class AWSClient extends EventEmitter {
                 var privateKey = '';
                 var rootCa = '';
 
-                // Open the AWS IoT Core connection for provisioning
-                await provisioningClient.connect();
-
-                // Subscribe to the device provisioning response
+                // Subscribe to the device provisioning response BEFORE connecting
                 provisioningClient.subscribe('$aws/certificates/create/json/accepted', mqtt.QoS.AtLeastOnce, async(topic, payload)=>{
                     const response = JSON.parse(new TextDecoder().decode(payload));
                     // The payload contains the new certificate
@@ -488,6 +485,7 @@ export class AWSClient extends EventEmitter {
                     privateKey = response.privateKey;
                     // Some templates include root CA as 'rootCa' in response
                     rootCa = response.rootCa ? response.rootCa : '';
+                    console.log('\x1b[90mProvisioning: certificate created (accepted)\x1b[37m');
                     // Create the registration
                     // -> The parameters are parameters passed to the provisioning template!
                     const parameters = {
@@ -525,6 +523,7 @@ export class AWSClient extends EventEmitter {
                         // Align with consumer in main.ts which expects 'rootCertificate'
                         rootCertificate: rootCa
                     }
+                    console.log('\x1b[90mProvisioning: registration accepted for '+connectionParameters.deviceId+'\x1b[37m');
                     // Disconnect the provisioning client
                     provisioningClient.disconnect();
                     // Emit the connection parameters
@@ -532,23 +531,20 @@ export class AWSClient extends EventEmitter {
                     return resolve(true);
                 });
                 provisioningClient.subscribe('$aws/provisioning-templates/'+provisioningTemplateName+'/provision/json/rejected', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
-                    //console.log("Device provisioning rejected")
+                    console.error("Provisioning: registration rejected: "+new TextDecoder().decode(payload));
                     return reject(new TextDecoder().decode(payload));
                 });
 
-                // When the provisioning client connects, we request
-                // a certificate by publishing to the create certificate topic
-                provisioningClient.on('connect', ()=>{
-                    //console.log('connected to provisioning service')
-                    provisioningClient.publish(
-                        '$aws/certificates/create/json',
-                        JSON.stringify({ parameters: { serialNumber: this.provisioningParameters?.clientId || 'unknown' } }),
-                        mqtt.QoS.AtMostOnce
-                    );
-                });
-
-                //provisioningClient.on('disconnect', ()=>{console.log("ProvisioningClient disconnected")});
+                // Set error handler before connecting
                 provisioningClient.on('error', (error:any)=>{return reject(error)});
+
+                // Open the AWS IoT Core connection for provisioning, then publish create-certificate
+                await provisioningClient.connect();
+                provisioningClient.publish(
+                    '$aws/certificates/create/json',
+                    JSON.stringify({ parameters: { serialNumber: this.provisioningParameters?.clientId || 'unknown' } }),
+                    mqtt.QoS.AtMostOnce
+                );
 
                 // Do not resolve here; resolution happens in accepted/rejected handlers above
             } catch(err){
