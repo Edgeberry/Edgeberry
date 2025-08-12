@@ -14,7 +14,7 @@ On your device, install the Edgeberry Device Software by downloading and executi
 ```
 wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/latest/download/install.sh;
 chmod +x ./install.sh;
-sudo ./install.sh;
+sudo ./install.sh -y;
 ```
 If the installation was successful, you can access the Edgeberry Commandline Interface (CLI):
 ```
