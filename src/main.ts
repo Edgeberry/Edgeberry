@@ -102,7 +102,7 @@ async function initialize():Promise<void>{
             // Connect the client
             await cloud.connect();
         } catch(err){
-            //console.error(err);
+            console.error('Cloud connect failed:', err);
         }
     }
     // If there were no connection settings, but we have provisioning
@@ -113,7 +113,7 @@ async function initialize():Promise<void>{
             await cloud.provision();
         }
         catch(err){
-            console.error("Device provisioning failed: "+err);
+            console.error('Device provisioning failed:', err);
         }
     }
 }
@@ -153,7 +153,7 @@ cloud.on('provisioned', async( connectionParameters )=>{
         authenticationType: 'x509',
         certificate: connectionParameters.certificate,
         privateKey: connectionParameters.privateKey,
-        rootCertificate: connectionParameters.rootCa
+        rootCertificate: connectionParameters.rootCertificate
     });
     // Connect the cloud client
     await cloud.connect();

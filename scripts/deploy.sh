@@ -139,7 +139,7 @@ if [ $? -eq 0 ]; then mark_step_completed 6; else mark_step_failed 6; echo -e "\
 
 # Step 7: Copy temp -> appdir
 mark_step_busy 7
-"${SSH_BASE[@]}" ${USER}@${HOST} "sudo rsync -a --delete \"$REMOTE_TEMP/\" \"$APPDIR/\" && rm -rf \"$REMOTE_TEMP\"" >/dev/null 2>&1
+"${SSH_BASE[@]}" ${USER}@${HOST} "sudo rsync -a --delete --exclude 'settings.json' --exclude 'certificates/' \"$REMOTE_TEMP/\" \"$APPDIR/\" && rm -rf \"$REMOTE_TEMP\"" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 7; else mark_step_failed 7; echo -e "\e[0;33mFailed to copy files into app directory\e[0m"; exit 1; fi
 
 # Step 8: Install dependencies (remote, prod only)
@@ -168,7 +168,6 @@ mark_step_busy 12
 if [ $? -eq 0 ]; then mark_step_completed 12; else mark_step_failed 12; echo -e "\e[0;33mFailed to restart service\e[0m"; exit 1; fi
 
 show_progress
-echo ""
 echo -e "\e[0;32m\033[1mDeployment completed successfully.\033[0m\e[0m"
 echo ""
 exit 0

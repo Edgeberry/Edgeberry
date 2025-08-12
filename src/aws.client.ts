@@ -477,6 +477,9 @@ export class AWSClient extends EventEmitter {
                 var privateKey = '';
                 var rootCa = '';
 
+                // Open the AWS IoT Core connection for provisioning
+                await provisioningClient.connect();
+
                 // Subscribe to the device provisioning response
                 provisioningClient.subscribe('$aws/certificates/create/json/accepted', mqtt.QoS.AtLeastOnce, async(topic, payload)=>{
                     const response = JSON.parse(new TextDecoder().decode(payload));
@@ -514,13 +517,13 @@ export class AWSClient extends EventEmitter {
                     //console.log(response);
 
                     const connectionParameters = {
-                        hostName: this.provisioningParameters?.hostName,
-                        deviceId: response.thingName,
+                        hostName: this.provisioningParameters?.hostName || '',
+                        deviceId: (response?.thingName || this.provisioningParameters?.clientId || ''),
                         authenticationType: 'x509',
                         certificate: certificate,
                         privateKey: privateKey,
-                        // Align with consumer in main.ts which expects 'rootCa'
-                        rootCa: rootCa
+                        // Align with consumer in main.ts which expects 'rootCertificate'
+                        rootCertificate: rootCa
                     }
                     // Disconnect the provisioning client
                     provisioningClient.disconnect();
@@ -547,10 +550,7 @@ export class AWSClient extends EventEmitter {
                 //provisioningClient.on('disconnect', ()=>{console.log("ProvisioningClient disconnected")});
                 provisioningClient.on('error', (error:any)=>{return reject(error)});
 
-                // Open the AWS IoT Core connection
-                await provisioningClient.connect();
-                // If we got here, everything went fine
-                return resolve(true);
+                // Do not resolve here; resolution happens in accepted/rejected handlers above
             } catch(err){
                 this.clientStatus.provisioning = false;
                 this.clientStatus.provisioned = false;
