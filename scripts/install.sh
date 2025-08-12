@@ -351,7 +351,9 @@ rm -rf repo.tar.gz
 # Step 9: Create the symlink to the application's CLI script
 mark_step_busy 9
 cd /opt/${APPNAME}/${APPCOMP}
-ln -sf $(pwd)/edgeberry_cli.sh /usr/local/bin/edgeberry
+# Ensure CLI script is executable and create symlink to it on PATH
+chmod +x /opt/${APPNAME}/${APPCOMP}/scripts/edgeberry_cli.sh
+ln -sf /opt/${APPNAME}/${APPCOMP}/scripts/edgeberry_cli.sh /usr/local/bin/edgeberry
 if [ $? -eq 0 ]; then
     mark_step_completed 9
 else
