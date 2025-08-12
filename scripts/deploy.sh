@@ -35,6 +35,7 @@ declare -a STEPS=(
   "Install dependencies (remote, prod)"
   "Create CLI symlink"
   "Install D-Bus policy"
+  "Install/Refresh systemd service"
   "Restart service"
 )
 
@@ -124,7 +125,7 @@ if [ $? -eq 0 ]; then mark_step_completed 4; else mark_step_failed 4; echo -e "\
 
 # Step 5: Copy artifacts to remote
 mark_step_busy 5
-"${SCP_BASE[@]}" -r ./build ./package.json ./scripts/edgeberry_cli.sh ./config/edgeberry-core.conf ./scripts/setup.sh ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1
+"${SCP_BASE[@]}" -r ./build ./package.json ./scripts ./config ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1
 SCP_STATUS=$?
 if [ -f package-lock.json ]; then
   "${SCP_BASE[@]}" ./package-lock.json ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1 || true
@@ -153,13 +154,18 @@ if [ $? -eq 0 ]; then mark_step_completed 9; else mark_step_failed 9; echo -e "\
 
 # Step 10: Install D-Bus policy
 mark_step_busy 10
-"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/config/edgeberry-core.conf\" /etc/dbus-1/system.d/; fi" >/dev/null 2>&1
+"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/config/edgeberry-core.conf\" /etc/dbus-1/system.d/; elif [ -f \"$APPDIR/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/edgeberry-core.conf\" /etc/dbus-1/system.d/; fi" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 10; else mark_step_failed 10; echo -e "\e[0;33mFailed to install D-Bus policy\e[0m"; exit 1; fi
 
-# Step 11: Restart service
+# Step 11: Install/Refresh systemd service
 mark_step_busy 11
+"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/config/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; elif [ -f \"$APPDIR/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; fi; sudo chown root:root /etc/systemd/system/io.edgeberry.core.service; sudo systemctl daemon-reload; sudo systemctl enable \"$SERVICENAME\"" >/dev/null 2>&1
+if [ $? -eq 0 ]; then mark_step_completed 11; else mark_step_failed 11; echo -e "\e[0;33mFailed to install/refresh systemd service\e[0m"; exit 1; fi
+
+# Step 12: Restart service
+mark_step_busy 12
 "${SSH_BASE[@]}" ${USER}@${HOST} "sudo systemctl restart \"$SERVICENAME\"" >/dev/null 2>&1
-if [ $? -eq 0 ]; then mark_step_completed 11; else mark_step_failed 11; echo -e "\e[0;33mFailed to restart service\e[0m"; exit 1; fi
+if [ $? -eq 0 ]; then mark_step_completed 12; else mark_step_failed 12; echo -e "\e[0;33mFailed to restart service\e[0m"; exit 1; fi
 
 show_progress
 echo ""
