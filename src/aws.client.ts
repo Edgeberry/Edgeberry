@@ -1,21 +1,21 @@
 /*
- *  AWS IoT Core client
- *  
- *  
- *  AWS IoT Core SDK examples:
- *      https://docs.aws.amazon.com/iot/latest/developerguide/iot-sdks.html
- *      https://github.com/aws/aws-iot-device-sdk-js-v2
- *      https://github.com/aws/aws-iot-device-sdk-js-v2/blob/main/samples/node/
- *  
- *  AWS IoT Core documentation:
- *      https://docs.aws.amazon.com/iot/latest/developerguide/what-is-aws-iot.html
- * 
- *  Other info:
- *      https://iotatlas.net
+ * AWS IoT Core client for Edgeberry
+ * - Purpose: MTLS MQTT client with stable reconnect, Thing Shadow (named: edgeberry-device),
+ *   Direct Methods (RPC over MQTT), and Fleet Provisioning (by claim).
+ * - Events: 'connecting' | 'connected' | 'disconnected' | 'status' | 'error' |
+ *           'provisioning' | 'provisioned'
+ * - Topics: Shadow: $aws/things/<id>/shadow/name/edgeberry-device/(get|update)[/accepted|rejected]
+ *           Direct: edgeberry/things/<id>/methods/(post|response/<requestId>)
+ *           App:    application/devices/<id>/messages/events
+ *           FP:     $aws/certificates/create/json and
+ *                   $aws/provisioning-templates/<tpl>/provision/json (± accepted|rejected)
+ * - API: updateConnectionParameters(), connect(), sendMessage(), updateState(),
+ *        registerDirectMethod(), updateProvisioningParameters(), provision()
+ * - See usage in: src/main.ts | Docs: AWS IoT SDK v2 + samples
  */
 import { mqtt, iot } from 'aws-iot-device-sdk-v2';
 import { EventEmitter } from "events";
-import { TextDecoder, TextEncoder } from 'util';
+import { TextDecoder } from 'util';
 
 // The AWS IoT Core provisioning template name
 const provisioningTemplateName = "Edgeberry-provisioning-template"; 
@@ -96,6 +96,7 @@ export class AWSClient extends EventEmitter {
     private clientStatus:AWSClientStatus = { connected: false, provisioning:false };      // AWS IoT Core connection status
     private client:mqtt.MqttClientConnection|null = null;                                 // AWS IoT Core client object
     private directMethods:DirectMethod[] = [];                                            // Direct Methods (not natively supported by AWS IoT Core?)
+    private reconnectAttempts = 0;                                                        // Reconnect attempt counter
 
     // MQTT topics
     private shadowTopicPrefix = '';     // Shadow topic prefix
@@ -179,28 +180,7 @@ export class AWSClient extends EventEmitter {
                 const mqttClient = new mqtt.MqttClient();
                 // Create the MQTT connection
                 this.client = mqttClient.new_connection( config );
-            
-                // Thing Shadow
-                // The named shadow for EdgeBerry devices is 'edgeberry-device'
-                this.shadowTopicPrefix = '$aws/things/'+this.connectionParameters.deviceId+'/shadow/name/edgeberry-device'
-                // UPDATE
-                // The update request was accepted by AWS IoT, and the message body contains the current shadow document.
-                this.client.subscribe( this.shadowTopicPrefix+'/update/accepted', mqtt.QoS.AtMostOnce, this.updateShadowResponseHandler );
-                // The update request was rejected by AWS IoT, and the message body contains the error information.
-                this.client.subscribe( this.shadowTopicPrefix+'/update/rejected', mqtt.QoS.AtMostOnce, this.updateShadowResponseHandler );
-                // GET
-                // The get request was accepted by AWS IoT, and the message body contains the current shadow document.
-                this.client.subscribe( this.shadowTopicPrefix+'/get/accepted', mqtt.QoS.AtMostOnce, this.getShadowResponseHandler );
-                // The get request was rejected by AWS IoT, and the message body contains the error information.
-                this.client.subscribe( this.shadowTopicPrefix+'/get/rejected', mqtt.QoS.AtMostOnce, this.getShadowResponseHandler );
-
-                // Direct Methods
-                // Direct method invocations (Cloud-to-Device) are posted to the /methods/post topic
-                this.client.subscribe('edgeberry/things/'+this.connectionParameters.deviceId+'/methods/post', mqtt.QoS.AtMostOnce, (topic, payload)=>this.handleDirectMethod(topic, payload) );
-
-                // Application
-                this.client.subscribe('application/devices/'+this.connectionParameters.deviceId+'/methods/post', mqtt.QoS.AtMostOnce, (topic, payload)=>{});
-
+                
                 // Register the event listeners
                 this.client.on('connect', ()=>this.clientConnectHandler());
                 this.client.on('disconnect', ()=>this.clientDisconnectHandler());
@@ -208,7 +188,52 @@ export class AWSClient extends EventEmitter {
 
                 // Open the AWS IoT Core connection
                 await this.client.connect();
+
+                // After successful connection, set up topics and subscriptions
+                // Thing Shadow
+                // The named shadow for EdgeBerry devices is 'edgeberry-device'
+                this.shadowTopicPrefix = '$aws/things/'+this.connectionParameters.deviceId+'/shadow/name/edgeberry-device';
+
+                // Shadow update topics
+                await this.client.subscribe(
+                    this.shadowTopicPrefix+'/update/accepted',
+                    mqtt.QoS.AtMostOnce,
+                    (topic, payload)=>this.updateShadowResponseHandler(topic, payload)
+                );
+                await this.client.subscribe(
+                    this.shadowTopicPrefix+'/update/rejected',
+                    mqtt.QoS.AtMostOnce,
+                    (topic, payload)=>this.updateShadowResponseHandler(topic, payload)
+                );
+                // Shadow get topics
+                await this.client.subscribe(
+                    this.shadowTopicPrefix+'/get/accepted',
+                    mqtt.QoS.AtMostOnce,
+                    (topic, payload)=>this.getShadowResponseHandler(topic, payload)
+                );
+                await this.client.subscribe(
+                    this.shadowTopicPrefix+'/get/rejected',
+                    mqtt.QoS.AtMostOnce,
+                    (topic, payload)=>this.getShadowResponseHandler(topic, payload)
+                );
+
+                // Direct Methods
+                // Direct method invocations (Cloud-to-Device) are posted to the /methods/post topic
+                await this.client.subscribe(
+                    'edgeberry/things/'+this.connectionParameters.deviceId+'/methods/post',
+                    mqtt.QoS.AtMostOnce,
+                    (topic, payload)=>this.handleDirectMethod(topic, payload)
+                );
+
+                // Application (placeholder)
+                await this.client.subscribe(
+                    'application/devices/'+this.connectionParameters.deviceId+'/methods/post',
+                    mqtt.QoS.AtMostOnce,
+                    (_topic, _payload)=>{}
+                );
+
                 this.clientStatus.connecting = false;
+                this.reconnectAttempts = 0; // reset backoff on success
                 // If we got here, everything went fine
                 return resolve(true);
             } catch(err){
@@ -221,12 +246,15 @@ export class AWSClient extends EventEmitter {
     }
 
     private reconnect(){
-            this.connect()
-                .then(()=>{
-                    console.log("success!")
-                })
-                .catch((err)=>{
-                });
+        const maxDelayMs = 30000; // cap at 30s
+        const baseDelayMs = 1000;
+        const jitterMs = 250;
+        const attempt = Math.min(this.reconnectAttempts + 1, 10);
+        const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs) + Math.floor(Math.random()*jitterMs);
+        this.reconnectAttempts = attempt;
+        setTimeout(()=>{
+            this.connect().catch(()=>{/* swallow, next disconnect/error schedules again */});
+        }, delay);
     }
 
     /* Send message */
@@ -234,13 +262,12 @@ export class AWSClient extends EventEmitter {
         return new Promise(async(resolve, reject)=>{
             // Don't bother sending a message if there's no client
             if( !this.client ) return reject('No client');
-            const encoder = new TextEncoder();
             // Create a new message object
             let msg:any = {};
             // Encode the (JSON) message to UTF-8
             //msg.data = encoder.encode(message.data);
             //msg.data = Buffer.from(message.data, 'utf8');
-            msg.data=message.data;
+            msg.data = message.data;
             // Add the properties to the message
             if( message.properties && message.properties.length > 0){
                 message.properties.forEach((property)=>{
@@ -249,12 +276,12 @@ export class AWSClient extends EventEmitter {
             }
             // Publish the UTF-8 encoded message to topic 'devices/<deviceId>/messages/events'
             try{
-                const result = await this.client.publish(
-                                    'application/devices/'+this.connectionParameters?.deviceId+'/messages/events',
-                                    msg,
-                                    mqtt.QoS.AtLeastOnce,
-                                    false
-                                );
+                await this.client.publish(
+                    'application/devices/'+this.connectionParameters?.deviceId+'/messages/events',
+                    JSON.stringify(msg),
+                    mqtt.QoS.AtLeastOnce,
+                    false
+                );
                 return resolve(true);
             } catch(err){
                 return reject(err);
@@ -274,13 +301,14 @@ export class AWSClient extends EventEmitter {
         this.clientStatus.connected = false;
         this.emit( 'disconnected' );
         this.emit( 'status', this.clientStatus );
-        //setTimeout(()=>{this.reconnect()},2000);
+        // schedule reconnect
+        this.reconnect();
     }
 
     private clientErrorHandler( error:any ){
         this.emit( 'error', error );
         // Reconnect after error
-        //setTimeout(()=>{this.reconnect()},5000);
+        this.reconnect();
     }
 
     /*
@@ -316,7 +344,12 @@ export class AWSClient extends EventEmitter {
     private async respondToDirectMethod( response:any ){
         // Publish the response
         if( !this.client || !this.connectionParameters?.deviceId ) return;
-        const result = await this.client.publish('edgeberry/things/'+this.connectionParameters.deviceId+'/methods/response/'+response.requestId, response, mqtt.QoS.AtMostOnce, true );
+        await this.client.publish(
+            'edgeberry/things/'+this.connectionParameters.deviceId+'/methods/response/'+response.requestId,
+            JSON.stringify(response),
+            mqtt.QoS.AtMostOnce,
+            true
+        );
     }
 
     // Register direct methods
@@ -341,7 +374,11 @@ export class AWSClient extends EventEmitter {
             reported[key] = value;
             const state = { state:{ reported:reported } };
             try{
-                await this.client.publish( this.shadowTopicPrefix+'/update', state, mqtt.QoS.AtMostOnce );
+                await this.client.publish(
+                    this.shadowTopicPrefix+'/update',
+                    JSON.stringify(state),
+                    mqtt.QoS.AtMostOnce
+                );
                 return resolve('success');
             }
             catch(err){
@@ -364,13 +401,11 @@ export class AWSClient extends EventEmitter {
 
     private async getShadow(){
         if( !this.client || !this.clientStatus.connected ) return;
-        console.log( 'Requesting shadow: '+this.shadowTopicPrefix+'/get')
-        const id:mqtt.MqttRequest = await this.client.publish( this.shadowTopicPrefix+'/get','',mqtt.QoS.AtMostOnce );
-        console.log(id);
+        console.log( 'Requesting shadow: '+this.shadowTopicPrefix+'/get');
+        await this.client.publish( this.shadowTopicPrefix+'/get', '', mqtt.QoS.AtMostOnce );
     }
 
     private getShadowResponseHandler( topic:string, payload:ArrayBuffer ){
-        console.log('here')
         try{
             //console.log(topic);
             // Decode UTF-8 payload
@@ -448,7 +483,8 @@ export class AWSClient extends EventEmitter {
                     // The payload contains the new certificate
                     certificate = response.certificatePem;
                     privateKey = response.privateKey;
-                    rootCa = response.rootca?response.rootCa:'';
+                    // Some templates include root CA as 'rootCa' in response
+                    rootCa = response.rootCa ? response.rootCa : '';
                     // Create the registration
                     // -> The parameters are parameters passed to the provisioning template!
                     const parameters = {
@@ -458,7 +494,11 @@ export class AWSClient extends EventEmitter {
                         }
                     }
                     // Publish registration request
-                    provisioningClient.publish('$aws/provisioning-templates/'+provisioningTemplateName+'/provision/json', parameters,mqtt.QoS.AtMostOnce);
+                    provisioningClient.publish(
+                        '$aws/provisioning-templates/'+provisioningTemplateName+'/provision/json',
+                        JSON.stringify(parameters),
+                        mqtt.QoS.AtMostOnce
+                    );
                 });
 
                 // Provisioning: subscribe to the certificate creation
@@ -479,7 +519,8 @@ export class AWSClient extends EventEmitter {
                         authenticationType: 'x509',
                         certificate: certificate,
                         privateKey: privateKey,
-                        rootCertificate: rootCa
+                        // Align with consumer in main.ts which expects 'rootCa'
+                        rootCa: rootCa
                     }
                     // Disconnect the provisioning client
                     provisioningClient.disconnect();
@@ -487,7 +528,7 @@ export class AWSClient extends EventEmitter {
                     this.emit('provisioned', connectionParameters);
                     return resolve(true);
                 });
-                provisioningClient.subscribe('$aws/provisioning-templates/EdgeBerry-provisioning/provision/json/rejected', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
+                provisioningClient.subscribe('$aws/provisioning-templates/'+provisioningTemplateName+'/provision/json/rejected', mqtt.QoS.AtLeastOnce, (topic, payload)=>{
                     //console.log("Device provisioning rejected")
                     return reject(new TextDecoder().decode(payload));
                 });
@@ -496,7 +537,11 @@ export class AWSClient extends EventEmitter {
                 // a certificate by publishing to the create certificate topic
                 provisioningClient.on('connect', ()=>{
                     //console.log('connected to provisioning service')
-                    provisioningClient.publish('$aws/certificates/create/json', JSON.stringify({parameters:{serialNumber:'blab'}}),mqtt.QoS.AtMostOnce);
+                    provisioningClient.publish(
+                        '$aws/certificates/create/json',
+                        JSON.stringify({ parameters: { serialNumber: this.provisioningParameters?.clientId || 'unknown' } }),
+                        mqtt.QoS.AtMostOnce
+                    );
                 });
 
                 //provisioningClient.on('disconnect', ()=>{console.log("ProvisioningClient disconnected")});
