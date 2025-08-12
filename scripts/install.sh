@@ -432,7 +432,14 @@ show_progress
 
 # We're done. Some notes before we're leaving.
 echo ""
-echo -e "\e[0;32m\033[1m${APPNAME} was successfully installed! \033[0m\e[0m"; 
+echo -e "\e[0;32m\033[1mThe ${APPNAME} Device Software was successfully installed! \033[0m\e[0m"; 
+echo ""
+
+# Suggest the user to connect the device to the Edgeberry Dashboard
+DEVICE_ID=$(edgeberry --hardware-id)
+echo -e "To connect this device to your Edgeberry Dashboard,"
+echo -e "go to \e[0;32mhttps://dashboard.edgeberry.io\e[0m, and add"
+echo -e "the device with its Hardware ID: \e[0;32m${DEVICE_ID}\e[0m"
 echo ""
 
 # Exit success
