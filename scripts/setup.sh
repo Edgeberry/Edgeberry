@@ -57,40 +57,52 @@ else
     UUID=Edgeberry_$(cat /dev/urandom | tr -dc 'a-f0-9' | head -c 32)
 fi
 
-# Get the provisioning data from the Dashboard.
-# This requires an official Edgeberry Hardware ID
-echo -e -n "\e[0mGetting device provisioning data from $APPNAME Dashboard... \e[0m"
-RESPONSE=$(curl -s -X GET -w ";%{http_code}" -d "{\"hardwareId\":\"$UUID\"}" -H 'Content-Type: application/json' https://dashboard.edgeberry.io/api/things/provisioningparameters )
-# Split the response in an array based on the ';' character
-IFS=';' read -r -a RESULT <<< "$RESPONSE"
-PROVISIONINGDATA="${RESULT[0]}"
-STATUSCODE="${RESULT[1]}"
-# If the HTTP GET request was successful, use the data
-# from the result
-if [[ "$STATUSCODE" = "200" ]]; then
-    echo -e "\e[0;32m[Success]\e[0m"
-else
-    echo -e "\e[0;33m[Failed]\e[0m";
-    echo -e "\e[0mProceeding with manually adding necessary data...\e[0m"
-fi
+# Get the Device Hub host from user input
+echo -e "\e[0mDevice Hub Setup\e[0m"
+echo -e "\e[0mPlease provide the Device Hub host (IP address or domain name)\e[0m"
+read -r -p "Device Hub Host: " HOSTNAME
 
-PROVHOSTNAME=$(echo "$PROVISIONINGDATA" | jq -r ".endpoint")
-PROVCERT=$(echo "$PROVISIONINGDATA" | jq -r ".certificate")
-PROVKEY=$(echo "$PROVISIONINGDATA" | jq -r ".privateKey")
-
-# If not hostname was fetched, provide the hostname
-# manually
-if [[ "$PROVHOSTNAME" = "null" ]]; then
-    read -r -p "Hostname: " HOSTNAME
-fi
-
-if [[ "$PROVHOSTNAME" != "null" ]]; then
-    HOSTNAME=$PROVHOSTNAME;
-fi
+# Validate hostname is not empty
 if [[ -z "$HOSTNAME" ]]; then
     echo -e "\e[0;31mHostname cannot be empty\e[0m"
     echo -e "\e[0mExit\e[0m"
     exit 1;
+fi
+
+# Get the provisioning certificates from the Device Hub
+echo -e -n "\e[0mFetching provisioning certificates from Device Hub at $HOSTNAME... \e[0m"
+
+# Fetch provisioning certificate
+PROVCERT_RESPONSE=$(curl -s -w ";%{http_code}" "http://$HOSTNAME:3000/api/provisioning/certs/provisioning.crt")
+IFS=';' read -r -a PROVCERT_RESULT <<< "$PROVCERT_RESPONSE"
+PROVCERT="${PROVCERT_RESULT[0]}"
+PROVCERT_STATUS="${PROVCERT_RESULT[1]}"
+
+# Fetch provisioning private key (assuming it's available at a similar endpoint)
+PROVKEY_RESPONSE=$(curl -s -w ";%{http_code}" "http://$HOSTNAME:3000/api/provisioning/certs/provisioning.key")
+IFS=';' read -r -a PROVKEY_RESULT <<< "$PROVKEY_RESPONSE"
+PROVKEY="${PROVKEY_RESULT[0]}"
+PROVKEY_STATUS="${PROVKEY_RESULT[1]}"
+
+# Fetch root CA certificate
+ROOTCA_RESPONSE=$(curl -s -w ";%{http_code}" "http://$HOSTNAME:3000/api/provisioning/certs/ca.crt")
+IFS=';' read -r -a ROOTCA_RESULT <<< "$ROOTCA_RESPONSE"
+ROOTCA="${ROOTCA_RESULT[0]}"
+ROOTCA_STATUS="${ROOTCA_RESULT[1]}"
+
+# Check if all certificates were fetched successfully
+if [[ "$PROVCERT_STATUS" = "200" && "$PROVKEY_STATUS" = "200" && "$ROOTCA_STATUS" = "200" ]]; then
+    echo -e "\e[0;32m[Success]\e[0m"
+else
+    echo -e "\e[0;33m[Failed]\e[0m";
+    echo -e "\e[0mOne or more certificates could not be fetched from Device Hub.\e[0m"
+    echo -e "\e[0mProvisioning cert status: $PROVCERT_STATUS\e[0m"
+    echo -e "\e[0mProvisioning key status: $PROVKEY_STATUS\e[0m"
+    echo -e "\e[0mRoot CA status: $ROOTCA_STATUS\e[0m"
+    echo -e "\e[0mProceeding with manual certificate entry...\e[0m"
+    PROVCERT="null"
+    PROVKEY="null"
+    ROOTCA="null"
 fi
 
 # Populate the provisioning certificate file
@@ -103,10 +115,18 @@ fi
 
 # Populate the provisioning private key file
 echo -e "\e[0mPopulating the provisioning private key... \e[0m"
-if [[ "$PROVCERT" != "null" ]]; then
+if [[ "$PROVKEY" != "null" ]]; then
     echo -e "$PROVKEY" > $CERTDIR/provisioning_key.pem
 else
     nano $CERTDIR/provisioning_key.pem
+fi
+
+# Populate the root CA certificate file
+echo -e "\e[0mPopulating the root CA certificate... \e[0m"
+if [[ "$ROOTCA" != "null" ]]; then
+    echo -e "$ROOTCA" > $CERTDIR/provisioning_rootCA.pem
+else
+    nano $CERTDIR/provisioning_rootCA.pem
 fi
 
 # Create the settings file

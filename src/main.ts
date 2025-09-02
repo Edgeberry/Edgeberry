@@ -21,7 +21,7 @@
 import { readFileSync } from "fs";
 import { StateManager } from "./state.manager";
 // Dashboard cloud client
-import { AWSClient } from "./aws.client";
+import { HubClient } from "./devicehub.client";
 // System features
 import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system.service";
 // Direct Methods
@@ -35,8 +35,8 @@ import './dbus.interface';
 export const stateManager = new StateManager();
 stateManager.updateSystemState('state', 'starting');
 
-/* AWS IoT Core */
-export const cloud = new AWSClient();
+/* Device Hub */
+export const cloud = new HubClient();
 
 async function initialize():Promise<void>{
     // initialize system state

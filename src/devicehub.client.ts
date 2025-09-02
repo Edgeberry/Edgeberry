@@ -54,6 +54,37 @@ export type MessageProperty = {
   value: string;
 };
 
+export type DirectMethod = {
+  name: string;
+  function: Function;
+};
+
+class DirectMethodResponse {
+  private statuscode: number = 200;
+  private callback: Function | null = null;
+  private requestId: string = '';
+
+  constructor(requestId: string, callback: Function) {
+    this.callback = callback;
+    this.requestId = requestId;
+  }
+
+  public send(payload: any) {
+    if (typeof this.callback === 'function') {
+      if (this.statuscode === 200) {
+        this.callback({ status: this.statuscode, payload: payload, requestId: this.requestId });
+      } else {
+        this.callback({ status: this.statuscode, message: payload.message, requestId: this.requestId });
+      }
+    }
+  }
+
+  public status(status: number) {
+    this.statuscode = status;
+    return this;
+  }
+}
+
 export class HubClient extends EventEmitter {
   private connectionParameters: HubConnectionParameters | null = null;
   private provisioningParameters: HubProvisioningParameters | null = null;
@@ -61,6 +92,7 @@ export class HubClient extends EventEmitter {
   private client: MqttClient | null = null;
   private reconnectAttempts = 0;
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private directMethods: DirectMethod[] = [];
 
   constructor() {
     super();
@@ -108,6 +140,41 @@ export class HubClient extends EventEmitter {
     return this.provisioningParameters;
   }
 
+  /* Register direct methods */
+  public registerDirectMethod(name: string, method: Function) {
+    this.directMethods.push({ name: name, function: method });
+  }
+
+  /* Handler for direct method invocations */
+  private async handleDirectMethod(topic: string, payload: Buffer) {
+    try {
+      // Decode UTF-8 payload
+      const request = JSON.parse(payload.toString('utf8'));
+      // Find the registered method with this method name
+      const directMethod = this.directMethods.find(obj => obj.name === request?.name);
+      // If the method is not found, return 'not found' to caller
+      if (!directMethod) return await this.respondToDirectMethod({ status: 404, message: 'Method not found', requestId: request.requestId });
+      // Invoke the direct method
+      directMethod.function(request, new DirectMethodResponse(request.requestId, (response: any) => {
+        // Send a response to the invoker
+        this.respondToDirectMethod(response);
+      }));
+    } catch (err) {
+      return await this.respondToDirectMethod({ httpStatusCode: 500, message: "That didn't work" });
+    }
+  }
+
+  /* Send response to a direct method */
+  private async respondToDirectMethod(response: any) {
+    // Publish the response
+    if (!this.client || !this.connectionParameters?.deviceId) return;
+    this.client.publish(
+      'edgeberry/things/' + this.connectionParameters.deviceId + '/methods/response/' + response.requestId,
+      JSON.stringify(response),
+      { qos: 0, retain: true }
+    );
+  }
+
 
   public connect(): Promise<string | boolean> {
     return new Promise<string | boolean>(async (resolve, reject) => {
@@ -148,10 +215,14 @@ export class HubClient extends EventEmitter {
         this.client.on('message', (topic: string, payload: Buffer) => {
           if (!this.connectionParameters) return;
           const base = `$devicehub/devices/${this.connectionParameters.deviceId}/twin/update`;
+          const methodBase = `edgeberry/things/${this.connectionParameters.deviceId}/methods/post`;
+          
           if (topic === `${base}/accepted` || topic === `${base}/rejected`) {
             this.twinUpdateResponseHandler(topic, payload);
           } else if (topic === `${base}/delta`) {
             this.twinDeltaHandler(topic, payload);
+          } else if (topic === methodBase) {
+            this.handleDirectMethod(topic, payload);
           }
         });
 
@@ -169,6 +240,13 @@ export class HubClient extends EventEmitter {
         this.client.subscribe(
           `$devicehub/devices/${this.connectionParameters.deviceId}/twin/update/delta`,
           { qos: 1 },
+          (err) => err && this.emit('error', err)
+        );
+        
+        // Subscribe to direct method calls
+        this.client.subscribe(
+          `edgeberry/things/${this.connectionParameters.deviceId}/methods/post`,
+          { qos: 0 },
           (err) => err && this.emit('error', err)
         );
 
