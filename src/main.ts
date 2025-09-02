@@ -189,6 +189,7 @@ stateManager.on('state', (state)=>{
  *  Initialize Direct Method API
  *  The 'Direct Method API' is for direct communication with the Dashboard. It enables
  *  the dashboard to make function calls and receive responses from the device.
+ *  Direct methods are initialized early to ensure they're available as soon as MQTT connection is established.
  */
 initializeDirectMethodAPI();
 

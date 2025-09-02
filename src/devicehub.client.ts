@@ -148,18 +148,32 @@ export class HubClient extends EventEmitter {
   /* Handler for direct method invocations */
   private async handleDirectMethod(topic: string, payload: Buffer) {
     try {
+      console.log(`[HubClient] Received direct method on topic: ${topic}`);
+      console.log(`[HubClient] Payload: ${payload.toString('utf8')}`);
+      
       // Decode UTF-8 payload
       const request = JSON.parse(payload.toString('utf8'));
+      console.log(`[HubClient] Parsed request:`, request);
+      console.log(`[HubClient] Looking for method: ${request?.name}`);
+      console.log(`[HubClient] Registered methods:`, this.directMethods.map(m => m.name));
+      
       // Find the registered method with this method name
       const directMethod = this.directMethods.find(obj => obj.name === request?.name);
       // If the method is not found, return 'not found' to caller
-      if (!directMethod) return await this.respondToDirectMethod({ status: 404, message: 'Method not found', requestId: request.requestId });
+      if (!directMethod) {
+        console.log(`[HubClient] Method '${request?.name}' not found`);
+        return await this.respondToDirectMethod({ status: 404, message: 'Method not found', requestId: request.requestId });
+      }
+      
+      console.log(`[HubClient] Invoking method: ${directMethod.name}`);
       // Invoke the direct method
       directMethod.function(request, new DirectMethodResponse(request.requestId, (response: any) => {
+        console.log(`[HubClient] Method response:`, response);
         // Send a response to the invoker
         this.respondToDirectMethod(response);
       }));
     } catch (err) {
+      console.error(`[HubClient] Error handling direct method:`, err);
       return await this.respondToDirectMethod({ httpStatusCode: 500, message: "That didn't work" });
     }
   }
@@ -215,18 +229,24 @@ export class HubClient extends EventEmitter {
         this.client.on('message', (topic: string, payload: Buffer) => {
           if (!this.connectionParameters) return;
           const base = `$devicehub/devices/${this.connectionParameters.deviceId}/twin/update`;
-          const methodBase = `edgeberry/things/${this.connectionParameters.deviceId}/methods/post`;
+          const methodBase = `$devicehub/devices/${this.connectionParameters.deviceId}/methods/post`;
+          
+          console.log(`[HubClient] Received message on topic: ${topic}`);
+          console.log(`[HubClient] Expected method topic: ${methodBase}`);
           
           if (topic === `${base}/accepted` || topic === `${base}/rejected`) {
             this.twinUpdateResponseHandler(topic, payload);
           } else if (topic === `${base}/delta`) {
             this.twinDeltaHandler(topic, payload);
           } else if (topic === methodBase) {
+            console.log(`[HubClient] Routing to handleDirectMethod`);
             this.handleDirectMethod(topic, payload);
+          } else {
+            console.log(`[HubClient] No handler for topic: ${topic}`);
           }
         });
 
-        // Subscriptions (Twin accepted/rejected/delta)
+        // Subscriptions (Twin accepted/rejected)
         this.client.subscribe(
           `$devicehub/devices/${this.connectionParameters.deviceId}/twin/update/accepted`,
           { qos: 1 },
@@ -245,7 +265,7 @@ export class HubClient extends EventEmitter {
         
         // Subscribe to direct method calls
         this.client.subscribe(
-          `edgeberry/devices/${this.connectionParameters.deviceId}/methods/post`,
+          `$devicehub/devices/${this.connectionParameters.deviceId}/methods/post`,
           { qos: 0 },
           (err) => err && this.emit('error', err)
         );
