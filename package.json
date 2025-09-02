@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "aws-iot-device-sdk-v2": "^1.19.1",
-    "dbus-native": "^0.4.0"
+    "dbus-native": "^0.4.0",
+    "mqtt": "^4.3.8"
   }
 }
