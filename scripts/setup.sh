@@ -72,33 +72,65 @@ fi
 # Get the provisioning certificates from the Device Hub
 echo -e -n "\e[0mFetching provisioning certificates from Device Hub at $HOSTNAME... \e[0m"
 
-# Fetch provisioning certificate
-PROVCERT_RESPONSE=$(curl -s -w ";%{http_code}" "http://$HOSTNAME:3000/api/provisioning/certs/provisioning.crt")
-IFS=';' read -r -a PROVCERT_RESULT <<< "$PROVCERT_RESPONSE"
-PROVCERT="${PROVCERT_RESULT[0]}"
-PROVCERT_STATUS="${PROVCERT_RESULT[1]}"
+# Function to try fetching from different ports
+fetch_cert() {
+    local endpoint=$1
+    local ports=("8080" "80" "3000")
+    
+    for port in "${ports[@]}"; do
+        # Use separate calls to get status and content to handle multi-line certificates
+        status=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>/dev/null)
+        if [[ "$status" = "200" ]]; then
+            content=$(curl -s --connect-timeout 5 "http://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>/dev/null)
+            # Use base64 encoding to safely pass multi-line content
+            encoded_content=$(echo "$content" | base64 -w 0)
+            echo "$encoded_content;$status;$port"
+            return 0
+        fi
+    done
+    echo "null;404;none"
+    return 1
+}
 
-# Fetch provisioning private key (assuming it's available at a similar endpoint)
-PROVKEY_RESPONSE=$(curl -s -w ";%{http_code}" "http://$HOSTNAME:3000/api/provisioning/certs/provisioning.key")
-IFS=';' read -r -a PROVKEY_RESULT <<< "$PROVKEY_RESPONSE"
-PROVKEY="${PROVKEY_RESULT[0]}"
-PROVKEY_STATUS="${PROVKEY_RESULT[1]}"
+# Fetch provisioning certificate
+PROVCERT_RESULT=$(fetch_cert "provisioning.crt")
+IFS=';' read -r PROVCERT_ENCODED PROVCERT_STATUS PROVCERT_PORT <<< "$PROVCERT_RESULT"
+if [[ "$PROVCERT_ENCODED" != "null" ]]; then
+    PROVCERT=$(echo "$PROVCERT_ENCODED" | base64 -d)
+else
+    PROVCERT="null"
+fi
+
+# Fetch provisioning private key
+PROVKEY_RESULT=$(fetch_cert "provisioning.key")
+IFS=';' read -r PROVKEY_ENCODED PROVKEY_STATUS PROVKEY_PORT <<< "$PROVKEY_RESULT"
+if [[ "$PROVKEY_ENCODED" != "null" ]]; then
+    PROVKEY=$(echo "$PROVKEY_ENCODED" | base64 -d)
+else
+    PROVKEY="null"
+fi
 
 # Fetch root CA certificate
-ROOTCA_RESPONSE=$(curl -s -w ";%{http_code}" "http://$HOSTNAME:3000/api/provisioning/certs/ca.crt")
-IFS=';' read -r -a ROOTCA_RESULT <<< "$ROOTCA_RESPONSE"
-ROOTCA="${ROOTCA_RESULT[0]}"
-ROOTCA_STATUS="${ROOTCA_RESULT[1]}"
+ROOTCA_RESULT=$(fetch_cert "ca.crt")
+IFS=';' read -r ROOTCA_ENCODED ROOTCA_STATUS ROOTCA_PORT <<< "$ROOTCA_RESULT"
+if [[ "$ROOTCA_ENCODED" != "null" ]]; then
+    ROOTCA=$(echo "$ROOTCA_ENCODED" | base64 -d)
+else
+    ROOTCA="null"
+fi
 
 # Check if all certificates were fetched successfully
 if [[ "$PROVCERT_STATUS" = "200" && "$PROVKEY_STATUS" = "200" && "$ROOTCA_STATUS" = "200" ]]; then
     echo -e "\e[0;32m[Success]\e[0m"
+    echo -e "\e[0mUsing Device Hub on port $PROVCERT_PORT\e[0m"
 else
     echo -e "\e[0;33m[Failed]\e[0m";
     echo -e "\e[0mOne or more certificates could not be fetched from Device Hub.\e[0m"
-    echo -e "\e[0mProvisioning cert status: $PROVCERT_STATUS\e[0m"
-    echo -e "\e[0mProvisioning key status: $PROVKEY_STATUS\e[0m"
-    echo -e "\e[0mRoot CA status: $ROOTCA_STATUS\e[0m"
+    echo -e "\e[0mProvisioning cert: $PROVCERT_STATUS (port: $PROVCERT_PORT)\e[0m"
+    echo -e "\e[0mProvisioning key: $PROVKEY_STATUS (port: $PROVKEY_PORT)\e[0m"
+    echo -e "\e[0mRoot CA: $ROOTCA_STATUS (port: $ROOTCA_PORT)\e[0m"
+    echo -e "\e[0mTried ports: 8080, 80, 3000\e[0m"
+    echo -e "\e[0mMake sure Device Hub is running and accessible at $HOSTNAME\e[0m"
     echo -e "\e[0mProceeding with manual certificate entry...\e[0m"
     PROVCERT="null"
     PROVKEY="null"

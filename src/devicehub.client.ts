@@ -245,7 +245,7 @@ export class HubClient extends EventEmitter {
         
         // Subscribe to direct method calls
         this.client.subscribe(
-          `edgeberry/things/${this.connectionParameters.deviceId}/methods/post`,
+          `edgeberry/devices/${this.connectionParameters.deviceId}/methods/post`,
           { qos: 0 },
           (err) => err && this.emit('error', err)
         );
