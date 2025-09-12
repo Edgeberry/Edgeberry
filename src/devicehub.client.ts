@@ -91,6 +91,7 @@ export class HubClient extends EventEmitter {
   private clientStatus: HubClientStatus = { connected: false, provisioning: false };
   private client: MqttClient | null = null;
   private reconnectAttempts = 0;
+  private reconnectScheduled = false;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private directMethods: DirectMethod[] = [];
 
@@ -206,7 +207,7 @@ export class HubClient extends EventEmitter {
         const url = `mqtts://${this.connectionParameters.hostName}:8883`;
         const options: IClientOptions = {
           clientId: this.connectionParameters.deviceId,
-          reconnectPeriod: 2000,
+          reconnectPeriod: 0, // Disable built-in reconnection - use custom logic
           keepalive: 240,
           clean: false,
           cert: this.connectionParameters.certificate,
@@ -281,16 +282,29 @@ export class HubClient extends EventEmitter {
   }
 
   private scheduleReconnect() {
+    // Prevent multiple reconnection attempts from being scheduled
+    if (this.reconnectScheduled || this.clientStatus.connected || this.clientStatus.connecting) {
+      return;
+    }
+    
     const maxDelayMs = 30000;
     const baseDelayMs = 1000;
     const jitterMs = 250;
-    const attempt = Math.min(this.reconnectAttempts + 1, 10);
-    const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs) + Math.floor(Math.random() * jitterMs);
-    this.reconnectAttempts = attempt;
+    this.reconnectAttempts = Math.min(this.reconnectAttempts + 1, 10);
+    const delay = Math.min(baseDelayMs * Math.pow(2, this.reconnectAttempts), maxDelayMs) + Math.floor(Math.random() * jitterMs);
+    
+    this.reconnectScheduled = true;
+    console.log(`\x1b[33m[HubClient] Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms\x1b[37m`);
+    
     setTimeout(() => {
-      this.connect().catch(() => {
-        /* swallow; next disconnect/error schedules again */
-      });
+      this.reconnectScheduled = false;
+      if (!this.clientStatus.connected && !this.clientStatus.connecting) {
+        console.log(`\x1b[90m[HubClient] Attempting reconnection (attempt ${this.reconnectAttempts})\x1b[37m`);
+        this.connect().catch((err) => {
+          console.log(`\x1b[31m[HubClient] Reconnection attempt ${this.reconnectAttempts} failed: ${err}\x1b[37m`);
+          /* Next disconnect/error will schedule again */
+        });
+      }
     }, delay);
   }
 
@@ -330,6 +344,9 @@ export class HubClient extends EventEmitter {
   /* Handlers */
   private clientConnectHandler() {
     this.clientStatus.connected = true;
+    this.reconnectAttempts = 0; // Reset reconnection attempts on successful connection
+    this.reconnectScheduled = false; // Reset reconnection scheduling flag
+    console.log(`\x1b[32m[HubClient] Successfully connected, reset reconnection attempts\x1b[37m`);
     this.emit('connected');
     this.emit('status', this.clientStatus);
     this.startHeartbeat();
@@ -449,7 +466,7 @@ export class HubClient extends EventEmitter {
         const url = `mqtts://${this.provisioningParameters.hostName}:8883`;
         const options: IClientOptions = {
           clientId: this.provisioningParameters.clientId, // Use UUID as clientId
-          reconnectPeriod: 2000,
+          reconnectPeriod: 0, // Disable built-in reconnection for provisioning too
           clean: true,
           cert: this.provisioningParameters.certificate,
           key: this.provisioningParameters.privateKey,
