@@ -21,7 +21,7 @@
 import { readFileSync } from "fs";
 import { StateManager } from "./state.manager";
 // Dashboard cloud client
-import { HubClient } from "./devicehub.client";
+import { EdgeberryDeviceHubClient } from "@edgeberry/devicehub-device-client";
 // System features
 import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system.service";
 // Direct Methods
@@ -36,7 +36,7 @@ export const stateManager = new StateManager();
 stateManager.updateSystemState('state', 'starting');
 
 /* Device Hub */
-export const cloud = new HubClient();
+export let cloud: EdgeberryDeviceHubClient;
 
 async function initialize():Promise<void>{
     // initialize system state
@@ -69,34 +69,25 @@ async function initialize():Promise<void>{
         // settings_storeProvisioningParameters( settings.provisioning ); --- this currently erases cert/key files -_-
     }
 
-    // load the settings
-    try{
-        if(settings.provisioning)
-        await cloud.updateProvisioningParameters({
-            hostName: settings.provisioning.hostName,
-            clientId: settings.provisioning.clientId,
-            authenticationType: 'x509',
-            certificate: readFileSync( settings.provisioning.certificateFile ).toString(),
-            privateKey: readFileSync( settings.provisioning.privateKeyFile ).toString(),
-            rootCertificate: readFileSync( settings.provisioning.rootCertificateFile ).toString()
-        });
-        // Update the connection parameters from the settings
-        if(settings.connection)
-        await cloud.updateConnectionParameters({
-            hostName: settings.connection.hostName,
-            deviceId: settings.connection.deviceId,
-            authenticationType: 'x509',
-            certificate: readFileSync( settings.connection.certificateFile ).toString(),
-            privateKey: readFileSync( settings.connection.privateKeyFile ).toString(),
-            rootCertificate: readFileSync( settings.connection.rootCertificateFile ).toString()
-        });
-    } catch (err){}
-
-    // If we have connection settings, connect to the cloud using
-    // these settings
+    // If we have connection settings, create client and connect
     if(settings.connection){
-        // Initialize Cloud connection
         try{
+            // Create EdgeberryDeviceHubClient with connection settings
+            cloud = new EdgeberryDeviceHubClient({
+                deviceId: settings.connection.deviceId,
+                host: settings.connection.hostName,
+                cert: readFileSync( settings.connection.certificateFile ).toString(),
+                key: readFileSync( settings.connection.privateKeyFile ).toString(),
+                ca: readFileSync( settings.connection.rootCertificateFile ).toString(),
+                reconnectPeriod: 0 // Disable built-in reconnection - use custom logic
+            });
+            
+            // Set up event handlers
+            setupCloudEventHandlers();
+            
+            // Initialize Direct Method API after client is created
+            initializeDirectMethodAPI();
+            
             // disable the provisioning
             stateManager.updateConnectionState( 'provision', 'disabled' );
             // Connect the client
@@ -108,90 +99,49 @@ async function initialize():Promise<void>{
     // If there were no connection settings, but we have provisioning
     // settings, provision the device.
     else if(settings.provisioning){
-        // Provision the device
-        try{
-            await cloud.provision();
-        }
-        catch(err){
-            console.error('Device provisioning failed:', err);
-        }
+        console.log('\x1b[33mProvisioning not yet implemented with new client\x1b[37m');
+        // TODO: Implement provisioning with EdgeberryDeviceHubClient
     }
 }
 
-initialize();
-
-/* Cloud Event handlers */
-cloud.on('connected', ()=>{
-    stateManager.interruptIndicators('beep');
-    stateManager.updateConnectionState('connection', 'connected');
-    let connectionParameters = cloud.getConnectionParameters();
-    console.log('\x1b[32mCloud Connection: connected with '+connectionParameters?.deviceId+' @ '+connectionParameters?.hostName+' ('+connectionParameters?.authenticationType+') \x1b[37m');
-});
-
-cloud.on('disconnected', ()=>{
-    stateManager.updateConnectionState('connection', 'disconnected');
-    console.log('\x1b[33mCloud Connection: disconnected \x1b[37m');
-});
-
-cloud.on('provisioning', ()=>{
-    stateManager.updateConnectionState('provision', 'provisioning');
-    console.log('\x1b[90mProvisioning the Cloud client... \x1b[37m');
-});
-
-cloud.on('provisioned', async( connectionParameters )=>{
-    stateManager.updateConnectionState('provision', 'provisioned');
-    console.log('\x1b[32mProvisioning succeeded!\x1b[37m');
-
-    // Save the connection parameters
-    settings_storeConnectionParameters( connectionParameters );
-
-    // Connect to the cloud with the parameters provided
-    // by the provisioning service.
-    await cloud.updateConnectionParameters({
-        hostName: connectionParameters.hostName,
-        deviceId: connectionParameters.deviceId,
-        authenticationType: 'x509',
-        certificate: connectionParameters.certificate,
-        privateKey: connectionParameters.privateKey,
-        rootCertificate: connectionParameters.rootCertificate
+function setupCloudEventHandlers() {
+    if (!cloud) return;
+    
+    cloud.on('connected', ()=>{
+        stateManager.interruptIndicators('beep');
+        stateManager.updateConnectionState('connection', 'connected');
+        console.log('\x1b[32mCloud Connection: connected with device \x1b[37m');
     });
-    // Connect the cloud client
-    await cloud.connect();
-    // TODO: save the connection parameters!
-});
 
-cloud.on('connecting', ()=>{
-    stateManager.updateConnectionState('connection', 'connecting');
-    console.log('\x1b[90mConnecting to cloud... \x1b[37m');
-});
+    cloud.on('disconnected', ()=>{
+        stateManager.updateConnectionState('connection', 'disconnected');
+        console.log('\x1b[33mCloud Connection: disconnected \x1b[37m');
+    });
 
-cloud.on('error', (error)=>{
-    console.error('\x1b[31mCloud Connection: '+error+'\x1b[37m');
-});
+    cloud.on('error', (error: any)=>{
+        console.error('\x1b[31mCloud Connection: '+error+'\x1b[37m');
+    });
+}
 
-cloud.on('warning', (warning)=>{
-    console.error('\x1b[33mCloud Connection: '+warning+'\x1b[37m');
-});
-
-cloud.on('status', (status)=>{});
+initialize();
 
 // TODO:
 // We did it this way to reduce constant data exchange with the 'device shadow',
 // but we should report each state update independantly.
 stateManager.on('state', (state)=>{
     // Update the system state
-    cloud.updateState('system', state )
-        .then(()=>{})
-        .catch(()=>{});
+    if (cloud) {
+        cloud.updateState('system', state )
+            .then(()=>{})
+            .catch(()=>{});
+    }
 });
 
 /*
- *  Initialize Direct Method API
+ *  Direct Method API initialization moved to after client creation
  *  The 'Direct Method API' is for direct communication with the Dashboard. It enables
  *  the dashboard to make function calls and receive responses from the device.
- *  Direct methods are initialized early to ensure they're available as soon as MQTT connection is established.
  */
-initializeDirectMethodAPI();
 
 // When we got here, the system has started
 stateManager.updateSystemState('state', 'running');

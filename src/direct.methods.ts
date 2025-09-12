@@ -14,27 +14,18 @@ import { system_button, system_getApplicationInfo, system_getWirelessAddress, sy
  *  All features involving device-to-cloud connectivity
  */
 export function initializeDirectMethodAPI(){
-    /* Get the connection parameters */
-    cloud.registerDirectMethod('getConnectionParameters',(req:any, res:any)=>{
-        return res.send( cloud.getConnectionParameters() );
+    if (!cloud) {
+        console.log('Cloud client not initialized, skipping direct method registration');
+        return;
+    }
+
+    /* Get the connection status */
+    cloud.registerDirectMethod('getConnectionStatus',(req:any, res:any)=>{
+        return res.send( cloud.getClientStatus() );
     });
 
-    /* Update the connection parameters */
-    cloud.registerDirectMethod('updateConnectionParameters', async(req:any, res:any)=>{
-        // Check for the presence of the parameters in the payload
-        if( !req.body )
-        return res.status(400).send({message:'No request body'});
-    
-        try{
-            const body = JSON.parse(req.body);
-            if( !body.parameters ) return res.status(400).send({message:'No parameters'});
-    
-            await cloud.updateConnectionParameters( body.parameters );
-            return res.send({message:'Successfully updated the connection parameters'});
-        } catch(err){
-            return res.status(500).send({message:err});
-        }
-    });
+    /* Connection parameters not available in new client - removed for now */
+    /* Update connection parameters not available in new client - removed for now */
 
     /*
      *  Link To User Account
@@ -70,38 +61,8 @@ export function initializeDirectMethodAPI(){
         }
     });
 
-    /* Get the provisioning parameters */
-    cloud.registerDirectMethod('getProvisioningParameters',(req:any, res:any)=>{
-        return res.send( cloud.getProvisioningParameters() );
-    });
-
-    /* Update the provisioning parameters */
-    cloud.registerDirectMethod('updateProvisioningParameters', async(req:any, res:any)=>{
-        // Check for the presence of the parameters in the payload
-        if( !req.body )
-        return res.status(400).send({message:'No request body'});
-
-        try{
-            const body = JSON.parse(req.body);
-            if( !body.parameters ) return res.status(400).send({message:'No parameters'});
-
-            await cloud.updateProvisioningParameters( body.parameters );
-            return res.send({message:'Successfully updated the provisioning parameters'});
-        } catch(err){
-            return res.status(500).send({message:err});
-        }
-    });
-
-    /* (re)Provision */
-    cloud.registerDirectMethod('reprovision',async(req:any, res:any)=>{
-        try{
-            await cloud.provision();
-            res.send({message:'success'});
-        }
-        catch(err){
-            return res.status(500).send( {message:err} );
-        }
-    });
+    /* Provisioning methods not available in new client - removed for now */
+    /* TODO: Implement provisioning support with EdgeberryDeviceHubClient */
 
     /*
     *  System Direct API
