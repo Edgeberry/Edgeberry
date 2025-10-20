@@ -37,7 +37,7 @@
     "typescript": "^5.4.3"
   },
   "dependencies": {
-    "@edgeberry/devicehub-device-client": "^1.2.0",
+    "@edgeberry/devicehub-device-client": "^1.4.0",
     "dbus-native": "^0.4.0",
     "mqtt": "^4.3.8"
   }
