@@ -144,8 +144,11 @@ if [ $? -eq 0 ]; then mark_step_completed 7; else mark_step_failed 7; echo -e "\
 
 # Step 8: Install dependencies (remote, prod only)
 mark_step_busy 8
-"${SSH_BASE[@]}" ${USER}@${HOST} "cd \"$APPDIR\" && if [ -f package-lock.json ]; then sudo npm ci --omit=dev >/dev/null 2>&1; else sudo npm install --omit=dev >/dev/null 2>&1; fi" >/dev/null 2>&1
-if [ $? -eq 0 ]; then mark_step_completed 8; else mark_step_failed 8; echo -e "\e[0;33mFailed to install production dependencies on remote\e[0m"; exit 1; fi
+set +e
+"${SSH_BASE[@]}" ${USER}@${HOST} "cd \"$APPDIR\" && timeout 120 bash -c 'if [ -f package-lock.json ]; then sudo npm ci --omit=dev; else sudo npm install --omit=dev; fi'" 2>&1 | grep -v "npm WARN"
+NPM_EXIT=${PIPESTATUS[0]}
+set -e
+if [ $NPM_EXIT -eq 0 ]; then mark_step_completed 8; elif [ $NPM_EXIT -eq 124 ]; then mark_step_failed 8; echo -e "\e[0;33mNPM install timed out (>120s)\e[0m"; exit 1; else mark_step_failed 8; echo -e "\e[0;33mFailed to install production dependencies on remote\e[0m"; exit 1; fi
 
 # Step 9: Create CLI symlink
 mark_step_busy 9
