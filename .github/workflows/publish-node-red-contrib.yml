@@ -1,0 +1,33 @@
+name: Publish Node-RED Contrib
+
+on:
+  push:
+    tags:
+      - 'node-red-v*'   # triggers on tags like node-red-v1.7.1
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        working-directory: ./examples/node-red-contrib
+        run: npm install
+
+      - name: Run a basic lint (optional)
+        working-directory: ./examples/node-red-contrib
+        run: npm install eslint && npx eslint *.js || true
+
+      - name: Publish to npm
+        working-directory: ./examples/node-red-contrib
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

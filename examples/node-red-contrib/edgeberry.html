@@ -1,0 +1,55 @@
+<script type="text/javascript">
+  RED.nodes.registerType('edgeberry',{
+    category: 'Edgeberry Device',
+    color: "#FDFDFD",
+    defaults: {
+      name: {value:""}
+    },
+    inputs:1,
+    outputs:1,
+    icon: "Edgeberry_logo.png",
+    label: function() {
+      return this.name || "Edgeberry";
+    }
+  });
+</script>
+
+<script type="text/html" data-template-name="edgeberry">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+</script>
+
+<script type="text/html" data-help-name="edgeberry">
+  <p>This node interacts with the Edgeberry Device Software over DBus.</p>
+  
+  <h3>Send Telemetry/Messages</h3>
+  <p>Set <code>msg.topic = "message"</code> or <code>msg.topic = "telemetry"</code> and pass data in the payload:</p>
+  <pre>{
+  "topic": "telemetry",
+  "payload": {
+    "temperature": 22.5,
+    "humidity": 45,
+    "status": "ok"
+  }
+}</pre>
+  <p>Or use <code>msg.payload.data</code> format:</p>
+  <pre>{
+  "payload": {
+    "data": {
+      "sensor1": 123.4,
+      "sensor2": 567.8
+    }
+  }
+}</pre>
+  
+  <h3>Set Application Info</h3>
+  <pre>{"payload": {"info": {"name":"MyApp","version":"1.0","description":"desc"}}}</pre>
+  
+  <h3>Set Application Status</h3>
+  <pre>{"payload": {"status": {"status":"ok","message":"Running fine"}}}</pre>
+  
+  <h3>Trigger Identify</h3>
+  <pre>{"topic": "identify"}</pre>
+</script>

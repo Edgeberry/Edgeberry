@@ -10,7 +10,7 @@
  *      dbus-send --system --print-reply --dest=io.edgeberry.Service /io/edgeberry/Object io.edgeberry.Interface.Identify
  */
 
-import { stateManager } from "./main";
+import { stateManager, cloud } from "./main";
 import { app_setApplicationInfo, ApplicationInfo } from "./application.service";
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
@@ -62,6 +62,26 @@ const serviceObject = {
             return 'err';
         }
     },
+    SendMessage:(arg:string)=>{
+        try{
+            const data = JSON.parse(arg.toString());
+            if (!cloud) {
+                console.error('Cannot send message: Device Hub client not initialized');
+                return 'err:not_initialized';
+            }
+            try {
+                cloud.sendTelemetry(data);
+                return 'ok';
+            } catch (sendErr: any) {
+                console.error('Cannot send message:', sendErr.message);
+                return 'err:not_connected';
+            }
+        }
+        catch(err){
+            console.error('SendMessage error:', err);
+            return 'err:invalid_data';
+        }
+    },
     AnotherMethod: (arg:string)=>{
         console.log("Another Method was called");
         console.log(arg);
@@ -77,6 +97,7 @@ systemBus.exportInterface( serviceObject, objectPath, {
         Identify:['',''],
         SetApplicationInfo:['s','s'],
         SetApplicationStatus:['s','s'],
+        SendMessage:['s','s'],
         AnotherMethod:['s','s']
     },
     signals: {}

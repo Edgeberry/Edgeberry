@@ -125,7 +125,7 @@ if [ $? -eq 0 ]; then mark_step_completed 4; else mark_step_failed 4; echo -e "\
 
 # Step 5: Copy artifacts to remote
 mark_step_busy 5
-"${SCP_BASE[@]}" -r ./build ./package.json ./scripts ./config ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1
+"${SCP_BASE[@]}" -r ./build ./package.json ./scripts ./config *.tgz ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1
 SCP_STATUS=$?
 if [ -f package-lock.json ]; then
   "${SCP_BASE[@]}" ./package-lock.json ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1 || true

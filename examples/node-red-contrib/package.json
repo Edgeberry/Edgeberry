@@ -1,0 +1,37 @@
+{
+  "name": "@edgeberry/device-node-red-contrib",
+  "version": "3.1.0",
+  "private": false,
+  "description": "Node-RED node to interact with the Edgeberry Device Software over DBus",
+  "license": "MIT",
+  "author": "Sanne 'SpuQ' Santens",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Edgeberry/Edgeberry-device-software.git",
+    "directory": "examples/node-red-contrib"
+  },
+  "homepage": "https://github.com/Edgeberry/Edgeberry-device-software/tree/main/examples/node-red-contrib",
+  "bugs": {
+    "url": "https://github.com/Edgeberry/Edgeberry-device-software/issues"
+  },
+  "keywords": [
+    "node-red",
+    "node-red-node",
+    "edgeberry",
+    "telemetry",
+    "iot"
+  ],
+  "dependencies": {
+    "dbus-next": "^0.10.2"
+  },
+  "node-red": {
+    "nodes": {
+      "edgeberry": "edgeberry.js"
+    }
+  },
+  "files": [
+    "edgeberry.js",
+    "edgeberry.html",
+    "icons"
+  ]
+}

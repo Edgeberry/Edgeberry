@@ -41,7 +41,8 @@ you can use D-Bus directly.
 
 | Object           | Method              | Argument                                                    | 
 |------------------|---------------------|-------------------------------------------------------------|
-|io.edgeberry.Core |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
+|io.edgeberry.Core |SendMessage          | {"temperature":22.5,...} (any JSON telemetry data)         |
+|                  |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
 |                  |SetApplicationStatus | {"status":[ok/warning/error/critical],"message":[string]}   |
 
 Using `dbus-send`, you can request a description (introspection) of the available methods, properties, and signals on the io.edgeberry.Core object. 
@@ -51,6 +52,15 @@ dbus-send --system --type=method_call --print-reply \
           /io/edgeberry/Core \
           org.freedesktop.DBus.Introspectable.Introspect
 ```
+
+### Node-RED Integration
+For Node-RED users, install the Edgeberry node to send telemetry and interact with device software:
+```bash
+cd ~/.node-red
+npm install /path/to/Edgeberry-device-software/examples/node-red-contrib
+node-red-restart
+```
+See [examples/node-red-contrib](examples/node-red-contrib) for detailed documentation and usage examples.
 
 ## License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
