@@ -3,7 +3,7 @@ name: Publish Node-RED Contrib
 on:
   push:
     tags:
-      - 'node-red-v*'   # triggers on tags like node-red-v1.7.1
+      - 'node-red-v*'   # triggers on tags like node-red-v3.1.0
 
 jobs:
   publish:

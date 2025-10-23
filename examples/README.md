@@ -56,7 +56,7 @@ node-red-restart
 
 **Version:** 3.1.0 (synced with device software)
 
-> **Important:** The version number of `node-red-contrib-edgeberry` is kept in sync with the Edgeberry Device Software version to ensure compatibility. When releasing a new version of the device software, update `examples/node-red-contrib/package.json` accordingly.
+> **Important:** The version number of `@edgeberry/device-node-red-contrib` is kept in sync with the Edgeberry Device Software version to ensure compatibility. When releasing a new version of the device software, update `examples/node-red-contrib/package.json` accordingly.
 
 ## Versioning Policy
 
