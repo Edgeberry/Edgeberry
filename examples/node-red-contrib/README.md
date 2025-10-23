@@ -1,17 +1,13 @@
 ![Edgeberry Banner](https://raw.githubusercontent.com/Edgeberry/.github/main/brand/Edgeberry_banner_SDK.png)
 
-<img src="https://nodered.org/about/resources/media/node-red-icon.png" align="right" width="10%"/>
-
-**[Node-RED](https://nodered.org/)** is a visual programming tool that lets you wire together hardware, APIs, and online services by connecting blocks in a flow-based editor. The **Edgeberry Node-RED node** lets your Node-RED flows communicate with the Edgeberry Device Software over DBus to send telemetry data to the Device Hub.
-
-<br clear="right"/>
+The **Edgeberry Node-RED node** lets your on-device Node-RED flows communicate with the Edgeberry Device Software over DBus to send telemetry data to the Device Hub.
 
 ## Features
 
-✅ **Send Telemetry Data** - Send sensor readings and device data to Device Hub  
-✅ **Application Status** - Report application health and status  
-✅ **Device Identification** - Trigger device identification (LED blink)  
-✅ **D-Bus Integration** - Direct communication with device software
+- **Send Telemetry Data** - Send sensor readings and device data to Device Hub  
+- **Application Status** - Report application health and status  
+- **Device Identification** - Trigger device's physical identification (LED blink + beep sound)
+- **D-Bus Integration** - Direct communication with Edgeberry Device Software
 
 [![Node-RED](https://img.shields.io/badge/Node--RED-Edgeberry-blue?logo=nodered)](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib)
 

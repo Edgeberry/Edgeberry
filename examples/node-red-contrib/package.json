@@ -1,6 +1,6 @@
 {
   "name": "@edgeberry/device-node-red-contrib",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "private": false,
   "description": "Node-RED node to interact with the Edgeberry Device Software over DBus",
   "license": "MIT",
@@ -25,6 +25,7 @@
     "dbus-next": "^0.10.2"
   },
   "node-red": {
+    "version": ">=4.0.9", 
     "nodes": {
       "edgeberry": "edgeberry.js"
     }
@@ -33,5 +34,8 @@
     "edgeberry.js",
     "edgeberry.html",
     "icons"
-  ]
+  ],
+  "engines": {
+    "node": ">=16.0.0 || ^18 || ^20"
+  }
 }
