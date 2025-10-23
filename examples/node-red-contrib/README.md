@@ -13,7 +13,7 @@
 ✅ **Device Identification** - Trigger device identification (LED blink)  
 ✅ **D-Bus Integration** - Direct communication with device software
 
-[![Node-RED](https://img.shields.io/badge/Node--RED-Edgeberry-blue?logo=nodered)](https://flows.nodered.org/node/node-red-contrib-edgeberry)
+[![Node-RED](https://img.shields.io/badge/Node--RED-Edgeberry-blue?logo=nodered)](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib)
 
 ## Installation
 
@@ -21,14 +21,14 @@
 1. Open Node-RED in your browser
 2. Click the menu (☰) → Manage palette
 3. Go to the Install tab
-4. Search for `node-red-contrib-edgeberry`
+4. Search for `@edgeberry/device-node-red-contrib`
 5. Click Install
 
 ### Option 2: Manual Install
 On your Edgeberry device:
 ```bash
 cd ~/.node-red
-npm install node-red-contrib-edgeberry
+npm install @edgeberry/device-node-red-contrib
 ```
 
 Restart Node-RED after installation.

@@ -1,0 +1,2 @@
+# Include all Python files in the edgeberry directory
+recursive-include edgeberry *.py

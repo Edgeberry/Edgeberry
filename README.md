@@ -30,10 +30,10 @@ sudo edgeberry --help
 ## Application development
 ### Python SDK
 Edgeberry provides a SDK for Python applications
-```
+```bash
 pip install edgeberry
 ```
-Check out the [SDK documentation](https://github.com/Edgeberry/Edgeberry-Python-SDK) for more info.
+See [examples/python-sdk](examples/python-sdk) for detailed documentation, API reference, and usage examples.
 
 ### D-Bus API
 Edgeberry uses inter-process communication through `D-Bus` to interact with other applications. If there's no SDK available in your favorite language 
