@@ -55,16 +55,7 @@ On your Device Hub server with Node-RED:
 2. Add a **Device Hub Device** node
 3. Configure it with your device name (e.g., EDGB-A096)
 4. Connect it to a Debug or Dashboard node
-5. You'll receive your telemetry data in real-time!
-
-## Usage Examples
-
-See **[EXAMPLES.md](EXAMPLES.md)** for detailed examples including:
-- Temperature monitoring
-- Motion detection
-- Multi-sensor data aggregation
-- Alert systems
-- Bidirectional communication
+5. You'll receive your telemetry data in real-time
 
 ## License & Collaboration
 **Copyright© 2025 Sanne 'SpuQ' Santens**. The Edgeberry NodeRED node is licensed under the **[MIT License](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
