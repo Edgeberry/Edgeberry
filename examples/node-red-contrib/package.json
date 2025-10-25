@@ -1,6 +1,6 @@
 {
   "name": "@edgeberry/device-node-red-contrib",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "description": "Node-RED node to interact with the Edgeberry Device Software over DBus",
   "license": "MIT",
   "author": "Sanne 'SpuQ' Santens",
@@ -24,7 +24,7 @@
     "dbus-next": "^0.10.2"
   },
   "node-red": {
-    "version": ">=4.0.9", 
+    "version": ">=4.0.9",
     "nodes": {
       "edgeberry": "edgeberry.js"
     }
