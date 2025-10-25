@@ -31,6 +31,33 @@ module.exports = function(RED) {
     RED.nodes.createNode(this, config);
     const node = this;
 
+    // Subscribe to CloudMessage D-Bus signal for cloud-to-device messages
+    (async () => {
+      try {
+        const service = await bus.getProxyObject('io.edgeberry.Core', '/io/edgeberry/Core');
+        const iface = service.getInterface('io.edgeberry.Core');
+        
+        // Listen for CloudMessage signals
+        iface.on('CloudMessage', (messageJson) => {
+          try {
+            const payload = JSON.parse(messageJson);
+            node.send({
+              topic: 'cloudMessage',
+              payload: payload,
+              _msgid: RED.util.generateId()
+            });
+            node.log('Received cloud-to-device message');
+          } catch (err) {
+            node.error(`Failed to parse cloud message: ${err}`);
+          }
+        });
+        
+        node.log('Subscribed to cloud-to-device messages');
+      } catch (err) {
+        node.error(`Failed to subscribe to D-Bus signals: ${err}`);
+      }
+    })();
+
     node.on('input', async function(msg) {
       try {
         if (msg.payload.info) {

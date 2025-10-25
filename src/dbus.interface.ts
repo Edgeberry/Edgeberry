@@ -91,7 +91,7 @@ const serviceObject = {
 
 // Register a service object with the object path
 // and define an interface with methods and signals
-systemBus.exportInterface( serviceObject, objectPath, {
+const dbusInterface = systemBus.exportInterface( serviceObject, objectPath, {
     name: interfaceName,
     methods: {
         Identify:['',''],
@@ -100,8 +100,21 @@ systemBus.exportInterface( serviceObject, objectPath, {
         SendMessage:['s','s'],
         AnotherMethod:['s','s']
     },
-    signals: {}
+    signals: {
+        CloudMessage: ['s']  // Signal for cloud-to-device messages
+    }
 });
+
+// Export function to emit cloud messages via D-Bus signal
+export function emitCloudMessage(message: any): void {
+    try {
+        const messageJson = JSON.stringify(message);
+        dbusInterface.CloudMessage(messageJson);
+        console.log('Emitted cloud message via D-Bus signal');
+    } catch (err) {
+        console.error('Failed to emit cloud message:', err);
+    }
+}
 
 
 /*

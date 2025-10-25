@@ -2,14 +2,15 @@
 
 The **Edgeberry Node-RED node** lets your on-device Node-RED flows communicate with the Edgeberry Device Software over DBus to send telemetry data to the Device Hub.
 
+[![Node-RED](https://img.shields.io/badge/Node--RED-Edgeberry-blue?logo=nodered)](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib)
 ## Features
 
 - **Send Telemetry Data** - Send sensor readings and device data to Device Hub  
+- **Receive Cloud Messages** - Receive commands and data from cloud applications
 - **Application Status** - Report application health and status  
 - **Device Identification** - Trigger device's physical identification (LED blink + beep sound)
 - **D-Bus Integration** - Direct communication with Edgeberry Device Software
 
-[![Node-RED](https://img.shields.io/badge/Node--RED-Edgeberry-blue?logo=nodered)](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib)
 
 ## Installation
 
@@ -56,6 +57,36 @@ On your Device Hub server with Node-RED:
 3. Configure it with your device name (e.g., EDGB-A096)
 4. Connect it to a Debug or Dashboard node
 5. You'll receive your telemetry data in real-time
+
+### Receive Cloud-to-Device Messages
+
+The Edgeberry node automatically receives messages from the cloud:
+
+**Device Flow:**
+```
+[Edgeberry] → [Switch: topic=cloudMessage] → [Process Message]
+```
+
+**Switch Node Configuration:**
+- Property: `msg.topic`
+- Rule: `== cloudMessage`
+
+**Cloud Flow (on Device Hub):**
+```
+[Inject] → [Function] → [Device Hub Device: EDGB-A096]
+```
+
+**Function Node:**
+```javascript
+msg.action = "sendMessage";
+msg.payload = {
+    command: "updateConfig",
+    interval: 30
+};
+return msg;
+```
+
+The device will receive the message and output it with `topic: 'cloudMessage'`.
 
 ## License & Collaboration
 **Copyright© 2025 Sanne 'SpuQ' Santens**. The Edgeberry NodeRED node is licensed under the **[MIT License](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.

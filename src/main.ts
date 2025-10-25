@@ -34,6 +34,7 @@ import { initializeDirectMethodAPI } from "./direct.methods";
 import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './settings.store';
 // Commandline Interface (for inter-process communication)
 import './dbus.interface';
+import { emitCloudMessage } from './dbus.interface';
 
 /* State Manager */
 export const stateManager = new StateManager();
@@ -155,6 +156,12 @@ function setupCloudEventHandlers() {
 
     cloud.on('error', (error: any)=>{
         console.error('\x1b[31mCloud Connection: '+error+'\x1b[37m');
+    });
+
+    cloud.on('cloudMessage', (message: any)=>{
+        console.log('\x1b[36mReceived cloud-to-device message:\x1b[37m', message);
+        // Emit D-Bus signal for applications to receive
+        emitCloudMessage(message);
     });
 }
 
