@@ -21,6 +21,10 @@ If the installation was successful, you can access the Edgeberry Commandline Int
 $ sudo edgeberry --help
 ```
 
+### Node-RED
+Edgeberry provides a Node-RED node to interact with the Edgeberry Device Software over D-Bus. [Install Node-RED](https://nodered.org/docs/getting-started/raspberrypi) and the [Edgeberry node](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib).
+
+
 ## CLI
 You can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
 ```
