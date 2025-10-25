@@ -125,10 +125,14 @@ if [ $? -eq 0 ]; then mark_step_completed 4; else mark_step_failed 4; echo -e "\
 
 # Step 5: Copy artifacts to remote
 mark_step_busy 5
-"${SCP_BASE[@]}" -r ./build ./package.json ./scripts ./config *.tgz ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1
+"${SCP_BASE[@]}" -r ./build ./package.json ./scripts ./config ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1
 SCP_STATUS=$?
 if [ -f package-lock.json ]; then
   "${SCP_BASE[@]}" ./package-lock.json ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1 || true
+fi
+# Copy .tgz files if they exist
+if compgen -G "*.tgz" > /dev/null; then
+  "${SCP_BASE[@]}" *.tgz ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1 || true
 fi
 if [ $SCP_STATUS -eq 0 ]; then mark_step_completed 5; else mark_step_failed 5; echo -e "\e[0;33mFailed to copy artifacts to remote\e[0m"; exit 1; fi
 
@@ -145,10 +149,10 @@ if [ $? -eq 0 ]; then mark_step_completed 7; else mark_step_failed 7; echo -e "\
 # Step 8: Install dependencies (remote, prod only)
 mark_step_busy 8
 set +e
-"${SSH_BASE[@]}" ${USER}@${HOST} "cd \"$APPDIR\" && timeout 120 bash -c 'if [ -f package-lock.json ]; then sudo npm ci --omit=dev; else sudo npm install --omit=dev; fi'" 2>&1 | grep -v "npm WARN"
+"${SSH_BASE[@]}" ${USER}@${HOST} "cd \"$APPDIR\" && timeout 300 bash -c 'if [ -f package-lock.json ]; then sudo npm ci --omit=dev; else sudo npm install --omit=dev; fi'" 2>&1 | grep -v "npm WARN"
 NPM_EXIT=${PIPESTATUS[0]}
 set -e
-if [ $NPM_EXIT -eq 0 ]; then mark_step_completed 8; elif [ $NPM_EXIT -eq 124 ]; then mark_step_failed 8; echo -e "\e[0;33mNPM install timed out (>120s)\e[0m"; exit 1; else mark_step_failed 8; echo -e "\e[0;33mFailed to install production dependencies on remote\e[0m"; exit 1; fi
+if [ $NPM_EXIT -eq 0 ]; then mark_step_completed 8; elif [ $NPM_EXIT -eq 124 ]; then mark_step_failed 8; echo -e "\e[0;33mNPM install timed out (>300s)\e[0m"; exit 1; else mark_step_failed 8; echo -e "\e[0;33mFailed to install production dependencies on remote\e[0m"; exit 1; fi
 
 # Step 9: Create CLI symlink
 mark_step_busy 9

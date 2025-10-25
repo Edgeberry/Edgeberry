@@ -88,6 +88,26 @@ return msg;
 
 The device will receive the message and output it with `topic: 'cloudMessage'`.
 
+**Processing Cloud Messages on Device:**
+```javascript
+// In a Function node after the Edgeberry node
+if (msg.topic === "cloudMessage") {
+    const command = msg.payload.command;
+    
+    switch(command) {
+        case "updateConfig":
+            // Update device configuration
+            flow.set("updateInterval", msg.payload.interval);
+            node.warn(`Config updated: ${msg.payload.interval}s interval`);
+            break;
+        case "restart":
+            // Handle restart command
+            break;
+    }
+}
+return msg;
+```
+
 ## License & Collaboration
 **Copyright© 2025 Sanne 'SpuQ' Santens**. The Edgeberry NodeRED node is licensed under the **[MIT License](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
 

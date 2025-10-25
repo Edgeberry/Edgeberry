@@ -10,7 +10,6 @@
  *      dbus-send --system --print-reply --dest=io.edgeberry.Service /io/edgeberry/Object io.edgeberry.Interface.Identify
  */
 
-import { stateManager, cloud } from "./main";
 import { app_setApplicationInfo, ApplicationInfo } from "./application.service";
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
@@ -39,6 +38,8 @@ systemBus.requestName(serviceName,0, (err:string|null, res:number|null)=>{
 const serviceObject = {
     Identify: ()=>{
         console.log('Device identification requested via D-Bus');
+        // Import stateManager dynamically to avoid circular dependency
+        const { stateManager } = require('./main');
         stateManager.interruptIndicators('identify');
         return;
     },
@@ -55,6 +56,8 @@ const serviceObject = {
     SetApplicationStatus:(arg:string)=>{
         try{
             const status = JSON.parse(arg.toString());
+            // Import stateManager dynamically to avoid circular dependency
+            const { stateManager } = require('./main');
             stateManager.updateApplicationState('state', status.level );
             return 'ok';
         }
@@ -65,6 +68,8 @@ const serviceObject = {
     SendMessage:(arg:string)=>{
         try{
             const data = JSON.parse(arg.toString());
+            // Import cloud dynamically to avoid circular dependency
+            const { cloud } = require('./main');
             if (!cloud) {
                 console.error('Cannot send message: Device Hub client not initialized');
                 return 'err:not_initialized';
@@ -91,7 +96,8 @@ const serviceObject = {
 
 // Register a service object with the object path
 // and define an interface with methods and signals
-const dbusInterface = systemBus.exportInterface( serviceObject, objectPath, {
+// NOTE: exportInterface modifies serviceObject, it doesn't return anything
+systemBus.exportInterface( serviceObject, objectPath, {
     name: interfaceName,
     methods: {
         Identify:['',''],
@@ -109,10 +115,14 @@ const dbusInterface = systemBus.exportInterface( serviceObject, objectPath, {
 export function emitCloudMessage(message: any): void {
     try {
         const messageJson = JSON.stringify(message);
-        dbusInterface.CloudMessage(messageJson);
-        console.log('Emitted cloud message via D-Bus signal');
+        
+        // Emit signal using systemBus.sendSignal
+        // Body must be an array of values matching signature 's' (one string)
+        systemBus.sendSignal(objectPath, interfaceName, 'CloudMessage', 's', [messageJson]);
+        
+        console.log('\x1b[32mEmitted cloud message via D-Bus signal\x1b[30m');
     } catch (err) {
-        console.error('Failed to emit cloud message:', err);
+        console.error('\x1b[31mFailed to emit cloud message:\x1b[30m', err);
     }
 }
 
@@ -128,6 +138,7 @@ systemBus.getService('org.freedesktop.login1').getInterface(    '/org/freedeskto
                                                                     if(err) return console.log(err);
                                                                     iface.on('PrepareForShutdown', (shutdown:boolean)=>{
                                                                         if(shutdown){
+                                                                            const { stateManager } = require('./main');
                                                                             stateManager.updateSystemState('state', 'restarting');
                                                                             console.log('System shutting down');
                                                                         }
@@ -166,7 +177,8 @@ async function initializeNetworkConnectionState(){
 function updateNetworkConnectivityState(){
     try{
         networkManagerInterface.CheckConnectivity((err:string|null, res:number)=>{
-            if(err) return; 
+            if(err) return;
+            const { stateManager } = require('./main');
             stateManager.updateConnectionState('network', res>=4?'connected':'disconnected');
             let stateName:string;
             switch(res){

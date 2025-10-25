@@ -39,11 +39,19 @@ See [examples/python-sdk](examples/python-sdk) for detailed documentation, API r
 Edgeberry uses inter-process communication through `D-Bus` to interact with other applications. If there's no SDK available in your favorite language 
 you can use D-Bus directly.
 
+**Methods:**
+
 | Object           | Method              | Argument                                                    | 
 |------------------|---------------------|-------------------------------------------------------------|
 |io.edgeberry.Core |SendMessage          | {"temperature":22.5,...} (any JSON telemetry data)         |
 |                  |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
 |                  |SetApplicationStatus | {"status":[ok/warning/error/critical],"message":[string]}   |
+
+**Signals:**
+
+| Object           | Signal              | Payload                                                      | 
+|------------------|---------------------|--------------------------------------------------------------|
+|io.edgeberry.Core |CloudMessage         | JSON string with cloud-to-device message data                |
 
 Using `dbus-send`, you can request a description (introspection) of the available methods, properties, and signals on the io.edgeberry.Core object. 
 ```sh
