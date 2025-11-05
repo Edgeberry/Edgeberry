@@ -69,6 +69,25 @@ if [[ -z "$HOSTNAME" ]]; then
     exit 1;
 fi
 
+# Check if hostname is a domain name (contains dots and not just IP)
+if [[ "$HOSTNAME" =~ ^[a-zA-Z] ]] && [[ "$HOSTNAME" =~ \. ]]; then
+    # Looks like a domain name, check DNS resolution with curl (which is what we'll use later)
+    echo -e -n "\e[0mChecking DNS resolution for $HOSTNAME... \e[0m"
+    # Test with curl since that's what we'll actually use for fetching
+    if curl -s -o /dev/null --connect-timeout 3 --max-time 5 "http://$HOSTNAME:80" 2>/dev/null; then
+        echo -e "\e[0;32m[OK]\e[0m"
+    else
+        # Try basic DNS tools as fallback check
+        if host "$HOSTNAME" >/dev/null 2>&1 || nslookup "$HOSTNAME" >/dev/null 2>&1 || getent hosts "$HOSTNAME" >/dev/null 2>&1; then
+            echo -e "\e[0;33m[Slow - using longer timeouts]\e[0m"
+        else
+            echo -e "\e[0;33m[Failed]\e[0m"
+            echo -e "\e[0;33mWARNING: Cannot resolve domain name '$HOSTNAME'\e[0m"
+            echo -e "\e[0mIf certificate fetching fails, re-run setup and use the IP address instead.\e[0m"
+        fi
+    fi
+fi
+
 # Get the provisioning certificates from the Device Hub
 echo -e -n "\e[0mFetching provisioning certificates from Device Hub at $HOSTNAME... \e[0m"
 
@@ -79,14 +98,22 @@ fetch_cert() {
     
     for port in "${ports[@]}"; do
         # Use separate calls to get status and content to handle multi-line certificates
-        status=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>/dev/null)
+        # Capture both status and any error for debugging
+        curl_error=$(mktemp)
+        status=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 20 "http://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>"$curl_error")
+        
         if [[ "$status" = "200" ]]; then
-            content=$(curl -s --connect-timeout 5 "http://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>/dev/null)
+            rm -f "$curl_error"
+            content=$(curl -s --connect-timeout 15 --max-time 20 "http://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>/dev/null)
             # Use base64 encoding to safely pass multi-line content
             encoded_content=$(echo "$content" | base64 -w 0)
             echo "$encoded_content;$status;$port"
             return 0
+        elif [[ -s "$curl_error" ]]; then
+            # If there was an error message, save it for potential debugging
+            : # Error captured but continue trying other ports
         fi
+        rm -f "$curl_error"
     done
     echo "null;404;none"
     return 1
