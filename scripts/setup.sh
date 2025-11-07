@@ -161,9 +161,11 @@ else
 fi
 
 # Check if all certificates were fetched successfully
+CERTS_AUTO_FETCHED=false
 if [[ "$PROVCERT_STATUS" = "200" && "$PROVKEY_STATUS" = "200" && "$ROOTCA_STATUS" = "200" ]]; then
     echo -e "\e[0;32m[Success]\e[0m"
     echo -e "\e[0mUsing Device Hub on port $PROVCERT_PORT\e[0m"
+    CERTS_AUTO_FETCHED=true
 else
     echo -e "\e[0;33m[Failed]\e[0m";
     echo -e "\e[0mOne or more certificates could not be fetched from Device Hub.\e[0m"
@@ -224,6 +226,32 @@ else
     echo -e "\e[0;33m[Failed]\e[0m";
     echo -e "\e[0;33mExit\e[0m";
     exit 1;
+fi
+
+# If certificates were fetched automatically, prompt to restart the service
+if [ "$CERTS_AUTO_FETCHED" = true ]; then
+    echo ""
+    echo -e "\e[0mSetup completed successfully!\e[0m"
+    echo -e "\e[0mTo start provisioning, the Edgeberry Device Software needs to be restarted.\e[0m"
+    read -r -p "Restart Edgeberry Device Software now? [Y/n]: " RESTART_CHOICE
+    
+    # Default to yes if empty (just pressed Enter)
+    RESTART_CHOICE=${RESTART_CHOICE:-Y}
+    
+    if [[ "$RESTART_CHOICE" =~ ^[Yy]$ ]]; then
+        echo -e "\e[0mRestarting Edgeberry Device Software...\e[0m"
+        systemctl restart io.edgeberry.core
+        if [ $? -eq 0 ]; then
+            echo -e "\e[0;32mService restarted successfully!\e[0m"
+            echo -e "\e[0mThe device will now provision with the Device Hub.\e[0m"
+        else
+            echo -e "\e[0;33mFailed to restart service.\e[0m"
+            echo -e "\e[0mYou can manually restart with: sudo systemctl restart io.edgeberry.core\e[0m"
+        fi
+    else
+        echo -e "\e[0mSkipping restart.\e[0m"
+        echo -e "\e[0mRestart manually when ready: sudo systemctl restart io.edgeberry.core\e[0m"
+    fi
 fi
 
 # Exit success
