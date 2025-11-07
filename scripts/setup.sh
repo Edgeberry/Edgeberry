@@ -94,27 +94,41 @@ echo -e -n "\e[0mFetching provisioning certificates from Device Hub at $HOSTNAME
 # Function to try fetching from different ports
 fetch_cert() {
     local endpoint=$1
-    local ports=("8080" "80" "3000")
+    # Try HTTPS first (production), then HTTP fallback (development/legacy)
+    local protocols=("https" "http")
+    local https_ports=("443")
+    local http_ports=("8080" "80" "3000")
     
-    for port in "${ports[@]}"; do
-        # Use separate calls to get status and content to handle multi-line certificates
-        # Capture both status and any error for debugging
+    # Try HTTPS on port 443 first
+    for port in "${https_ports[@]}"; do
+        curl_error=$(mktemp)
+        status=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 20 "https://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>"$curl_error")
+        
+        if [[ "$status" = "200" ]]; then
+            rm -f "$curl_error"
+            content=$(curl -s --connect-timeout 15 --max-time 20 "https://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>/dev/null)
+            encoded_content=$(echo "$content" | base64 -w 0)
+            echo "$encoded_content;$status;https:$port"
+            return 0
+        fi
+        rm -f "$curl_error"
+    done
+    
+    # Fallback to HTTP on various ports
+    for port in "${http_ports[@]}"; do
         curl_error=$(mktemp)
         status=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 20 "http://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>"$curl_error")
         
         if [[ "$status" = "200" ]]; then
             rm -f "$curl_error"
             content=$(curl -s --connect-timeout 15 --max-time 20 "http://$HOSTNAME:$port/api/provisioning/certs/$endpoint" 2>/dev/null)
-            # Use base64 encoding to safely pass multi-line content
             encoded_content=$(echo "$content" | base64 -w 0)
-            echo "$encoded_content;$status;$port"
+            echo "$encoded_content;$status;http:$port"
             return 0
-        elif [[ -s "$curl_error" ]]; then
-            # If there was an error message, save it for potential debugging
-            : # Error captured but continue trying other ports
         fi
         rm -f "$curl_error"
     done
+    
     echo "null;404;none"
     return 1
 }
@@ -156,7 +170,7 @@ else
     echo -e "\e[0mProvisioning cert: $PROVCERT_STATUS (port: $PROVCERT_PORT)\e[0m"
     echo -e "\e[0mProvisioning key: $PROVKEY_STATUS (port: $PROVKEY_PORT)\e[0m"
     echo -e "\e[0mRoot CA: $ROOTCA_STATUS (port: $ROOTCA_PORT)\e[0m"
-    echo -e "\e[0mTried ports: 8080, 80, 3000\e[0m"
+    echo -e "\e[0mTried: HTTPS (443), HTTP (8080, 80, 3000)\e[0m"
     echo -e "\e[0mMake sure Device Hub is running and accessible at $HOSTNAME\e[0m"
     echo -e "\e[0mProceeding with manual certificate entry...\e[0m"
     PROVCERT="null"
