@@ -255,7 +255,7 @@ async function startProvisioningWithMqtt(): Promise<void> {
     });
 }
 
-function handleProvisioningAccepted(message: Buffer) {
+async function handleProvisioningAccepted(message: Buffer) {
     try {
         const response = JSON.parse(message.toString());
         console.log('\x1b[32mProvisioning accepted! Received certificates\x1b[37m');
@@ -277,15 +277,40 @@ function handleProvisioningAccepted(message: Buffer) {
         
         // Store connection parameters
         settings_storeConnectionParameters(connectionParams);
-        console.log('\x1b[32mDevice provisioned successfully! Restarting...\x1b[37m');
+        console.log('\x1b[32mDevice provisioned successfully! Connecting to Device Hub...\x1b[37m');
         
         // Update state
         stateManager.updateConnectionState('provision', 'provisioned');
         
-        // Disconnect provisioning client and restart
+        // Disconnect provisioning client first
         if (provisioningClient) {
-            provisioningClient.end(false, {}, () => {
-                process.exit(0); // Restart the service
+            provisioningClient.end(false, {}, async () => {
+                try {
+                    // Create EdgeberryDeviceHubClient with new connection settings
+                    cloud = new EdgeberryDeviceHubClient({
+                        deviceId: settings.connection.deviceId,
+                        host: settings.connection.hostName,
+                        cert: readFileSync(settings.connection.certificateFile).toString(),
+                        key: readFileSync(settings.connection.privateKeyFile).toString(),
+                        ca: readFileSync(settings.connection.rootCertificateFile).toString(),
+                        reconnectPeriod: 0 // Disable built-in reconnection - use custom logic
+                    });
+                    
+                    // Set up event handlers
+                    setupCloudEventHandlers();
+                    
+                    // Initialize Direct Method API
+                    initializeDirectMethodAPI();
+                    
+                    // Disable provisioning state
+                    stateManager.updateConnectionState('provision', 'disabled');
+                    
+                    // Connect the client
+                    await cloud.connect();
+                    console.log('\x1b[32mSuccessfully connected to Device Hub after provisioning!\x1b[37m');
+                } catch (err) {
+                    console.error('\x1b[31mFailed to connect to Device Hub after provisioning:', err, '\x1b[37m');
+                }
             });
         }
         
