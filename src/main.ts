@@ -30,6 +30,8 @@ import { EdgeberryDeviceHubClient } from "@edgeberry/devicehub-device-client";
 import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform, system_button } from "./system.service";
 // Network Manager (WiFi provisioning)
 import { NetworkManager } from './network.manager';
+// Captive Portal (WiFi provisioning UI)
+import { CaptivePortal } from './captivePortal';
 // Direct Methods
 import { initializeDirectMethodAPI } from "./direct.methods";
 // Persistent settings
@@ -44,6 +46,9 @@ stateManager.updateSystemState('state', 'starting');
 
 /* Network Manager */
 export const networkManager = new NetworkManager();
+
+/* Captive Portal */
+const captivePortal = new CaptivePortal(networkManager);
 
 /* Device Hub */
 export let cloud: EdgeberryDeviceHubClient;
@@ -138,6 +143,11 @@ async function enterApMode():Promise<void>{
         await networkManager.startAccessPoint(boardId);
         stateManager.updateConnectionState('wifi', 'ap_mode');
         console.log('\x1b[33mDevice is in Access Point mode for WiFi provisioning\x1b[37m');
+        // Start the captive portal web UI
+        captivePortal.start(()=>{
+            // onConnected: called after successful WiFi configuration
+            exitApMode();
+        });
     } catch(err){
         console.error('\x1b[31mFailed to start Access Point: '+err+'\x1b[37m');
     }
@@ -153,7 +163,8 @@ async function exitApMode():Promise<void>{
             console.error('\x1b[31mCannot exit AP mode: no saved WiFi connection\x1b[37m');
             return;
         }
-        // Stop the AP
+        // Stop the captive portal and AP
+        captivePortal.stop();
         await networkManager.stopAccessPoint();
         stateManager.updateConnectionState('wifi', 'disconnected');
         console.log('\x1b[33mExited AP mode, reconnecting to WiFi...\x1b[37m');
@@ -183,6 +194,7 @@ export async function handleWifiProvisioned( ssid:string, passphrase:string ):Pr
     try{
         const success = await networkManager.connectToNetwork(ssid, passphrase);
         if(success){
+            captivePortal.stop();
             await networkManager.stopAccessPoint();
             stateManager.updateConnectionState('wifi', 'connected');
             console.log('\x1b[32mWiFi provisioned, connecting to Device Hub...\x1b[37m');

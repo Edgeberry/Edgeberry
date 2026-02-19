@@ -62,6 +62,78 @@ Existing button thresholds (no conflicts):
 | 5 – 10 s | `longpress` | System restart |
 | ≥ 10 s | `verylongpress` | Factory reset (TODO) |
 
+## Captive Portal
+
+### Overview
+
+`src/captivePortal.ts` serves a WiFi provisioning web UI on port 80 when the device is in Access Point mode. Connected clients (phones, laptops) are automatically redirected to the provisioning wizard via standard captive portal detection.
+
+### Architecture
+
+- **File:** `src/captivePortal.ts`
+- **Export:** `CaptivePortal` class
+- **Dependency:** `express` (HTTP server), `NetworkManager` instance (for scanning and connecting)
+- **Port:** 80 (requires root — the service runs as root via systemd)
+
+### Lifecycle
+
+```
+AP activates → captivePortal.start(onConnected) → user configures WiFi
+→ connection succeeds → brief success message → stop() → onConnected fires
+→ caller tears down AP and resumes normal operation
+```
+
+The portal does **not** manage AP teardown or Device Hub logic itself. The `onConnected` callback is provided by the caller (`enterApMode()` in `main.ts`), which calls `exitApMode()` to handle the full teardown and reconnection sequence.
+
+### API Routes
+
+| Route | Method | Description |
+|---|---|---|
+| `/` | GET | Serve the self-contained provisioning wizard (inline CSS + JS) |
+| `/api/networks` | GET | Trigger a WiFi scan, wait 2 s, return discovered networks as JSON |
+| `/api/connect` | POST | Accept `{ssid, passphrase}`, connect via `connectToNetwork()`, return `{success}` |
+| `*` (catch-all) | ALL | `302` redirect to `http://10.42.0.1/` for captive portal detection |
+
+The catch-all `302` redirect (not `200`) is what triggers the OS captive portal popup on:
+- **Apple:** `GET /hotspot-detect.html` and `captive.apple.com` paths
+- **Android:** `GET /generate_204`, `/gen_204`
+- **Windows:** `GET /connecttest.txt`, `/ncsi.txt`
+
+### DNS Requirement
+
+For captive portal auto-detection, **all DNS queries** from connected clients must resolve to the device's AP address (`10.42.0.1`). NetworkManager's `ipv4.method: shared` starts dnsmasq, but by default it only forwards queries upstream (which fails in AP mode — no internet).
+
+The install and deploy scripts automatically create:
+
+```
+/etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf
+  address=/#/10.42.0.1
+```
+
+NetworkManager picks this up on the next shared connection activation (i.e. the next AP start).
+
+### Wizard UI
+
+A single self-contained HTML page with three steps (no external assets — the device has no internet in AP mode):
+
+1. **Select network** — list of scanned WiFi networks with SSID, signal strength bars, lock icon for secured networks, refresh button
+2. **Enter password** — shown for secured networks only; password input with show/hide toggle, back/connect buttons
+3. **Connecting / Result** — spinner while connecting; success message ("Connected! This page will close.") or failure message with retry button
+
+### Integration in main.ts
+
+```typescript
+const captivePortal = new CaptivePortal(networkManager);
+
+// In enterApMode():
+captivePortal.start(() => {
+    exitApMode();  // onConnected callback
+});
+
+// In exitApMode() and handleWifiProvisioned():
+captivePortal.stop();
+```
+
 ## Module Design
 
 - **File:** `src/network.manager.ts`

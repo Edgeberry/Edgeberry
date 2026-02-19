@@ -36,6 +36,7 @@ declare -a STEPS=(
     "Remove systemd service file"
     "Reload systemd"
     "Remove D-Bus policy"
+    "Remove captive portal DNS config"
     "Remove CLI symlink"
     "Remove application directory"
 )
@@ -200,10 +201,10 @@ else
     mark_step_skipped 5
 fi
 
-# Step 6: Remove CLI symlink
+# Step 6: Remove captive portal DNS config
 mark_step_busy 6
-if [ -L "/usr/local/bin/edgeberry" ] || [ -f "/usr/local/bin/edgeberry" ]; then
-    rm -f /usr/local/bin/edgeberry
+if [ -f "/etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf" ]; then
+    rm -f /etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf
     if [ $? -eq 0 ]; then
         mark_step_completed 6
     else
@@ -213,10 +214,10 @@ else
     mark_step_skipped 6
 fi
 
-# Step 7: Remove application directory
+# Step 7: Remove CLI symlink
 mark_step_busy 7
-if [ -d "/opt/${APPNAME}/${APPCOMP}" ] || [ -d "/opt/${APPNAME}" ]; then
-    rm -rf "/opt/${APPNAME}"
+if [ -L "/usr/local/bin/edgeberry" ] || [ -f "/usr/local/bin/edgeberry" ]; then
+    rm -f /usr/local/bin/edgeberry
     if [ $? -eq 0 ]; then
         mark_step_completed 7
     else
@@ -224,6 +225,19 @@ if [ -d "/opt/${APPNAME}/${APPCOMP}" ] || [ -d "/opt/${APPNAME}" ]; then
     fi
 else
     mark_step_skipped 7
+fi
+
+# Step 8: Remove application directory
+mark_step_busy 8
+if [ -d "/opt/${APPNAME}/${APPCOMP}" ] || [ -d "/opt/${APPNAME}" ]; then
+    rm -rf "/opt/${APPNAME}"
+    if [ $? -eq 0 ]; then
+        mark_step_completed 8
+    else
+        mark_step_failed 8
+    fi
+else
+    mark_step_skipped 8
 fi
 
 echo ""

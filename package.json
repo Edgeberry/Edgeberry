@@ -31,6 +31,7 @@
   },
   "homepage": "https://github.com/Edgeberry/Edgeberry#readme",
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^20.11.30",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
@@ -39,6 +40,7 @@
   "dependencies": {
     "@edgeberry/devicehub-device-client": "^1.8.0",
     "dbus-native": "^0.4.0",
+    "express": "^5.2.1",
     "mqtt": "^4.3.8"
   }
 }

@@ -59,6 +59,7 @@ declare -a STEPS=(
     "Install systemd service"
     "Enable service on boot"
     "Install D-Bus policy"
+    "Install captive portal DNS config"
     "Run setup (optional)"
     "Start application"
 )
@@ -391,8 +392,22 @@ else
     echo -e "\e[0;33mFailed to install D-Bus policy!\e[0m";
 fi
 
-# Step 13: Prompt the user to run the setup script
+# Step 13: Install captive portal DNS redirect for AP mode.
+# When the device runs as an access point, dnsmasq (started by
+# NetworkManager's shared mode) must resolve ALL DNS queries to
+# the device IP so that phones/laptops detect the captive portal.
 mark_step_busy 13
+mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+echo 'address=/#/10.42.0.1' > /etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf
+if [ $? -eq 0 ]; then
+    mark_step_completed 13
+else
+    mark_step_failed 13
+    echo -e "\e[0;33mFailed to install captive portal DNS config!\e[0m";
+fi
+
+# Step 14: Prompt the user to run the setup script
+mark_step_busy 14
 if $ALL_YES; then
     response="Y"
 else
@@ -400,14 +415,14 @@ else
 fi
 case "$response" in
     [nN])
-        mark_step_skipped 13
+        mark_step_skipped 14
         ;;
     *) 
         bash ./scripts/setup.sh
         if [ $? -eq 0 ]; then
-            mark_step_completed 13
+            mark_step_completed 14
         else
-            mark_step_failed 13
+            mark_step_failed 14
             echo -e "\e[0;33mSetup script failed!\e[0m";
         fi
         ;;
@@ -417,14 +432,14 @@ esac
 #   Finish installation
 ##
 
-# Step 14: Start the application for the first time
-mark_step_busy 14
+# Step 15: Start the application for the first time
+mark_step_busy 15
 systemctl start io.edgeberry.core
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
-    mark_step_completed 14
+    mark_step_completed 15
 else
-    mark_step_failed 14
+    mark_step_failed 15
     echo -e "\e[0;33mFailed to start ${APPNAME}! Exit.\e[0m";
     exit 1;
 fi

@@ -35,6 +35,7 @@ declare -a STEPS=(
   "Install dependencies (remote, prod)"
   "Create CLI symlink"
   "Install D-Bus policy"
+  "Install captive portal DNS config"
   "Install/Refresh systemd service"
   "Restart service"
 )
@@ -164,15 +165,20 @@ mark_step_busy 10
 "${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/config/edgeberry-core.conf\" /etc/dbus-1/system.d/; elif [ -f \"$APPDIR/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/edgeberry-core.conf\" /etc/dbus-1/system.d/; fi" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 10; else mark_step_failed 10; echo -e "\e[0;33mFailed to install D-Bus policy\e[0m"; exit 1; fi
 
-# Step 11: Install/Refresh systemd service
+# Step 11: Install captive portal DNS redirect for AP mode
 mark_step_busy 11
-"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/config/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; elif [ -f \"$APPDIR/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; fi; sudo chown root:root /etc/systemd/system/io.edgeberry.core.service; sudo systemctl daemon-reload; sudo systemctl enable \"$SERVICENAME\"" >/dev/null 2>&1
-if [ $? -eq 0 ]; then mark_step_completed 11; else mark_step_failed 11; echo -e "\e[0;33mFailed to install/refresh systemd service\e[0m"; exit 1; fi
+"${SSH_BASE[@]}" ${USER}@${HOST} "sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d && echo 'address=/#/10.42.0.1' | sudo tee /etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf > /dev/null" >/dev/null 2>&1
+if [ $? -eq 0 ]; then mark_step_completed 11; else mark_step_failed 11; echo -e "\e[0;33mFailed to install captive portal DNS config\e[0m"; exit 1; fi
 
-# Step 12: Restart service
+# Step 12: Install/Refresh systemd service
 mark_step_busy 12
+"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/config/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; elif [ -f \"$APPDIR/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; fi; sudo chown root:root /etc/systemd/system/io.edgeberry.core.service; sudo systemctl daemon-reload; sudo systemctl enable \"$SERVICENAME\"" >/dev/null 2>&1
+if [ $? -eq 0 ]; then mark_step_completed 12; else mark_step_failed 12; echo -e "\e[0;33mFailed to install/refresh systemd service\e[0m"; exit 1; fi
+
+# Step 13: Restart service
+mark_step_busy 13
 "${SSH_BASE[@]}" ${USER}@${HOST} "sudo systemctl restart \"$SERVICENAME\"" >/dev/null 2>&1
-if [ $? -eq 0 ]; then mark_step_completed 12; else mark_step_failed 12; echo -e "\e[0;33mFailed to restart service\e[0m"; exit 1; fi
+if [ $? -eq 0 ]; then mark_step_completed 13; else mark_step_failed 13; echo -e "\e[0;33mFailed to restart service\e[0m"; exit 1; fi
 
 show_progress
 echo -e "\e[0;32m\033[1mDeployment completed successfully.\033[0m\e[0m"
