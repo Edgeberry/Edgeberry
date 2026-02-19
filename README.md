@@ -28,6 +28,44 @@ Edgeberry provides a Node-RED node to interact with the Edgeberry Device Softwar
 > During the installation Node-RED, do install the **Raspberry Pi specific nodes**.
 
 
+## WiFi Provisioning
+
+The Edgeberry Device Software includes WiFi provisioning via Access Point (AP) mode. This allows headless configuration of WiFi credentials without needing a monitor or keyboard.
+
+### How it works
+
+1. **Automatic AP mode on first boot**: If no saved WiFi connection exists, the device automatically enters AP mode.
+2. **Manual AP mode toggle**: Hold the user button for ~3 seconds to enter or exit AP mode.
+
+### AP Mode behavior
+
+| State | LED Pattern | Description |
+|-------|-------------|-------------|
+| AP Mode active | Triple orange blink | Device is broadcasting an open AP (SSID: `EDGB-XXXXXX`) |
+| Connecting to WiFi | Orange/green alternating | Device is connecting to a configured network |
+| Connected | Green heartbeat | Device is connected to WiFi and Device Hub |
+| No network | Red blinking (300ms) | No network connectivity |
+
+### Button controls
+
+| Press duration | Action |
+|----------------|--------|
+| ~3 seconds | Toggle AP mode (enter or exit) |
+| ~5 seconds | Reboot device |
+| Short press | Beep (acknowledge) |
+
+### Exiting AP mode
+
+When exiting AP mode (via 3-second button press), the device:
+1. Tears down the AP
+2. Waits for the WiFi chip to transition back to station mode
+3. Activates the saved WiFi connection
+4. Reconnects to the Device Hub
+5. Beeps once on successful reconnection
+
+> [!NOTE]
+> Exiting AP mode requires a saved WiFi connection. If none exists, the device will beep an error pattern and remain in AP mode.
+
 ## CLI
 You can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
 ```

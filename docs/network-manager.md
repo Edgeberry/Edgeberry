@@ -30,8 +30,27 @@ A ~3-second button press (2.5 s – 5 s) emits `apToggle` on `system_button`:
 
 - **Not in AP mode →** disconnect WiFi → `enterApMode()`
 - **In AP mode →** attempt `exitApMode()`:
-  - If a saved WiFi connection exists: stop AP → reconnect → resume Device Hub flow
+  - If a saved WiFi connection exists: stop AP → wait for hardware transition → activate saved connection → cloud reconnects automatically → beep
   - If no saved WiFi: error indication (fast red LED flash + 3 beeps), remain in AP mode
+
+### Exit AP Mode Reconnection Flow
+
+When exiting AP mode with a saved WiFi connection available, `exitApMode()` performs:
+
+1. **Stop AP** — `networkManager.stopAccessPoint()` tears down the AP connection profile
+2. **Hardware transition delay** — 2-second wait for the WiFi chip to switch from AP back to station mode
+3. **Activate saved connection** — `networkManager.activateSavedWifiConnection()` uses `ActivateConnection` (not `AddAndActivateConnection`) to reactivate the first saved WiFi profile, polling until the connection reaches `Activated` state or times out (30 s)
+4. **Cloud reconnection** — `connectToDeviceHub()` is called; if the cloud client already exists, it triggers `client.reconnect()` on the underlying MQTT client instead of creating a new one (see Cloud Reconnection below)
+5. **Beep** — a single short beep confirms successful Device Hub reconnection
+
+### Cloud Reconnection After AP Mode
+
+The `EdgeberryDeviceHubClient` library has a `scheduleReconnect()` method that creates a **new** `mqtt.connect()` client on every `'close'` event without ending the previous one. Two MQTT clients with the same `clientId` cause the broker to kick one off repeatedly, creating an infinite connect/disconnect cycle.
+
+To prevent this:
+- `scheduleReconnect` is disabled on the cloud client instance after creation
+- When `connectToDeviceHub()` is called with an existing cloud client, it calls `(cloud as any).client.reconnect()` (MQTT.js built-in reconnect) instead of `cloud.connect()` which would create a duplicate client
+- State updates to cloud (`cloud.updateState()`) are guarded to only send when the connection state is `'connected'`, preventing feedback loops on a disconnected client
 
 Existing button thresholds (no conflicts):
 
@@ -119,6 +138,7 @@ The hardware UUID is passed in by the caller (read from EEPROM via `system_board
 | Method | Returns | Description |
 |---|---|---|
 | `connectToNetwork(ssid, passphrase, timeoutMs?)` | `Promise<boolean>` | Connect using WPA-PSK with `autoconnect: true`. Polls active connection state until `Activated` (state 2) or `Deactivated` (state ≥ 4). Default timeout: 30 s. Cleans up the saved profile on failure. |
+| `activateSavedWifiConnection(timeoutMs?)` | `Promise<boolean>` | Reactivate the first saved WiFi connection using `ActivateConnection`. Used after AP teardown to reconnect without creating duplicate profiles. Polls until `Activated` or timeout (default 30 s). |
 | `disconnect()` | `Promise<void>` | Disconnect the WiFi device. |
 
 ### State Monitoring
@@ -139,7 +159,7 @@ networkManager.on('stateChanged', (newState: number, oldState: number) => {
 
 | Interface | Object Path | Methods / Properties |
 |---|---|---|
-| `org.freedesktop.NetworkManager` | `/org/freedesktop/NetworkManager` | `GetDevices`, `AddAndActivateConnection`, `DeactivateConnection` |
+| `org.freedesktop.NetworkManager` | `/org/freedesktop/NetworkManager` | `GetDevices`, `ActivateConnection`, `AddAndActivateConnection`, `DeactivateConnection` |
 | `org.freedesktop.NetworkManager.Settings` | `/org/freedesktop/NetworkManager/Settings` | `ListConnections` |
 | `org.freedesktop.NetworkManager.Settings.Connection` | per connection path | `GetSettings`, `Delete` |
 | `org.freedesktop.NetworkManager.Device` | per device path | `DeviceType` (prop), `Disconnect`, `StateChanged` (signal) |
@@ -179,6 +199,20 @@ if (success) {
     await nm.stopAccessPoint();
 }
 ```
+
+## D-Bus Variant Unwrapping
+
+The `dbus-native` library returns D-Bus variants in a nested array structure:
+
+```javascript
+// dbus-native returns:
+[[{type: 'u', child: []}], [2]]
+
+// NOT the simpler format some docs suggest:
+['u', 2]
+```
+
+The `unwrapVariant()` helper in `network.manager.ts` extracts the actual value from this structure. It handles nested variants, arrays of variants, and direct values. All `getProperty()` and `getAllProperties()` calls use this helper.
 
 ## Connection Settings Wire Format
 

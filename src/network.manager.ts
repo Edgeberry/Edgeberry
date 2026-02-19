@@ -72,14 +72,30 @@ export class NetworkManager extends EventEmitter {
         });
     }
 
+    // Unwrap a dbus-native variant value.
+    // dbus-native returns variants as [[{type:..., child:...}], [actualValue]]
+    // rather than the simpler [signature, value] some docs suggest.
+    private unwrapVariant(variant: any): any {
+        if(Array.isArray(variant) && variant.length === 2 &&
+           Array.isArray(variant[0]) && variant[0].length > 0 &&
+           typeof variant[0][0] === 'object' && variant[0][0] !== null && 'type' in variant[0][0] &&
+           Array.isArray(variant[1])){
+            return variant[1][0];
+        }
+        // Legacy/simple format [signature_string, value]
+        if(Array.isArray(variant) && variant.length === 2 && typeof variant[0] === 'string'){
+            return variant[1];
+        }
+        return variant;
+    }
+
     // Get a single D-Bus property
     private async getProperty( objectPath:string, interfaceName:string, propertyName:string ):Promise<any>{
         const propsIface = await this.getInterface(objectPath, DBUS_PROPS_IFACE);
         return new Promise((resolve, reject)=>{
             propsIface.Get(interfaceName, propertyName, (err:any, value:any)=>{
                 if(err) return reject(err);
-                // dbus-native returns variants as [signature, value]
-                resolve(Array.isArray(value) ? value[1] : value);
+                resolve(this.unwrapVariant(value));
             });
         });
     }
@@ -94,7 +110,7 @@ export class NetworkManager extends EventEmitter {
                 const result:any = {};
                 if(Array.isArray(props)){
                     for(const [key, variant] of props){
-                        result[key] = Array.isArray(variant) ? variant[1] : variant;
+                        result[key] = this.unwrapVariant(variant);
                     }
                 }
                 resolve(result);
@@ -130,7 +146,8 @@ export class NetworkManager extends EventEmitter {
                 const connectionSection = settings.find((s:any)=> s[0] === 'connection');
                 if(connectionSection){
                     const typeEntry = connectionSection[1].find((e:any)=> e[0] === 'type');
-                    if(typeEntry && typeEntry[1][1] === '802-11-wireless'){
+                    const typeVal = typeEntry ? this.unwrapVariant(typeEntry[1]) : null;
+                    if(typeVal === '802-11-wireless'){
                         wifiConnections.push(connPath);
                     }
                 }
@@ -320,6 +337,58 @@ export class NetworkManager extends EventEmitter {
         } catch(err){
             return false;
         }
+    }
+
+    /*
+     *  Reconnect to a saved WiFi connection
+     */
+
+    // Activate an existing saved WiFi connection profile.
+    // Uses ActivateConnection (not AddAndActivateConnection) to avoid creating duplicates.
+    // Returns true if the connection reaches the Activated state within the timeout.
+    public async activateSavedWifiConnection( timeoutMs:number = 30000 ):Promise<boolean>{
+        const wifiConnections = await this.listSavedWifiConnections();
+        if(wifiConnections.length === 0){
+            console.error('\x1b[31mNetworkManager: No saved WiFi connections to activate\x1b[37m');
+            return false;
+        }
+
+        const devicePath = await this.getWifiDevicePath();
+        const nmIface = await this.getInterface(NM_PATH, NM_IFACE);
+
+        // Activate the first saved WiFi connection
+        const connPath = wifiConnections[0];
+        console.log('\x1b[33mNetworkManager: Activating saved WiFi connection...\x1b[37m');
+
+        const activeConnPath:string = await new Promise((resolve, reject)=>{
+            nmIface.ActivateConnection(connPath, devicePath, '/', (err:any, activeConnectionPath:string)=>{
+                if(err) return reject(err);
+                resolve(activeConnectionPath);
+            });
+        });
+
+        // Poll the active connection state
+        const pollIntervalMs = 500;
+        const maxAttempts = Math.ceil(timeoutMs / pollIntervalMs);
+
+        for(let i = 0; i < maxAttempts; i++){
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+            try{
+                const state = await this.getProperty(activeConnPath, NM_ACTIVE_CONN_IFACE, 'State');
+                if(state === NM_ACTIVE_STATE_ACTIVATED){
+                    console.log('\x1b[32mNetworkManager: Reconnected to saved WiFi\x1b[37m');
+                    return true;
+                }
+                if(state >= NM_ACTIVE_STATE_DEACTIVATED){
+                    break;
+                }
+            } catch(err){
+                break;
+            }
+        }
+
+        console.error('\x1b[31mNetworkManager: Failed to reconnect to saved WiFi\x1b[37m');
+        return false;
     }
 
     /*

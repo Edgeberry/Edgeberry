@@ -153,11 +153,26 @@ async function exitApMode():Promise<void>{
             console.error('\x1b[31mCannot exit AP mode: no saved WiFi connection\x1b[37m');
             return;
         }
-        // Stop the AP and resume normal operation
+        // Stop the AP
         await networkManager.stopAccessPoint();
         stateManager.updateConnectionState('wifi', 'disconnected');
-        console.log('\x1b[32mExited AP mode, resuming normal operation\x1b[37m');
-        await connectToDeviceHub();
+        console.log('\x1b[33mExited AP mode, reconnecting to WiFi...\x1b[37m');
+
+        // Wait for the WiFi chip to transition from AP mode back to station mode
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Explicitly activate the saved WiFi connection
+        const reconnected = await networkManager.activateSavedWifiConnection();
+        if(reconnected){
+            stateManager.updateConnectionState('wifi', 'connected');
+            console.log('\x1b[32mWiFi reconnected, resuming normal operation\x1b[37m');
+            // If cloud client exists, MQTT.js built-in reconnection
+            // handles reconnecting automatically when WiFi returns.
+            // Only call connectToDeviceHub() if client doesn't exist yet.
+            await connectToDeviceHub();
+        } else {
+            console.error('\x1b[31mFailed to reconnect to WiFi after exiting AP mode\x1b[37m');
+        }
     } catch(err){
         console.error('\x1b[31mFailed to exit AP mode: '+err+'\x1b[37m');
     }
@@ -197,20 +212,34 @@ async function connectToDeviceHub():Promise<void>{
                     cert: readFileSync( settings.connection.certificateFile ).toString(),
                     key: readFileSync( settings.connection.privateKeyFile ).toString(),
                     ca: readFileSync( settings.connection.rootCertificateFile ).toString(),
-                    reconnectPeriod: 0 // Disable built-in reconnection - use custom logic
+                    reconnectPeriod: 0
                 });
+
+                // Disable the library's scheduleReconnect: it calls connect() on
+                // every 'close' event, which creates a brand-new mqtt.connect()
+                // without ending the previous client. Two clients with the same
+                // clientId cause the broker to kick one off repeatedly → infinite
+                // connect/disconnect cycle. MQTT.js built-in reconnection handles
+                // reconnects properly on its own.
+                (cloud as any).scheduleReconnect = () => {};
                 
                 // Set up event handlers
                 setupCloudEventHandlers();
                 
                 // Initialize Direct Method API after client is created
                 initializeDirectMethodAPI();
+
+                // disable the provisioning
+                stateManager.updateConnectionState( 'provision', 'disabled' );
+                // Connect the client
+                await cloud.connect();
+            } else {
+                // Cloud client already exists — force the underlying MQTT
+                // client to reconnect (e.g. after AP mode disrupted WiFi).
+                // Don't call cloud.connect() as it creates a new mqtt client
+                // without ending the old one, causing duplicate connections.
+                (cloud as any).client?.reconnect();
             }
-            
-            // disable the provisioning
-            stateManager.updateConnectionState( 'provision', 'disabled' );
-            // Connect the client
-            await cloud.connect();
         } catch(err){
             console.error('Cloud connect failed:', err);
         }
@@ -384,8 +413,11 @@ async function handleProvisioningAccepted(message: Buffer) {
                         cert: readFileSync(settings.connection.certificateFile).toString(),
                         key: readFileSync(settings.connection.privateKeyFile).toString(),
                         ca: readFileSync(settings.connection.rootCertificateFile).toString(),
-                        reconnectPeriod: 0 // Disable built-in reconnection - use custom logic
+                        reconnectPeriod: 0
                     });
+
+                    // Disable library's scheduleReconnect (see connectToDeviceHub)
+                    (cloud as any).scheduleReconnect = () => {};
                     
                     // Set up event handlers
                     setupCloudEventHandlers();
@@ -417,8 +449,9 @@ initialize();
 // We did it this way to reduce constant data exchange with the 'device shadow',
 // but we should report each state update independantly.
 stateManager.on('state', (state)=>{
-    // Update the system state
-    if (cloud) {
+    // Update the system state (only when cloud is connected to
+    // prevent triggering reconnection attempts on a stale client)
+    if (cloud && stateManager.getState().connection.connection === 'connected') {
         cloud.updateState('system', state )
             .then(()=>{})
             .catch(()=>{});
