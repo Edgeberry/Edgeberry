@@ -224,7 +224,7 @@ let primary:boolean=true;
 let blinkInterval:any = null;
 
 // Set Status indication on the LED
-export function system_setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string, doubleblink?:boolean ){
+export function system_setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string, doubleblink?:boolean, tripleblink?:boolean ){
     // Clear the previous state
     if( blinkInterval ) clearInterval( blinkInterval );
     primary=true;
@@ -234,7 +234,14 @@ export function system_setStatusLed( color:string, blink?:boolean|number, second
     if( typeof(blink) === 'undefined' || (typeof(blink) === 'boolean' && blink === false) )
     return setLedColor( color );
 
-    if(!doubleblink){
+    if(tripleblink){
+        // Blink three times in bursts (AP mode pattern)
+        blinkThrice( color );
+        blinkInterval = setInterval(()=>{
+            blinkThrice( color );
+        },1800);
+    }
+    else if(!doubleblink){
         // Blinking colors
         blinkInterval = setInterval(()=>{
             if( primary ){
@@ -267,6 +274,25 @@ function blinkTwice(color:string, secondaryColor:string){
                 setLedColor('off');
             },90);
         },150);
+    },90);
+}
+
+function blinkThrice(color:string){
+    setLedColor(color);
+    setTimeout(()=>{
+        setLedColor('off');
+        setTimeout(()=>{
+            setLedColor(color);
+            setTimeout(()=>{
+                setLedColor('off');
+                setTimeout(()=>{
+                    setLedColor(color);
+                    setTimeout(()=>{
+                        setLedColor('off');
+                    },90);
+                },90);
+            },90);
+        },90);
     },90);
 }
 
@@ -417,6 +443,10 @@ class ButtonEventEmitter extends EventEmitter {
         // 5 second press
         else if((this.pressStart + 5000) <= pressEnd){
             this.emit('longpress');
+        }
+        // ~3 second press (AP mode toggle)
+        else if((this.pressStart + 2500) <= pressEnd){
+            this.emit('apToggle');
         }
         // long press
         else if((this.pressStart + 1700) <= pressEnd ){

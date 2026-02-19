@@ -27,7 +27,9 @@ import { StateManager } from "./state.manager";
 // Dashboard cloud client
 import { EdgeberryDeviceHubClient } from "@edgeberry/devicehub-device-client";
 // System features
-import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform } from "./system.service";
+import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform, system_button } from "./system.service";
+// Network Manager (WiFi provisioning)
+import { NetworkManager } from './network.manager';
 // Direct Methods
 import { initializeDirectMethodAPI } from "./direct.methods";
 // Persistent settings
@@ -39,6 +41,9 @@ import { emitCloudMessage } from './dbus.interface';
 /* State Manager */
 export const stateManager = new StateManager();
 stateManager.updateSystemState('state', 'starting');
+
+/* Network Manager */
+export const networkManager = new NetworkManager();
 
 /* Device Hub */
 export let cloud: EdgeberryDeviceHubClient;
@@ -97,24 +102,110 @@ async function initialize():Promise<void>{
         // settings_storeProvisioningParameters( settings.provisioning ); --- this currently erases cert/key files -_-
     }
 
+    // Check for saved WiFi connection before proceeding to Device Hub.
+    // Wrapped in a timeout: if NetworkManager is not available (e.g. device
+    // uses dhcpcd instead), the D-Bus call may hang indefinitely.
+    try{
+        const hasWifi = await Promise.race([
+            networkManager.hasSavedWifiConnection(),
+            new Promise<null>((_, reject)=> setTimeout(()=> reject(new Error('WiFi check timed out')), 5000))
+        ]);
+        if(hasWifi === false){
+            // No WiFi configured - enter AP mode for provisioning
+            await enterApMode();
+            return;
+        }
+    } catch(err){
+        console.error('\x1b[31mWiFi check failed: '+err+'\x1b[37m');
+    }
+
+    // WiFi is available - proceed with Device Hub connectivity
+    await connectToDeviceHub();
+}
+
+/*
+ *  WiFi Access Point Mode
+ *  Functions for entering and exiting AP mode for WiFi provisioning.
+ */
+
+async function enterApMode():Promise<void>{
+    const boardId = system_board_getUUID();
+    if(!boardId){
+        console.error('\x1b[31mCannot start AP: no board UUID\x1b[37m');
+        return;
+    }
+    try{
+        await networkManager.startAccessPoint(boardId);
+        stateManager.updateConnectionState('wifi', 'ap_mode');
+        console.log('\x1b[33mDevice is in Access Point mode for WiFi provisioning\x1b[37m');
+    } catch(err){
+        console.error('\x1b[31mFailed to start Access Point: '+err+'\x1b[37m');
+    }
+}
+
+async function exitApMode():Promise<void>{
+    try{
+        // Check if there's a saved WiFi connection to return to
+        const hasWifi = await networkManager.hasSavedWifiConnection();
+        if(!hasWifi){
+            // Cannot exit AP mode without a saved network
+            stateManager.interruptIndicators('ap_error');
+            console.error('\x1b[31mCannot exit AP mode: no saved WiFi connection\x1b[37m');
+            return;
+        }
+        // Stop the AP and resume normal operation
+        await networkManager.stopAccessPoint();
+        stateManager.updateConnectionState('wifi', 'disconnected');
+        console.log('\x1b[32mExited AP mode, resuming normal operation\x1b[37m');
+        await connectToDeviceHub();
+    } catch(err){
+        console.error('\x1b[31mFailed to exit AP mode: '+err+'\x1b[37m');
+    }
+}
+
+// Called after successful WiFi configuration through the captive portal
+export async function handleWifiProvisioned( ssid:string, passphrase:string ):Promise<boolean>{
+    try{
+        const success = await networkManager.connectToNetwork(ssid, passphrase);
+        if(success){
+            await networkManager.stopAccessPoint();
+            stateManager.updateConnectionState('wifi', 'connected');
+            console.log('\x1b[32mWiFi provisioned, connecting to Device Hub...\x1b[37m');
+            await connectToDeviceHub();
+            return true;
+        }
+        return false;
+    } catch(err){
+        console.error('\x1b[31mWiFi provisioning failed: '+err+'\x1b[37m');
+        return false;
+    }
+}
+
+/*
+ *  Device Hub Connectivity
+ */
+
+async function connectToDeviceHub():Promise<void>{
     // If we have connection settings, create client and connect
     if(settings.connection){
         try{
-            // Create EdgeberryDeviceHubClient with connection settings
-            cloud = new EdgeberryDeviceHubClient({
-                deviceId: settings.connection.deviceId,
-                host: settings.connection.hostName,
-                cert: readFileSync( settings.connection.certificateFile ).toString(),
-                key: readFileSync( settings.connection.privateKeyFile ).toString(),
-                ca: readFileSync( settings.connection.rootCertificateFile ).toString(),
-                reconnectPeriod: 0 // Disable built-in reconnection - use custom logic
-            });
-            
-            // Set up event handlers
-            setupCloudEventHandlers();
-            
-            // Initialize Direct Method API after client is created
-            initializeDirectMethodAPI();
+            if(!cloud){
+                // Create EdgeberryDeviceHubClient with connection settings
+                cloud = new EdgeberryDeviceHubClient({
+                    deviceId: settings.connection.deviceId,
+                    host: settings.connection.hostName,
+                    cert: readFileSync( settings.connection.certificateFile ).toString(),
+                    key: readFileSync( settings.connection.privateKeyFile ).toString(),
+                    ca: readFileSync( settings.connection.rootCertificateFile ).toString(),
+                    reconnectPeriod: 0 // Disable built-in reconnection - use custom logic
+                });
+                
+                // Set up event handlers
+                setupCloudEventHandlers();
+                
+                // Initialize Direct Method API after client is created
+                initializeDirectMethodAPI();
+            }
             
             // disable the provisioning
             stateManager.updateConnectionState( 'provision', 'disabled' );
@@ -339,6 +430,25 @@ stateManager.on('state', (state)=>{
  *  The 'Direct Method API' is for direct communication with the Dashboard. It enables
  *  the dashboard to make function calls and receive responses from the device.
  */
+
+/*
+ *  Button AP Mode Toggle
+ *  A ~3 second press toggles AP mode on/off for WiFi provisioning.
+ */
+system_button.on('apToggle', async()=>{
+    const currentState = stateManager.getState();
+    if(currentState.connection.wifi === 'ap_mode'){
+        // Currently in AP mode - try to exit
+        await exitApMode();
+    }
+    else{
+        // Not in AP mode - enter AP mode
+        try{
+            await networkManager.disconnect();
+        } catch(err){}
+        await enterApMode();
+    }
+});
 
 // When we got here, the system has started
 stateManager.updateSystemState('state', 'running');

@@ -20,6 +20,7 @@ export type deviceState = {
         provision: string;              // Provisioned | Provisioning | Not provisioned | Disabled
         connection: string;             // Connected | Disconnected | Connecting
         network: string;                // Connected | Disconnected
+        wifi: string;                   // ap_mode | connected | disconnected
     };
     application:{
         state: string;                  // Running | Restarting | Stopping | Stopped
@@ -47,7 +48,8 @@ export class StateManager extends EventEmitter{
                 state: 'unknown',
                 provision: 'unknown',
                 connection: 'unknown',
-                network: 'unknown'
+                network: 'unknown',
+                wifi: 'unknown'
             },
             application:{
                 state: 'unknown',
@@ -130,6 +132,10 @@ export class StateManager extends EventEmitter{
                                     break;
             }
         }
+        // ACCESS POINT MODE for WiFi provisioning
+        else if(this.state.connection.wifi === 'ap_mode'){
+            system_setStatusLed( 'orange', true, undefined, undefined, true );
+        }
         // CLOUD CONNECTION STATUS is next in line, if the system is
         // ok. For most IoT application, a constant connection to the
         // cloud is an essential aspect.
@@ -174,6 +180,12 @@ export class StateManager extends EventEmitter{
                                 break;
             // Just a little beep
             case 'beep':        system_beepBuzzer('short');
+                                break;
+            // Error when trying to exit AP mode without saved WiFi
+            case 'ap_error':    system_setStatusLed( 'red', 60 );
+                                system_beepBuzzer('short');
+                                setTimeout(()=>{system_beepBuzzer('short')},150);
+                                setTimeout(()=>{system_beepBuzzer('short')},300);
                                 break;
             // When the device announces the procedure to link this
             // device to a user account on the dashboard.
