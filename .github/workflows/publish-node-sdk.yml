@@ -1,0 +1,33 @@
+name: Publish Node SDK
+
+on:
+  push:
+    tags:
+      - 'node-sdk-v*'   # triggers on tags like node-sdk-v3.3.3
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        working-directory: ./examples/node-sdk
+        run: npm install
+
+      - name: Build
+        working-directory: ./examples/node-sdk
+        run: npm run build
+
+      - name: Publish to npm
+        working-directory: ./examples/node-sdk
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

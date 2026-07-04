@@ -1,6 +1,6 @@
 {
   "name": "@edgeberry/device-node-red-contrib",
-  "version": "3.3.0",
+  "version": "3.3.3",
   "description": "Node-RED node to interact with the Edgeberry Device Software over DBus",
   "license": "MIT",
   "author": "Sanne 'SpuQ' Santens",
@@ -21,17 +21,23 @@
     "iot"
   ],
   "dependencies": {
-    "dbus-next": "^0.10.2"
+    "@edgeberry/device-sdk": "^3.3.3"
   },
   "node-red": {
     "version": ">=4.0.9",
     "nodes": {
-      "edgeberry": "edgeberry.js"
+      "edgeberry_device_device": "device.js",
+      "edgeberry_device_button": "button.js",
+      "edgeberry_device_status":  "status.js"
     }
   },
   "files": [
-    "edgeberry.js",
-    "edgeberry.html",
+    "device.js",
+    "device.html",
+    "button.js",
+    "button.html",
+    "status.js",
+    "status.html",
     "icons"
   ],
   "engines": {

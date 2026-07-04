@@ -1,0 +1,46 @@
+{
+  "name": "@edgeberry/device-sdk",
+  "version": "3.3.3",
+  "description": "Node.js SDK for interfacing applications with the Edgeberry Device Software over D-Bus",
+  "license": "MIT",
+  "author": "Sanne 'SpuQ' Santens",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE.txt"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
+    "clean": "rm -rf dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Edgeberry/Edgeberry-device-software.git",
+    "directory": "examples/node-sdk"
+  },
+  "homepage": "https://github.com/Edgeberry/Edgeberry-device-software/tree/main/examples/node-sdk",
+  "bugs": {
+    "url": "https://github.com/Edgeberry/Edgeberry-device-software/issues"
+  },
+  "keywords": [
+    "edgeberry",
+    "iot",
+    "dbus",
+    "telemetry",
+    "sdk"
+  ],
+  "dependencies": {
+    "dbus-next": "^0.10.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.4.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

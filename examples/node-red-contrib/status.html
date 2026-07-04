@@ -1,0 +1,74 @@
+<script type="text/javascript">
+  RED.nodes.registerType('edgeberry_device_status', {
+    category: 'Edgeberry Device',
+    color: '#FDFDFD',
+    defaults: {
+      name:         { value: '' },
+      section:      { value: 'all' },
+      onlyOnChange: { value: true }
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: 'Edgeberry_logo.png',
+    label: function() {
+      return this.name || 'Status';
+    },
+    paletteLabel: 'status'
+  });
+</script>
+
+<script type="text/html" data-template-name="edgeberry_device_status">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-section"><i class="fa fa-sitemap"></i> Section</label>
+    <select id="node-input-section">
+      <option value="all">all (full state)</option>
+      <option value="system">system</option>
+      <option value="connection">connection</option>
+      <option value="application">application</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label style="width:auto" for="node-input-onlyOnChange">
+      <input type="checkbox" id="node-input-onlyOnChange" style="display:inline-block; width:auto; vertical-align:top;">
+      Only emit when the selected section changes
+    </label>
+  </div>
+</script>
+
+<script type="text/html" data-help-name="edgeberry_device_status">
+  <p>
+    Two-way node for the Edgeberry device status:
+  </p>
+  <ul>
+    <li><b>Output:</b> emits messages whenever the device state changes (system / connection / application).</li>
+    <li><b>Input:</b> sets this application's status on the device.</li>
+  </ul>
+
+  <h3>Output</h3>
+  <dl class="message-properties">
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd><code>state</code>, or <code>state.system</code> / <code>state.connection</code> / <code>state.application</code> if a section is selected.</dd>
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd>The selected slice of the device state (or the full state).</dd>
+    <dt>state <span class="property-type">object</span></dt>
+    <dd>The full <code>DeviceState</code> object, always included.</dd>
+  </dl>
+
+  <h3>Input — set application status</h3>
+  <p>Send a message with any of these payload shapes:</p>
+  <pre>msg.payload = { level: "ok",      message: "Running fine" }
+msg.payload = { level: "warning", message: "Sensor noisy" }
+msg.payload = { level: "error",   message: "Something broke" }
+msg.payload = "ok"                                // level only
+msg.payload = { status: { level: "ok" } }         // same shape as the 'device' node</pre>
+
+  <h3>Options</h3>
+  <ul>
+    <li><b>Section</b> — restrict emissions to a specific top-level slice.</li>
+    <li><b>Only emit when the selected section changes</b> — suppresses duplicates.</li>
+  </ul>
+</script>

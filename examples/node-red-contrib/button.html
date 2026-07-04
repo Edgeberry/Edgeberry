@@ -1,0 +1,58 @@
+<script type="text/javascript">
+  RED.nodes.registerType('edgeberry_device_button', {
+    category: 'Edgeberry Device',
+    color: '#FDFDFD',
+    defaults: {
+      name:   { value: '' },
+      events: { value: '' }
+    },
+    inputs: 0,
+    outputs: 1,
+    icon: 'Edgeberry_logo.png',
+    label: function() {
+      return this.name || 'Button';
+    },
+    paletteLabel: 'button'
+  });
+</script>
+
+<script type="text/html" data-template-name="edgeberry_device_button">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-events"><i class="fa fa-filter"></i> Events</label>
+    <input type="text" id="node-input-events"
+           placeholder="click,pressrelease,apToggle,longpress,verylongpress">
+  </div>
+  <div class="form-tips">
+    Leave <b>Events</b> empty to receive every button event, or enter a comma-separated
+    list to filter (e.g. <code>click,longpress</code>).
+  </div>
+</script>
+
+<script type="text/html" data-help-name="edgeberry_device_button">
+  <p>Emits a message for every hardware button event received from the Edgeberry Device Software.</p>
+
+  <h3>Output</h3>
+  <dl class="message-properties">
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>The event type (see below).</dd>
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd><code>{ event: string, timestamp: number }</code></dd>
+  </dl>
+
+  <h3>Event types</h3>
+  <ul>
+    <li><b>click</b> — short press (&lt; ~1.7&nbsp;s)</li>
+    <li><b>pressrelease</b> — long press (~1.7&nbsp;s - 2.5&nbsp;s)</li>
+    <li><b>apToggle</b> — ~3&nbsp;s press; toggles WiFi provisioning AP mode</li>
+    <li><b>longpress</b> — 5&nbsp;s+ press; triggers a device restart</li>
+    <li><b>verylongpress</b> — 10&nbsp;s+ press; reserved for factory reset</li>
+  </ul>
+
+  <p>
+    Use the <b>Events</b> field in the editor to filter which events this node should emit.
+  </p>
+</script>

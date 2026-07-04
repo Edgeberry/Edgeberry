@@ -87,6 +87,16 @@ const serviceObject = {
             return 'err:invalid_data';
         }
     },
+    GetState:()=>{
+        try{
+            const { stateManager } = require('./main');
+            return JSON.stringify(stateManager.getState());
+        }
+        catch(err){
+            console.error('GetState error:', err);
+            return '';
+        }
+    },
     AnotherMethod: (arg:string)=>{
         console.log("Another Method was called");
         console.log(arg);
@@ -104,10 +114,13 @@ systemBus.exportInterface( serviceObject, objectPath, {
         SetApplicationInfo:['s','s'],
         SetApplicationStatus:['s','s'],
         SendMessage:['s','s'],
+        GetState:['','s'],
         AnotherMethod:['s','s']
     },
     signals: {
-        CloudMessage: ['s']  // Signal for cloud-to-device messages
+        CloudMessage: ['s'],   // Signal for cloud-to-device messages
+        ButtonEvent:  ['s'],   // Signal for hardware button events (click/pressrelease/apToggle/longpress/verylongpress)
+        StateUpdate:  ['s']    // Signal emitted on every device state change (full deviceState JSON)
     }
 });
 
@@ -123,6 +136,33 @@ export function emitCloudMessage(message: any): void {
         console.log('\x1b[32mEmitted cloud message via D-Bus signal\x1b[30m');
     } catch (err) {
         console.error('\x1b[31mFailed to emit cloud message:\x1b[30m', err);
+    }
+}
+
+/**
+ *  Emit a hardware button event over D-Bus.
+ *  `event` is one of: 'click' | 'pressrelease' | 'apToggle' | 'longpress' | 'verylongpress'
+ */
+export function emitButtonEvent(event: string): void {
+    try {
+        const payload = JSON.stringify({ event, timestamp: Date.now() });
+        systemBus.sendSignal(objectPath, interfaceName, 'ButtonEvent', 's', [payload]);
+    } catch (err) {
+        console.error('\x1b[31mFailed to emit button event:\x1b[30m', err);
+    }
+}
+
+/**
+ *  Emit a device state update over D-Bus. The full `deviceState` is
+ *  serialized to JSON so subscribers can pick whatever fields they care
+ *  about (system / connection / application).
+ */
+export function emitStateUpdate(state: any): void {
+    try {
+        const payload = JSON.stringify(state);
+        systemBus.sendSignal(objectPath, interfaceName, 'StateUpdate', 's', [payload]);
+    } catch (err) {
+        console.error('\x1b[31mFailed to emit state update:\x1b[30m', err);
     }
 }
 

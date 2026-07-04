@@ -38,7 +38,7 @@ import { initializeDirectMethodAPI } from "./direct.methods";
 import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './settings.store';
 // Commandline Interface (for inter-process communication)
 import './dbus.interface';
-import { emitCloudMessage } from './dbus.interface';
+import { emitCloudMessage, emitButtonEvent, emitStateUpdate } from './dbus.interface';
 
 /* State Manager */
 export const stateManager = new StateManager();
@@ -461,6 +461,9 @@ initialize();
 // We did it this way to reduce constant data exchange with the 'device shadow',
 // but we should report each state update independantly.
 stateManager.on('state', (state)=>{
+    // Broadcast state updates over D-Bus so applications (e.g. Node-RED
+    // flows via @edgeberry/device-sdk) can react to changes.
+    emitStateUpdate(state);
     // Update the system state (only when cloud is connected to
     // prevent triggering reconnection attempts on a stale client)
     if (cloud && stateManager.getState().connection.connection === 'connected') {
@@ -475,6 +478,17 @@ stateManager.on('state', (state)=>{
  *  The 'Direct Method API' is for direct communication with the Dashboard. It enables
  *  the dashboard to make function calls and receive responses from the device.
  */
+
+/*
+ *  Hardware Button D-Bus Bridge
+ *  Forward every button event over the ButtonEvent D-Bus signal so
+ *  applications (Node-RED flows, custom SDK consumers, ...) can react
+ *  to physical button interaction. Internal behavior (AP toggle,
+ *  buzzer, restart, ...) remains handled locally elsewhere.
+ */
+(['click', 'pressrelease', 'apToggle', 'longpress', 'verylongpress'] as const).forEach((event)=>{
+    system_button.on(event, ()=>{ emitButtonEvent(event); });
+});
 
 /*
  *  Button AP Mode Toggle

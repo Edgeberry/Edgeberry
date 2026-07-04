@@ -1,15 +1,39 @@
 ![Edgeberry Banner](https://raw.githubusercontent.com/Edgeberry/.github/main/brand/Edgeberry_banner_SDK.png)
 
-The **Edgeberry Node-RED node** lets your on-device Node-RED flows communicate with the Edgeberry Device Software over DBus to send telemetry data to the Device Hub.
+The **Edgeberry Node-RED nodes** let your on-device Node-RED flows communicate with the Edgeberry Device Software over DBus. This package registers three nodes — `device`, `button` and `status` — all under the **Edgeberry Device** palette category. Internally they all use [`@edgeberry/device-sdk`](../node-sdk).
 
 [![Node-RED](https://img.shields.io/badge/Node--RED-Edgeberry-blue?logo=nodered)](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib)
+
+## Nodes
+
+### `device`
+The "everything" device node. Send telemetry to the Device Hub, publish application info/status, trigger device identification, and receive cloud-to-device messages. See "Quick Start" below.
+
+### `button`
+Emits a message for every hardware button event on the device. Each output message has:
+- `msg.topic` — the event type (`click`, `pressrelease`, `apToggle`, `longpress`, `verylongpress`)
+- `msg.payload` — `{ event, timestamp }`
+
+An optional **Events** field on the node lets you filter to a comma-separated subset (e.g. `click,longpress`). Leave it empty to receive every event.
+
+### `status`
+Two-way node for device status:
+- **Output:** emits messages whenever any part of the device state changes. `msg.payload` is the selected slice (`system` / `connection` / `application`) or the full state; `msg.state` always contains the full `DeviceState`. Options include restricting to a section and suppressing duplicates.
+- **Input:** sets this application's status on the device. Accepts:
+  ```js
+  msg.payload = { level: "ok", message: "Running fine" };
+  msg.payload = "warning";                    // level only
+  msg.payload = { status: { level: "ok" } };  // same wrapping as the 'device' node
+  ```
+
 ## Features
 
-- **Send Telemetry Data** - Send sensor readings and device data to Device Hub  
+- **Send Telemetry Data** - Send sensor readings and device data to Device Hub
 - **Receive Cloud Messages** - Receive commands and data from cloud applications
-- **Application Status** - Report application health and status  
+- **Hardware Button** - React to physical button presses (short / long / very long / AP toggle)
+- **Device Status** - Observe device state changes and set the application's status
 - **Device Identification** - Trigger device's physical identification (LED blink + beep sound)
-- **D-Bus Integration** - Direct communication with Edgeberry Device Software
+- **D-Bus Integration** - Talks to the Edgeberry Device Software via `@edgeberry/device-sdk`
 
 
 ## Installation
