@@ -3,6 +3,7 @@
   "version": "3.3.3",
   "description": "Node.js SDK for interfacing applications with the Edgeberry Device Software over D-Bus",
   "license": "MIT",
+  "public": true,
   "author": "Sanne 'SpuQ' Santens",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

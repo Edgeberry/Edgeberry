@@ -3,6 +3,7 @@
   "version": "3.3.3",
   "description": "Node-RED node to interact with the Edgeberry Device Software over DBus",
   "license": "MIT",
+  "public": true,
   "author": "Sanne 'SpuQ' Santens",
   "repository": {
     "type": "git",
