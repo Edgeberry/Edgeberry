@@ -3,7 +3,9 @@ name: Publish Node SDK
 on:
   push:
     tags:
-      - 'node-sdk-v*'   # triggers on tags like node-sdk-v3.3.3
+      - 'node-sdk-v*'   # triggers on tags like node-sdk-v3.4.0
+  release:
+    types: [created]    # also fires when a GitHub release is created
 
 jobs:
   publish:

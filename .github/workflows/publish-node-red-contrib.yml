@@ -3,7 +3,9 @@ name: Publish Node-RED Contrib
 on:
   push:
     tags:
-      - 'node-red-v*'   # triggers on tags like node-red-v3.1.0
+      - 'node-red-v*'   # triggers on tags like node-red-v3.4.0
+  release:
+    types: [created]    # also fires when a GitHub release is created
 
 jobs:
   publish:

@@ -3,7 +3,9 @@ name: Publish Python SDK
 on:
   push:
     tags:
-      - 'python-v*'   # triggers on tags like python-v3.1.0
+      - 'python-v*'   # triggers on tags like python-v3.4.0
+  release:
+    types: [created]  # also fires when a GitHub release is created
 
 jobs:
   publish:
