@@ -1,6 +1,6 @@
 ![Edgeberry Banner](https://raw.githubusercontent.com/Edgeberry/.github/main/brand/Edgeberry_banner_device_software.png)
 
-The **Edgeberry Device Software** turns a Linux device (e.g., Raspberry Pi) into a managed IoT device. It provisions the device to the Edgeberry cloud (AWS IoT Core), maintains a secure MQTT connection, and publishes device state. Designed for the Edgeberry Baseboard, it reads the HAT EEPROM to identify the board/UUID, drives the baseboard’s status LED and buzzer, and listens to the user button for actions like identify and link‑to‑user. On‑device it runs as a systemd service with a CLI (`edgeberry`) and a D‑Bus API for apps, providing secure fleet onboarding (X.509, fleet provisioning), consistent shadow/state management, and remote operations (reboot, update, reconnect) so you can fully focus on the application logic of your IoT device.
+The **Edgeberry Device Software** turns a Linux device (e.g., Raspberry Pi) into a managed IoT device. It provisions the device to the Edgeberry Device Hub, maintains a secure MQTT connection, and publishes device state. Designed for the Edgeberry Baseboard, it reads the HAT EEPROM to identify the board/UUID, drives the baseboard’s status LED and buzzer, and listens to the user button for actions like identify and link‑to‑user. On‑device it runs as a systemd service with a CLI (`edgeberry`) and a D‑Bus API for apps, providing secure fleet onboarding (X.509, fleet provisioning), consistent shadow/state management, and remote operations (reboot, update, reconnect) so you can fully focus on the application logic of your IoT device.
 
 #### Key features
 - Edgeberry Dashboard integration: secure provisioning (X.509, fleet provisioning), persistent MQTT, and device shadow sync, ...
@@ -90,7 +90,7 @@ you can use D-Bus directly.
 |------------------|---------------------|-------------------------------------------------------------|
 |io.edgeberry.Core |SendMessage          | {"temperature":22.5,...} (any JSON telemetry data)         |
 |                  |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
-|                  |SetApplicationStatus | {"status":[ok/warning/error/critical],"message":[string]}   |
+|                  |SetApplicationStatus | {"status":[ok/warning/error/critical/emergency],"message":[string]} |
 
 **Signals:**
 

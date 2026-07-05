@@ -22,7 +22,7 @@ export interface ApplicationInfo {
 }
 
 /** Application health/status level reported to the Device Hub. */
-export type ApplicationStatusLevel = 'ok' | 'warning' | 'error' | 'critical' | string;
+export type ApplicationStatusLevel = 'ok' | 'warning' | 'error' | 'critical' | 'emergency' | string;
 
 export interface ApplicationStatus {
   level: ApplicationStatusLevel;

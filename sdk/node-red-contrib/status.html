@@ -61,15 +61,21 @@
   <h3>Input — set application status</h3>
   <p>Canonical format:</p>
   <pre>msg.topic   = "status"
-msg.payload = { level: "ok" | "warning" | "error" | "critical", message: "string" }</pre>
+msg.payload = { level: "ok" | "warning" | "error" | "critical" | "emergency", message: "string" }</pre>
   <p>Examples:</p>
-  <pre>msg.topic = "status"; msg.payload = { level: "ok",       message: "Running fine" };
-msg.topic = "status"; msg.payload = { level: "warning",  message: "Sensor noisy" };
-msg.topic = "status"; msg.payload = { level: "error",    message: "Something broke" };
-msg.topic = "status"; msg.payload = { level: "critical", message: "Immediate attention required" };</pre>
+  <pre>msg.topic = "status"; msg.payload = { level: "ok",        message: "Running fine" };
+msg.topic = "status"; msg.payload = { level: "warning",   message: "Sensor noisy" };
+msg.topic = "status"; msg.payload = { level: "error",     message: "Something broke" };
+msg.topic = "status"; msg.payload = { level: "critical",  message: "Immediate attention required" };
+msg.topic = "status"; msg.payload = { level: "emergency", message: "Danger! Evacuate!" };</pre>
   <p>
     A <code>critical</code> level makes the device flash red rapidly and emit
-    continuous short beeps until the status is cleared.
+    a short beep once per second until the status is cleared.
+  </p>
+  <p>
+    An <code>emergency</code> level is one step above <code>critical</code>:
+    the LED flashes red very fast and the buzzer emits a rapid staccato of short
+    beeps until the status is cleared.
   </p>
 
   <h3>Options</h3>

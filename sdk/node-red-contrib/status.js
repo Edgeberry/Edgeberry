@@ -67,8 +67,8 @@ module.exports = function(RED) {
     // Input path: set the application status on this device.
     // Canonical Node-RED API format:
     //   msg.topic   = 'status'
-    //   msg.payload = { level: 'ok'|'warning'|'error'|'critical', message: string }
-    const VALID_LEVELS = ['ok', 'warning', 'error', 'critical'];
+    //   msg.payload = { level: 'ok'|'warning'|'error'|'critical'|'emergency', message: string }
+    const VALID_LEVELS = ['ok', 'warning', 'error', 'critical', 'emergency'];
     node.on('input', async function(msg, send, done) {
       try {
         if (msg.topic && msg.topic !== 'status') {
@@ -78,7 +78,7 @@ module.exports = function(RED) {
         }
         const status = msg.payload;
         if (!status || typeof status !== 'object' || Array.isArray(status) || typeof status.level !== 'string') {
-          node.warn("status: msg.payload must be { level: 'ok'|'warning'|'error'|'critical', message: string }");
+          node.warn("status: msg.payload must be { level: 'ok'|'warning'|'error'|'critical'|'emergency', message: string }");
           if (done) done();
           return;
         }

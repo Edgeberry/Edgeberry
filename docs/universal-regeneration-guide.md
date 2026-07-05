@@ -117,7 +117,7 @@ DeviceIdentity {
 DeviceState {
   device: { uuid: string, status: "online|offline|provisioning|error", uptimeSeconds: number },
   system?: { cpu: number, memory: number, temperature?: number, network: "connected|disconnected" },
-  applications?: [{ name: string, version: string, status: "ok|warning|error|critical", message?: string, lastUpdate?: string }],
+  applications?: [{ name: string, version: string, status: "ok|warning|error|critical|emergency", message?: string, lastUpdate?: string }],
   hardware?: { led: "on|off|blinking|fast-blink", buzzer: boolean, buttonPressed?: boolean }
 }
 ```
@@ -141,7 +141,7 @@ CommandResult {
 - Local API Messages
 ```
 SetApplicationInfo { name: string, version: string, description?: string }
-SetApplicationStatus { status: "ok|warning|error|critical", message?: string }
+SetApplicationStatus { status: "ok|warning|error|critical|emergency", message?: string }
 GetDeviceStatus -> DeviceState
 ```
 

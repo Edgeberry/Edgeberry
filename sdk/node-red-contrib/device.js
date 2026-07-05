@@ -24,7 +24,7 @@ module.exports = function(RED) {
       }
     })();
 
-    const VALID_STATUS_LEVELS = ['ok', 'warning', 'error', 'critical'];
+    const VALID_STATUS_LEVELS = ['ok', 'warning', 'error', 'critical', 'emergency'];
 
     node.on('input', async function(msg) {
       try {
@@ -35,7 +35,7 @@ module.exports = function(RED) {
         else if (msg.topic === 'status') {
           const status = msg.payload;
           if (!status || typeof status !== 'object' || Array.isArray(status) || typeof status.level !== 'string') {
-            node.warn("status: msg.payload must be { level: 'ok'|'warning'|'error'|'critical', message: string }");
+            node.warn("status: msg.payload must be { level: 'ok'|'warning'|'error'|'critical'|'emergency', message: string }");
           } else if (!VALID_STATUS_LEVELS.includes(status.level)) {
             node.warn(`status: invalid level '${status.level}' (expected one of ${VALID_STATUS_LEVELS.join(', ')})`);
           } else {

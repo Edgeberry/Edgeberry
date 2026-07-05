@@ -56,7 +56,7 @@ Update the current status of an application.
 **JSON Schema**:
 ```json
 {
-  "status": "ok|warning|error|critical",  // Status level (required)
+  "status": "ok|warning|error|critical|emergency",  // Status level (required)
   "message": "string"                     // Status message (optional)
 }
 ```
@@ -65,7 +65,8 @@ Update the current status of an application.
 - `ok`: Application running normally
 - `warning`: Application has minor issues but continues to function
 - `error`: Application has errors but may recover
-- `critical`: Application has critical errors requiring intervention
+- `critical`: Application has critical errors requiring intervention (device flashes red rapidly and beeps once per second)
+- `emergency`: Highest severity — device flashes red very fast and emits a rapid staccato of short beeps
 
 **Example Usage**:
 ```bash
@@ -114,7 +115,7 @@ Retrieve current device status information.
     {
       "name": "string",
       "version": "string",
-      "status": "ok|warning|error|critical",
+      "status": "ok|warning|error|critical|emergency",
       "message": "string",
       "lastUpdate": "ISO8601 timestamp"
     }

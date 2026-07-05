@@ -21,7 +21,7 @@ edgeberry = Edgeberry()
 
 # Available methods
 edgeberry.set_application_info("name", "version", "description")    # Called when the program (re)starts
-edgeberry.set_status("level", "message")                            # Level can be ok|warning|error|critical
+edgeberry.set_status("level", "message")                            # Level can be ok|warning|error|critical|emergency
 ```
 
 ## License & Collaboration

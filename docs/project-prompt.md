@@ -141,7 +141,7 @@ sudo edgeberry reboot           # Reboot device
 ### D-Bus API (`io.edgeberry.Core`)
 ```
 SetApplicationInfo({"name": string, "version": string, "description": string})
-SetApplicationStatus({"status": "ok|warning|error|critical", "message": string})
+SetApplicationStatus({"status": "ok|warning|error|critical|emergency", "message": string})
 ```
 
 ### Python SDK Integration

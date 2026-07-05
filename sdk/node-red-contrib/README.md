@@ -22,9 +22,9 @@ Two-way node for device status:
 - **Input:** sets this application's status on the device. Canonical format:
   ```js
   msg.topic   = "status";
-  msg.payload = { level: "ok" | "warning" | "error" | "critical", message: "string" };
+  msg.payload = { level: "ok" | "warning" | "error" | "critical" | "emergency", message: "string" };
   ```
-  A `critical` level makes the device flash red rapidly and emit continuous short beeps until the status is cleared.
+  A `critical` level makes the device flash red rapidly and emit a short beep once per second until the status is cleared. An `emergency` level is one step above `critical`: the LED flashes red very fast and the buzzer emits a rapid staccato of short beeps.
 
 ## Features
 

@@ -31,7 +31,8 @@ export type deviceState = {
 
 export class StateManager extends EventEmitter{
     private state:deviceState;
-    private criticalBeepInterval: NodeJS.Timeout | null = null;
+    private statusBeepInterval: NodeJS.Timeout | null = null;
+    private statusBeepIntervalMs: number | null = null;
 
     constructor(){
         super();
@@ -114,27 +115,34 @@ export class StateManager extends EventEmitter{
      *          -> constant red or nothing, meaning 'I died, game over'.
      */
 
-    // Continuously emit short beeps while the application is in a critical state.
-    // Idempotent: calling start twice will not stack intervals.
-    private startCriticalBeeping():void{
-        if( this.criticalBeepInterval !== null ) return;
+    // Continuously emit short beeps while the application is in a critical or
+    // emergency state. Idempotent: calling with the same intervalMs while the
+    // interval is already running is a no-op, so repeated state updates do not
+    // reset the beep cadence.
+    private startStatusBeeping(intervalMs:number):void{
+        if( this.statusBeepInterval !== null && this.statusBeepIntervalMs === intervalMs ) return;
+        // Different cadence requested (or first start): replace the existing interval.
+        if( this.statusBeepInterval !== null ) clearInterval( this.statusBeepInterval );
         system_beepBuzzer('short');
-        this.criticalBeepInterval = setInterval(()=>{
+        this.statusBeepInterval = setInterval(()=>{
             system_beepBuzzer('short');
-        }, 1000);
+        }, intervalMs);
+        this.statusBeepIntervalMs = intervalMs;
     }
 
-    private stopCriticalBeeping():void{
-        if( this.criticalBeepInterval === null ) return;
-        clearInterval( this.criticalBeepInterval );
-        this.criticalBeepInterval = null;
+    private stopStatusBeeping():void{
+        if( this.statusBeepInterval === null ) return;
+        clearInterval( this.statusBeepInterval );
+        this.statusBeepInterval = null;
+        this.statusBeepIntervalMs = null;
     }
 
     private updateStatusIndication():void{
-        // Stop any critical-state beeping by default; the 'critical' branch below
-        // will re-arm it if we're still in that state. This guarantees the buzzer
-        // stops as soon as we leave the connected+provisioned+critical branch.
-        this.stopCriticalBeeping();
+        // Compute the desired status-beep cadence (null = silent). We defer
+        // applying it until the end so that repeated state updates in the same
+        // critical/emergency level don't reset the beep pattern.
+        let desiredBeepMs: number | null = null;
+
         // SYSTEM STATUS has priority over any other system
         // state, because everything else depends on it.
         if( this.state.system.state !== 'running' ){
@@ -175,9 +183,13 @@ export class StateManager extends EventEmitter{
                                                     break;
                                         case 'warning': system_setStatusLed( 'green', true, 'orange', true);
                                                     break;
-                                        // Critical: fast red flash + continuous short beeps
+                                        // Critical: fast red flash + short beeps once per second
                                         case 'critical': system_setStatusLed( 'red', 150 );
-                                                    this.startCriticalBeeping();
+                                                    desiredBeepMs = 1000;
+                                                    break;
+                                        // Emergency: very fast red flash + rapid short beeps
+                                        case 'emergency': system_setStatusLed( 'red', 60 );
+                                                    desiredBeepMs = 250;
                                                     break;
                                         default:    system_setStatusLed( 'green', true, 'red', true);
                                                     break;
@@ -191,6 +203,10 @@ export class StateManager extends EventEmitter{
         else if( this.state.connection.provision === 'provisioning' ){
             system_setStatusLed( 'orange', 70 );
         }
+
+        // Apply the desired beep pattern (or silence).
+        if( desiredBeepMs === null ) this.stopStatusBeeping();
+        else this.startStatusBeeping(desiredBeepMs);
     }
 
     // Interrupt te status indicators for a special event

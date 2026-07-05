@@ -38,10 +38,12 @@ msg.payload = { name: "MyApp", version: "1.0", description: "desc" };</pre>
 
   <h3>Set Application Status</h3>
   <pre>msg.topic   = "status";
-msg.payload = { level: "ok" | "warning" | "error" | "critical", message: "string" };</pre>
+msg.payload = { level: "ok" | "warning" | "error" | "critical" | "emergency", message: "string" };</pre>
   <p>
     A <code>critical</code> level makes the device flash red rapidly and emit
-    continuous short beeps until the status is cleared.
+    a short beep once per second until the status is cleared.
+    <code>emergency</code> is one step above: very fast red flashing and a rapid
+    staccato of short beeps.
   </p>
 
   <h3>Trigger Identify</h3>

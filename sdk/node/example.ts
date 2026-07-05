@@ -14,7 +14,7 @@ async function main() {
   // Announce this application to the Device Hub
   await edge.setApplicationInfo({
     name: 'example',
-    version: '3.4.0',
+    version: '3.5.0',
     description: 'Edgeberry Node SDK example',
   });
 
