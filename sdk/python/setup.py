@@ -8,7 +8,7 @@ setup(
     description="Python SDK for interfacing applications with Edgeberry Device Software",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/Edgeberry/Edgeberry-device-software/tree/main/examples/python-sdk",
+    url="https://github.com/Edgeberry/Edgeberry-device-software/tree/main/sdk/python",
     packages=find_packages(),
     install_requires=[
         "pydbus",   # List dependencies here

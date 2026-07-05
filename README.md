@@ -78,7 +78,7 @@ Edgeberry provides a SDK for Python applications
 ```bash
 pip install edgeberry
 ```
-See [examples/python-sdk](examples/python-sdk) for detailed documentation, API reference, and usage examples.
+See [sdk/python](sdk/python) for detailed documentation, API reference, and usage examples.
 
 ### D-Bus API
 Edgeberry uses inter-process communication through `D-Bus` to interact with other applications. If there's no SDK available in your favorite language 
@@ -110,10 +110,10 @@ dbus-send --system --type=method_call --print-reply \
 For Node-RED users, install the Edgeberry node to send telemetry and interact with device software:
 ```bash
 cd ~/.node-red
-npm install /path/to/Edgeberry-device-software/examples/node-red-contrib
+npm install /path/to/Edgeberry-device-software/sdk/node-red-contrib
 node-red-restart
 ```
-See [examples/node-red-contrib](examples/node-red-contrib) for detailed documentation and usage examples.
+See [sdk/node-red-contrib](sdk/node-red-contrib) for detailed documentation and usage examples.
 
 ## License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.

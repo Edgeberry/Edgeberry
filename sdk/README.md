@@ -1,8 +1,8 @@
-# Edgeberry Device Software Examples
+# Edgeberry Device Software SDKs
 
-This directory contains example integrations and tools for the Edgeberry Device Software.
+This directory contains SDK integrations and tools for the Edgeberry Device Software.
 
-## Python SDK (`python-sdk`)
+## Python SDK (`python`)
 
 Python SDK for interfacing applications with Edgeberry Device Software via D-Bus. Provides a simple Pythonic API for sending telemetry, managing application state, and interacting with the device.
 
@@ -27,12 +27,12 @@ edge.set_application_info("MyApp", "1.0.0", "My application")
 ```
 
 **Documentation:**
-- [README.md](./python-sdk/README.md) - API reference and examples
-- [example.py](./python-sdk/example.py) - Complete usage example
+- [README.md](./python/README.md) - API reference and examples
+- [example.py](./python/example.py) - Complete usage example
 
 **Version:** 3.1.0 (synced with device software)
 
-## Node SDK (`node-sdk`)
+## Node SDK (`node`)
 
 Node.js SDK for interfacing applications with Edgeberry Device Software via D-Bus. Provides a small, typed API that mirrors the Python SDK. This is the client used internally by the Node-RED node.
 
@@ -58,10 +58,10 @@ await edge.sendMessage({ temperature: 25.0, humidity: 60 });
 ```
 
 **Documentation:**
-- [README.md](./node-sdk/README.md) - API reference
-- [example.ts](./node-sdk/example.ts) - Complete usage example
+- [README.md](./node/README.md) - API reference
+- [example.ts](./node/example.ts) - Complete usage example
 
-**Version:** 3.3.4 (synced with device software)
+**Version:** 3.4.0 (synced with device software)
 
 ## Node-RED Contribution (`node-red-contrib`)
 
@@ -77,49 +77,49 @@ Node-RED node for interacting with Edgeberry Device Software. Enables sending te
 ```bash
 # From device with Node-RED installed
 cd ~/.node-red
-npm install /path/to/Edgeberry-device-software/examples/node-red-contrib
+npm install /path/to/Edgeberry-device-software/sdk/node-red-contrib
 node-red-restart
 ```
 
 **Documentation:**
 - [README.md](./node-red-contrib/README.md) - Quick start guide
 
-**Version:** 3.3.4 (synced with device software)
+**Version:** 3.4.0 (synced with device software)
 
-> **Important:** The version numbers of `@edgeberry/device-sdk` and `@edgeberry/device-node-red-contrib` are kept in sync with the Edgeberry Device Software version to ensure compatibility. When releasing a new version of the device software, update the version fields in `examples/node-sdk/package.json` and `examples/node-red-contrib/package.json` accordingly.
+> **Important:** The version numbers of `@edgeberry/device-sdk` and `@edgeberry/device-node-red-contrib` are kept in sync with the Edgeberry Device Software version to ensure compatibility. When releasing a new version of the device software, update the version fields in `sdk/node/package.json` and `sdk/node-red-contrib/package.json` accordingly.
 
 ## Versioning Policy
 
-All example packages (Python SDK, Node SDK, Node-RED contrib) **must stay in sync** with the Edgeberry Device Software version (root `package.json`).
+All SDK packages (Python SDK, Node SDK, Node-RED contrib) **must stay in sync** with the Edgeberry Device Software version (root `package.json`).
 
 **When releasing device software:**
 1. Update version in root `package.json`
-2. Update version in `examples/python-sdk/setup.py` to match
-3. Update version in `examples/node-sdk/package.json` to match
-4. Update version in `examples/node-red-contrib/package.json` to match (and its `@edgeberry/device-sdk` dep)
+2. Update version in `sdk/python/setup.py` to match
+3. Update version in `sdk/node/package.json` to match
+4. Update version in `sdk/node-red-contrib/package.json` to match (and its `@edgeberry/device-sdk` dep)
 5. Tag releases:
-   - Python: `git tag python-v3.3.4` (triggers PyPI publish)
-   - Node SDK: `git tag node-sdk-v3.3.4` (triggers npm publish)
-   - Node-RED: `git tag node-red-v3.3.4` (triggers npm publish)
+   - Python: `git tag python-v3.4.0` (triggers PyPI publish)
+   - Node SDK: `git tag node-sdk-v3.4.0` (triggers npm publish)
+   - Node-RED: `git tag node-red-v3.4.0` (triggers npm publish)
 
 ## Publishing
 
 Publishing to npm happens automatically via GitHub Actions when you push a tag:
 ```bash
-cd examples/node-red-contrib
+cd sdk/node-red-contrib
 git tag node-red-v3.1.0
 git push origin node-red-v3.1.0
 ```
 
 Or manually:
 ```bash
-cd examples/node-red-contrib
+cd sdk/node-red-contrib
 npm publish
 ```
 
-## Future Examples
+## Future SDKs
 
-This directory may include additional examples such as:
-- Python SDK integration examples
+This directory may include additional SDKs and tooling such as:
+- Additional language SDKs
 - Virtual device simulators
 - Custom application integrations

@@ -19,15 +19,15 @@ jobs:
           registry-url: https://registry.npmjs.org/
 
       - name: Install dependencies
-        working-directory: ./examples/node-red-contrib
+        working-directory: ./sdk/node-red-contrib
         run: npm install
 
       - name: Run a basic lint (optional)
-        working-directory: ./examples/node-red-contrib
+        working-directory: ./sdk/node-red-contrib
         run: npm install eslint && npx eslint *.js || true
 
       - name: Publish to npm
-        working-directory: ./examples/node-red-contrib
+        working-directory: ./sdk/node-red-contrib
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

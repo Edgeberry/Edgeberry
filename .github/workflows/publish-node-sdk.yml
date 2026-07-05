@@ -19,15 +19,15 @@ jobs:
           registry-url: https://registry.npmjs.org/
 
       - name: Install dependencies
-        working-directory: ./examples/node-sdk
+        working-directory: ./sdk/node
         run: npm install
 
       - name: Build
-        working-directory: ./examples/node-sdk
+        working-directory: ./sdk/node
         run: npm run build
 
       - name: Publish to npm
-        working-directory: ./examples/node-sdk
+        working-directory: ./sdk/node
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
