@@ -31,6 +31,7 @@ export type deviceState = {
 
 export class StateManager extends EventEmitter{
     private state:deviceState;
+    private criticalBeepInterval: NodeJS.Timeout | null = null;
 
     constructor(){
         super();
@@ -113,7 +114,27 @@ export class StateManager extends EventEmitter{
      *          -> constant red or nothing, meaning 'I died, game over'.
      */
 
+    // Continuously emit short beeps while the application is in a critical state.
+    // Idempotent: calling start twice will not stack intervals.
+    private startCriticalBeeping():void{
+        if( this.criticalBeepInterval !== null ) return;
+        system_beepBuzzer('short');
+        this.criticalBeepInterval = setInterval(()=>{
+            system_beepBuzzer('short');
+        }, 1000);
+    }
+
+    private stopCriticalBeeping():void{
+        if( this.criticalBeepInterval === null ) return;
+        clearInterval( this.criticalBeepInterval );
+        this.criticalBeepInterval = null;
+    }
+
     private updateStatusIndication():void{
+        // Stop any critical-state beeping by default; the 'critical' branch below
+        // will re-arm it if we're still in that state. This guarantees the buzzer
+        // stops as soon as we leave the connected+provisioned+critical branch.
+        this.stopCriticalBeeping();
         // SYSTEM STATUS has priority over any other system
         // state, because everything else depends on it.
         if( this.state.system.state !== 'running' ){
@@ -149,10 +170,14 @@ export class StateManager extends EventEmitter{
                                     break;
                 // Connected
                 case 'connected':   // Blink twice; heartbeat.
-                                    switch(this.state.application.state){
+                                    switch(this.state.application.state.toLowerCase()){
                                         case 'ok':  system_setStatusLed( 'green', true, 'green', true);
                                                     break;
                                         case 'warning': system_setStatusLed( 'green', true, 'orange', true);
+                                                    break;
+                                        // Critical: fast red flash + continuous short beeps
+                                        case 'critical': system_setStatusLed( 'red', 150 );
+                                                    this.startCriticalBeeping();
                                                     break;
                                         default:    system_setStatusLed( 'green', true, 'red', true);
                                                     break;

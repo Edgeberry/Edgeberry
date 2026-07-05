@@ -24,21 +24,37 @@ module.exports = function(RED) {
       }
     })();
 
+    const VALID_STATUS_LEVELS = ['ok', 'warning', 'error', 'critical'];
+
     node.on('input', async function(msg) {
       try {
-        if (msg.payload && msg.payload.info) {
-          await edge.setApplicationInfo(msg.payload.info);
-          node.log('Sent application info to Edgeberry');
-        }
-        if (msg.payload && msg.payload.status) {
-          await edge.setApplicationStatus(msg.payload.status);
-          node.log('Sent application status to Edgeberry');
-        }
         if (msg.topic === 'identify') {
           await edge.identify();
           node.log('Sent identify request to Edgeberry');
         }
-        if (msg.topic === 'message' || msg.topic === 'telemetry' || (msg.payload && msg.payload.data)) {
+        else if (msg.topic === 'status') {
+          const status = msg.payload;
+          if (!status || typeof status !== 'object' || Array.isArray(status) || typeof status.level !== 'string') {
+            node.warn("status: msg.payload must be { level: 'ok'|'warning'|'error'|'critical', message: string }");
+          } else if (!VALID_STATUS_LEVELS.includes(status.level)) {
+            node.warn(`status: invalid level '${status.level}' (expected one of ${VALID_STATUS_LEVELS.join(', ')})`);
+          } else {
+            await edge.setApplicationStatus({
+              level: status.level,
+              message: typeof status.message === 'string' ? status.message : '',
+            });
+            node.log('Sent application status to Edgeberry');
+          }
+        }
+        else if (msg.topic === 'info') {
+          if (msg.payload && typeof msg.payload === 'object') {
+            await edge.setApplicationInfo(msg.payload);
+            node.log('Sent application info to Edgeberry');
+          } else {
+            node.warn('info: msg.payload must be an ApplicationInfo object');
+          }
+        }
+        else if (msg.topic === 'message' || msg.topic === 'telemetry') {
           const data = (msg.payload && msg.payload.data) || msg.payload;
           const result = await edge.sendMessage(data);
           if (result !== 'ok') {

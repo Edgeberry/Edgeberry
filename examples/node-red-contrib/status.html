@@ -59,12 +59,18 @@
   </dl>
 
   <h3>Input — set application status</h3>
-  <p>Send a message with any of these payload shapes:</p>
-  <pre>msg.payload = { level: "ok",      message: "Running fine" }
-msg.payload = { level: "warning", message: "Sensor noisy" }
-msg.payload = { level: "error",   message: "Something broke" }
-msg.payload = "ok"                                // level only
-msg.payload = { status: { level: "ok" } }         // same shape as the 'device' node</pre>
+  <p>Canonical format:</p>
+  <pre>msg.topic   = "status"
+msg.payload = { level: "ok" | "warning" | "error" | "critical", message: "string" }</pre>
+  <p>Examples:</p>
+  <pre>msg.topic = "status"; msg.payload = { level: "ok",       message: "Running fine" };
+msg.topic = "status"; msg.payload = { level: "warning",  message: "Sensor noisy" };
+msg.topic = "status"; msg.payload = { level: "error",    message: "Something broke" };
+msg.topic = "status"; msg.payload = { level: "critical", message: "Immediate attention required" };</pre>
+  <p>
+    A <code>critical</code> level makes the device flash red rapidly and emit
+    continuous short beeps until the status is cleared.
+  </p>
 
   <h3>Options</h3>
   <ul>

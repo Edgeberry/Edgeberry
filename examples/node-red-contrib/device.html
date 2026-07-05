@@ -25,32 +25,25 @@
 <script type="text/html" data-help-name="edgeberry_device_device">
   <p>This node interacts with the Edgeberry Device Software over DBus.</p>
   
+  <p>All operations are dispatched by <code>msg.topic</code>.</p>
+
   <h3>Send Telemetry/Messages</h3>
-  <p>Set <code>msg.topic = "message"</code> or <code>msg.topic = "telemetry"</code> and pass data in the payload:</p>
-  <pre>{
-  "topic": "telemetry",
-  "payload": {
-    "temperature": 22.5,
-    "humidity": 45,
-    "status": "ok"
-  }
-}</pre>
-  <p>Or use <code>msg.payload.data</code> format:</p>
-  <pre>{
-  "payload": {
-    "data": {
-      "sensor1": 123.4,
-      "sensor2": 567.8
-    }
-  }
-}</pre>
-  
+  <p>Set <code>msg.topic = "telemetry"</code> (or <code>"message"</code>) and pass data in <code>msg.payload</code>:</p>
+  <pre>msg.topic   = "telemetry";
+msg.payload = { temperature: 22.5, humidity: 45 };</pre>
+
   <h3>Set Application Info</h3>
-  <pre>{"payload": {"info": {"name":"MyApp","version":"1.0","description":"desc"}}}</pre>
-  
+  <pre>msg.topic   = "info";
+msg.payload = { name: "MyApp", version: "1.0", description: "desc" };</pre>
+
   <h3>Set Application Status</h3>
-  <pre>{"payload": {"status": {"status":"ok","message":"Running fine"}}}</pre>
-  
+  <pre>msg.topic   = "status";
+msg.payload = { level: "ok" | "warning" | "error" | "critical", message: "string" };</pre>
+  <p>
+    A <code>critical</code> level makes the device flash red rapidly and emit
+    continuous short beeps until the status is cleared.
+  </p>
+
   <h3>Trigger Identify</h3>
-  <pre>{"topic": "identify"}</pre>
+  <pre>msg.topic = "identify";</pre>
 </script>

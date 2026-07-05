@@ -65,21 +65,32 @@ module.exports = function(RED) {
     })();
 
     // Input path: set the application status on this device.
-    // Accepts:
-    //   msg.payload = { level: 'ok'|'warning'|'error'|..., message?: string }
-    //   msg.payload = 'ok'                (level only; string form)
-    //   msg.payload = { status: {...} }   (same wrapping used by the 'edgeberry' node)
+    // Canonical Node-RED API format:
+    //   msg.topic   = 'status'
+    //   msg.payload = { level: 'ok'|'warning'|'error'|'critical', message: string }
+    const VALID_LEVELS = ['ok', 'warning', 'error', 'critical'];
     node.on('input', async function(msg, send, done) {
       try {
-        let status = msg.payload;
-        if (status && typeof status === 'object' && status.status) status = status.status;
-        if (typeof status === 'string') status = { level: status };
-        if (!status || typeof status !== 'object' || !status.level) {
-          node.warn('status: msg.payload must be { level, message? } or a level string');
+        if (msg.topic && msg.topic !== 'status') {
+          node.warn(`status: ignoring msg with topic '${msg.topic}' (expected 'status')`);
           if (done) done();
           return;
         }
-        const result = await edge.setApplicationStatus(status);
+        const status = msg.payload;
+        if (!status || typeof status !== 'object' || Array.isArray(status) || typeof status.level !== 'string') {
+          node.warn("status: msg.payload must be { level: 'ok'|'warning'|'error'|'critical', message: string }");
+          if (done) done();
+          return;
+        }
+        if (!VALID_LEVELS.includes(status.level)) {
+          node.warn(`status: invalid level '${status.level}' (expected one of ${VALID_LEVELS.join(', ')})`);
+          if (done) done();
+          return;
+        }
+        const result = await edge.setApplicationStatus({
+          level: status.level,
+          message: typeof status.message === 'string' ? status.message : '',
+        });
         if (result !== 'ok') node.warn(`setApplicationStatus returned: ${result}`);
         if (done) done();
       } catch (err) {

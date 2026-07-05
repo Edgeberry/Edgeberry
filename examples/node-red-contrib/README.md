@@ -19,12 +19,12 @@ An optional **Events** field on the node lets you filter to a comma-separated su
 ### `status`
 Two-way node for device status:
 - **Output:** emits messages whenever any part of the device state changes. `msg.payload` is the selected slice (`system` / `connection` / `application`) or the full state; `msg.state` always contains the full `DeviceState`. Options include restricting to a section and suppressing duplicates.
-- **Input:** sets this application's status on the device. Accepts:
+- **Input:** sets this application's status on the device. Canonical format:
   ```js
-  msg.payload = { level: "ok", message: "Running fine" };
-  msg.payload = "warning";                    // level only
-  msg.payload = { status: { level: "ok" } };  // same wrapping as the 'device' node
+  msg.topic   = "status";
+  msg.payload = { level: "ok" | "warning" | "error" | "critical", message: "string" };
   ```
+  A `critical` level makes the device flash red rapidly and emit continuous short beeps until the status is cleared.
 
 ## Features
 

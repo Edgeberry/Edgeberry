@@ -61,7 +61,7 @@ await edge.sendMessage({ temperature: 25.0, humidity: 60 });
 - [README.md](./node-sdk/README.md) - API reference
 - [example.ts](./node-sdk/example.ts) - Complete usage example
 
-**Version:** 3.3.3 (synced with device software)
+**Version:** 3.3.4 (synced with device software)
 
 ## Node-RED Contribution (`node-red-contrib`)
 
@@ -84,7 +84,7 @@ node-red-restart
 **Documentation:**
 - [README.md](./node-red-contrib/README.md) - Quick start guide
 
-**Version:** 3.3.3 (synced with device software)
+**Version:** 3.3.4 (synced with device software)
 
 > **Important:** The version numbers of `@edgeberry/device-sdk` and `@edgeberry/device-node-red-contrib` are kept in sync with the Edgeberry Device Software version to ensure compatibility. When releasing a new version of the device software, update the version fields in `examples/node-sdk/package.json` and `examples/node-red-contrib/package.json` accordingly.
 
@@ -98,9 +98,9 @@ All example packages (Python SDK, Node SDK, Node-RED contrib) **must stay in syn
 3. Update version in `examples/node-sdk/package.json` to match
 4. Update version in `examples/node-red-contrib/package.json` to match (and its `@edgeberry/device-sdk` dep)
 5. Tag releases:
-   - Python: `git tag python-v3.3.3` (triggers PyPI publish)
-   - Node SDK: `git tag node-sdk-v3.3.3` (triggers npm publish)
-   - Node-RED: `git tag node-red-v3.3.3` (triggers npm publish)
+   - Python: `git tag python-v3.3.4` (triggers PyPI publish)
+   - Node SDK: `git tag node-sdk-v3.3.4` (triggers npm publish)
+   - Node-RED: `git tag node-red-v3.3.4` (triggers npm publish)
 
 ## Publishing
 
