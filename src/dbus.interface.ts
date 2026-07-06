@@ -58,7 +58,7 @@ const serviceObject = {
             const status = JSON.parse(arg.toString());
             // Import stateManager dynamically to avoid circular dependency
             const { stateManager } = require('./main');
-            stateManager.updateApplicationState('state', status.level );
+            stateManager.updateApplicationState('health', status.level );
             return 'ok';
         }
         catch(err){

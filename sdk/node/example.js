@@ -15,7 +15,7 @@ function main() {
         const edge = new src_1.Edgeberry();
         yield edge.setApplicationInfo({
             name: 'example',
-            version: '3.5.0',
+            version: '3.5.1',
             description: 'Edgeberry Node SDK example',
         });
         yield edge.setApplicationStatus({ level: 'ok', message: 'Running fine' });
