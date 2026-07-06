@@ -15,21 +15,24 @@ module.exports = function(RED) {
     let unsubscribe = null;
     let lastSectionJson = null;
 
-    node.status({ fill: 'grey', shape: 'ring', text: 'connecting' });
+    node.status({ fill: 'grey', shape: 'ring', text: 'idle' });
 
-    function describeStatus(state) {
-      // Try to give a compact human-readable status line for the node badge.
-      if (!state) return '';
-      if (state.system && state.system.state && state.system.state !== 'running') {
-        return `system:${state.system.state}`;
+    // Map a health level to a Node-RED badge fill colour.
+    function levelFill(level) {
+      switch (level) {
+        case 'ok':        return 'green';
+        case 'warning':   return 'yellow';
+        case 'error':
+        case 'critical':
+        case 'emergency': return 'red';
+        default:          return 'grey';
       }
-      if (state.connection && state.connection.connection) {
-        return `cloud:${state.connection.connection}`;
-      }
-      if (state.application && state.application.state) {
-        return `app:${state.application.state}`;
-      }
-      return 'ok';
+    }
+
+    // Update the node badge to reflect the last-sent application health level.
+    function showLevel(level, message) {
+      const text = message ? `${level}: ${message}` : level;
+      node.status({ fill: levelFill(level), shape: 'dot', text });
     }
 
     function emit(state) {
@@ -39,7 +42,6 @@ module.exports = function(RED) {
         if (json === lastSectionJson) return;
         lastSectionJson = json;
       }
-      node.status({ fill: 'green', shape: 'dot', text: describeStatus(state) });
       node.send({
         topic: section ? `state.${section}` : 'state',
         payload: slice,
@@ -92,6 +94,7 @@ module.exports = function(RED) {
           message: typeof status.message === 'string' ? status.message : '',
         });
         if (result !== 'ok') node.warn(`setApplicationStatus returned: ${result}`);
+        else showLevel(status.level, typeof status.message === 'string' ? status.message : undefined);
         if (done) done();
       } catch (err) {
         if (done) done(err);

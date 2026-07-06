@@ -9,26 +9,26 @@
 import { Edgeberry } from './src';
 
 async function main() {
-  const edge = new Edgeberry();
+  const device = new Edgeberry();
 
   // Announce this application to the Device Hub
-  await edge.setApplicationInfo({
+  await device.setApplicationInfo({
     name: 'example',
     version: '3.5.1',
     description: 'Edgeberry Node SDK example',
   });
 
-  await edge.setApplicationStatus({ level: 'ok', message: 'Running fine' });
+  await device.setApplicationStatus({ level: 'ok', message: 'Running fine' });
 
   // Subscribe to cloud-to-device messages
-  const unsubscribe = await edge.onCloudMessage((payload) => {
+  const unsubscribe = await device.onCloudMessage((payload) => {
     console.log('Cloud message received:', payload);
   });
 
   // Send a telemetry sample every 5 seconds
   const interval = setInterval(async () => {
     try {
-      const result = await edge.sendMessage({
+      const result = await device.sendMessage({
         temperature: 22.5 + Math.random(),
         humidity: 45 + Math.random() * 5,
       });
@@ -42,7 +42,7 @@ async function main() {
   process.on('SIGINT', () => {
     clearInterval(interval);
     unsubscribe();
-    edge.close();
+    device.close();
     process.exit(0);
   });
 }

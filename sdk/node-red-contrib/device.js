@@ -6,10 +6,28 @@ module.exports = function(RED) {
     const node = this;
     const edge = new Edgeberry();
 
+    node.status({ fill: 'grey', shape: 'ring', text: 'disconnected' });
+
+    function showConnection(connectionState) {
+      switch (connectionState) {
+        case 'connected':    node.status({ fill: 'green',  shape: 'dot',  text: 'connected' });    break;
+        case 'connecting':   node.status({ fill: 'yellow', shape: 'ring', text: 'connecting' });   break;
+        case 'disconnected': node.status({ fill: 'red',    shape: 'ring', text: 'disconnected' }); break;
+        default:             node.status({ fill: 'grey',   shape: 'ring', text: connectionState || 'unknown' }); break;
+      }
+    }
+
     // Subscribe to cloud-to-device messages
     let unsubscribe = null;
+    let unsubscribeState = null;
     (async () => {
       try {
+        // Reflect the current connection state immediately.
+        try {
+          const current = await edge.getState();
+          if (current && current.connection) showConnection(current.connection.connection);
+        } catch (err) { /* ignore — state will arrive via subscription */ }
+
         unsubscribe = await edge.onCloudMessage((payload) => {
           node.send({
             topic: 'cloudMessage',
@@ -18,6 +36,9 @@ module.exports = function(RED) {
           });
           node.log('Received cloud-to-device message');
         });
+        unsubscribeState = await edge.onState((state) => {
+          if (state && state.connection) showConnection(state.connection.connection);
+        });
         node.log('Subscribed to cloud-to-device messages');
       } catch (err) {
         node.error(`Failed to subscribe to D-Bus signals: ${err}`);
@@ -25,6 +46,22 @@ module.exports = function(RED) {
     })();
 
     const VALID_STATUS_LEVELS = ['ok', 'warning', 'error', 'critical', 'emergency'];
+
+    function levelFill(level) {
+      switch (level) {
+        case 'ok':        return 'green';
+        case 'warning':   return 'yellow';
+        case 'error':
+        case 'critical':
+        case 'emergency': return 'red';
+        default:          return 'grey';
+      }
+    }
+
+    function showLevel(level, message) {
+      const text = message ? `${level}: ${message}` : level;
+      node.status({ fill: levelFill(level), shape: 'dot', text });
+    }
 
     node.on('input', async function(msg) {
       try {
@@ -43,6 +80,7 @@ module.exports = function(RED) {
               level: status.level,
               message: typeof status.message === 'string' ? status.message : '',
             });
+            showLevel(status.level, typeof status.message === 'string' ? status.message : undefined);
             node.log('Sent application status to Edgeberry');
           }
         }
@@ -72,6 +110,7 @@ module.exports = function(RED) {
     node.on('close', function(done) {
       try {
         if (unsubscribe) unsubscribe();
+        if (unsubscribeState) unsubscribeState();
         edge.close();
       } catch (err) {
         node.error(`Error during close: ${err}`);
