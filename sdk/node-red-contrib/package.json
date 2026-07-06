@@ -1,6 +1,6 @@
 {
   "name": "@edgeberry/device-node-red-contrib",
-  "version": "3.5.1",
+  "version": "3.5.3",
   "description": "Node-RED node to interact with the Edgeberry Device Software over DBus",
   "license": "MIT",
   "public": true,
@@ -22,7 +22,7 @@
     "iot"
   ],
   "dependencies": {
-    "@edgeberry/device-sdk": "^3.5.1"
+    "@edgeberry/device-sdk": "^3.5.3"
   },
   "node-red": {
     "version": ">=4.0.9",
