@@ -35,6 +35,7 @@ declare -a STEPS=(
   "Install dependencies (remote, prod)"
   "Create CLI symlink"
   "Install D-Bus policy"
+  "Install/configure nginx"
   "Install captive portal DNS config"
   "Install/Refresh systemd service"
   "Restart service"
@@ -165,20 +166,42 @@ mark_step_busy 10
 "${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/config/edgeberry-core.conf\" /etc/dbus-1/system.d/; elif [ -f \"$APPDIR/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/edgeberry-core.conf\" /etc/dbus-1/system.d/; fi" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 10; else mark_step_failed 10; echo -e "\e[0;33mFailed to install D-Bus policy\e[0m"; exit 1; fi
 
-# Step 11: Install captive portal DNS redirect for AP mode
+# Step 11: Install/configure nginx as reverse proxy
 mark_step_busy 11
-"${SSH_BASE[@]}" ${USER}@${HOST} "sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d && echo 'address=/#/10.42.0.1' | sudo tee /etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf > /dev/null" >/dev/null 2>&1
-if [ $? -eq 0 ]; then mark_step_completed 11; else mark_step_failed 11; echo -e "\e[0;33mFailed to install captive portal DNS config\e[0m"; exit 1; fi
+"${SSH_BASE[@]}" ${USER}@${HOST} "
+  set -e
+  NGINX_APPDIR=\"$APPDIR/config/nginx\"
+  if ! command -v nginx > /dev/null 2>&1; then sudo apt-get install -y nginx > /dev/null 2>&1; fi
+  sudo mkdir -p \"\${NGINX_APPDIR}/routes.d\"
+  sudo install -m 644 \"\${NGINX_APPDIR}/edgeberry.conf\" /etc/nginx/conf.d/edgeberry.conf
+  sudo install -m 644 \"\${NGINX_APPDIR}/edgeberry\" /etc/nginx/sites-available/edgeberry
+  sudo rm -f /etc/nginx/sites-enabled/default
+  sudo ln -sf /etc/nginx/sites-available/edgeberry /etc/nginx/sites-enabled/edgeberry
+  if sudo nginx -t > /dev/null 2>&1; then
+    sudo systemctl enable nginx > /dev/null 2>&1
+    sudo systemctl reload nginx > /dev/null 2>&1
+  else
+    sudo rm -f /etc/nginx/conf.d/edgeberry.conf /etc/nginx/sites-available/edgeberry /etc/nginx/sites-enabled/edgeberry
+    sudo nginx -t
+    exit 1
+  fi
+" >/dev/null 2>&1
+if [ $? -eq 0 ]; then mark_step_completed 11; else mark_step_failed 11; echo -e "\e[0;33mFailed to install/configure nginx\e[0m"; exit 1; fi
 
-# Step 12: Install/Refresh systemd service
+# Step 12: Install captive portal DNS redirect for AP mode
 mark_step_busy 12
-"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/config/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; elif [ -f \"$APPDIR/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; fi; sudo chown root:root /etc/systemd/system/io.edgeberry.core.service; sudo systemctl daemon-reload; sudo systemctl enable \"$SERVICENAME\"" >/dev/null 2>&1
-if [ $? -eq 0 ]; then mark_step_completed 12; else mark_step_failed 12; echo -e "\e[0;33mFailed to install/refresh systemd service\e[0m"; exit 1; fi
+"${SSH_BASE[@]}" ${USER}@${HOST} "sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d && echo 'address=/#/10.42.0.1' | sudo tee /etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf > /dev/null" >/dev/null 2>&1
+if [ $? -eq 0 ]; then mark_step_completed 12; else mark_step_failed 12; echo -e "\e[0;33mFailed to install captive portal DNS config\e[0m"; exit 1; fi
 
-# Step 13: Restart service
+# Step 13: Install/Refresh systemd service
 mark_step_busy 13
+"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/config/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; elif [ -f \"$APPDIR/io.edgeberry.core.service\" ]; then sudo install -m 644 \"$APPDIR/io.edgeberry.core.service\" /etc/systemd/system/io.edgeberry.core.service; fi; sudo chown root:root /etc/systemd/system/io.edgeberry.core.service; sudo systemctl daemon-reload; sudo systemctl enable \"$SERVICENAME\"" >/dev/null 2>&1
+if [ $? -eq 0 ]; then mark_step_completed 13; else mark_step_failed 13; echo -e "\e[0;33mFailed to install/refresh systemd service\e[0m"; exit 1; fi
+
+# Step 14: Restart service
+mark_step_busy 14
 "${SSH_BASE[@]}" ${USER}@${HOST} "sudo systemctl restart \"$SERVICENAME\"" >/dev/null 2>&1
-if [ $? -eq 0 ]; then mark_step_completed 13; else mark_step_failed 13; echo -e "\e[0;33mFailed to restart service\e[0m"; exit 1; fi
+if [ $? -eq 0 ]; then mark_step_completed 14; else mark_step_failed 14; echo -e "\e[0;33mFailed to restart service\e[0m"; exit 1; fi
 
 show_progress
 echo -e "\e[0;32m\033[1mDeployment completed successfully.\033[0m\e[0m"

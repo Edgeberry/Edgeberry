@@ -1,0 +1,29 @@
+# Edgeberry platform — shared proxy behaviour.
+# Included by every location that proxies to a local upstream.
+# Intent: transparent pass-through. nginx routes; it does not interfere.
+
+proxy_http_version 1.1;
+
+proxy_set_header Host              $host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-Host  $host;
+
+# WebSocket / HTTP upgrade. $connection_upgrade is set by the map in
+# /etc/nginx/conf.d/edgeberry.conf and is "close" for non-upgrade
+# requests, so keepalive is preserved for ordinary traffic.
+proxy_set_header Upgrade    $http_upgrade;
+proxy_set_header Connection $connection_upgrade;
+
+# Stream in both directions; do not spool to the SD card.
+proxy_buffering          off;
+proxy_request_buffering  off;
+proxy_max_temp_file_size 0;
+
+# Long-lived connections (websockets, SSE) must not be cut while idle.
+proxy_read_timeout 3600s;
+proxy_send_timeout 3600s;
+
+# No platform-level body limit. Applications set their own.
+client_max_body_size 0;

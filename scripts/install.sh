@@ -27,6 +27,7 @@ APPNAME=Edgeberry
 APPCOMP=Core
 REPONAME=Edgeberry
 REPOOWNER=Edgeberry
+NGINX_APPDIR=/opt/${APPNAME}/${APPCOMP}/config/nginx
 
 # Parse arguments
 # -y | --yes  -> answer 'yes' to all prompts in this script
@@ -59,6 +60,7 @@ declare -a STEPS=(
     "Install systemd service"
     "Enable service on boot"
     "Install D-Bus policy"
+    "Install/configure nginx"
     "Install captive portal DNS config"
     "Run setup (optional)"
     "Start application"
@@ -392,22 +394,77 @@ else
     echo -e "\e[0;33mFailed to install D-Bus policy!\e[0m";
 fi
 
-# Step 13: Install captive portal DNS redirect for AP mode.
+# Step 13: Install and configure nginx as reverse proxy.
+# nginx owns :80 and is the only publicly bound listener.
+# The Edgeberry Device Service binds loopback only (127.0.0.1:1208).
+mark_step_busy 13
+
+# 13a: ensure nginx is installed
+if ! command -v nginx > /dev/null 2>&1; then
+    apt-get install -y nginx > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        mark_step_failed 13
+        echo -e "\e[0;33mFailed to install nginx!\e[0m"
+        exit 1
+    fi
+fi
+
+# 13b: create the Edgeberry nginx config directories
+# proxy_params and routes.d live inside the app dir and are referenced there
+# directly; only the drop-in directory needs to exist before any app installs
+# a route. The app dir itself was created in step 7.
+mkdir -p "${NGINX_APPDIR}/routes.d"
+
+# 13c: install http-level directives into conf.d (http{} context)
+install -m 644 "${NGINX_APPDIR}/edgeberry.conf" /etc/nginx/conf.d/edgeberry.conf
+
+# 13d: install site file into sites-available
+install -m 644 "${NGINX_APPDIR}/edgeberry" /etc/nginx/sites-available/edgeberry
+
+# 13f: remove the stock default site to avoid duplicate default_server
+rm -f /etc/nginx/sites-enabled/default
+
+# 13g: symlink site into sites-enabled (idempotent)
+ln -sf /etc/nginx/sites-available/edgeberry /etc/nginx/sites-enabled/edgeberry
+
+# 13h: validate config; on failure revert and abort
+if nginx -t > /dev/null 2>&1; then
+    systemctl enable nginx > /dev/null 2>&1
+    systemctl reload nginx > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        mark_step_completed 13
+    else
+        mark_step_failed 13
+        echo -e "\e[0;33mFailed to reload nginx!\e[0m"
+        exit 1
+    fi
+else
+    # Revert files just installed so nginx can still start at next boot
+    rm -f /etc/nginx/conf.d/edgeberry.conf
+    rm -f /etc/nginx/sites-available/edgeberry
+    rm -f /etc/nginx/sites-enabled/edgeberry
+    mark_step_failed 13
+    echo -e "\e[0;33mnginx config validation failed:\e[0m"
+    nginx -t
+    exit 1
+fi
+
+# Step 14: Install captive portal DNS redirect for AP mode.
 # When the device runs as an access point, dnsmasq (started by
 # NetworkManager's shared mode) must resolve ALL DNS queries to
 # the device IP so that phones/laptops detect the captive portal.
-mark_step_busy 13
+mark_step_busy 14
 mkdir -p /etc/NetworkManager/dnsmasq-shared.d
 echo 'address=/#/10.42.0.1' > /etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf
 if [ $? -eq 0 ]; then
-    mark_step_completed 13
+    mark_step_completed 14
 else
-    mark_step_failed 13
+    mark_step_failed 14
     echo -e "\e[0;33mFailed to install captive portal DNS config!\e[0m";
 fi
 
-# Step 14: Prompt the user to run the setup script
-mark_step_busy 14
+# Step 15: Prompt the user to run the setup script
+mark_step_busy 15
 if $ALL_YES; then
     response="Y"
 else
@@ -415,14 +472,14 @@ else
 fi
 case "$response" in
     [nN])
-        mark_step_skipped 14
+        mark_step_skipped 15
         ;;
     *) 
         bash ./scripts/setup.sh
         if [ $? -eq 0 ]; then
-            mark_step_completed 14
+            mark_step_completed 15
         else
-            mark_step_failed 14
+            mark_step_failed 15
             echo -e "\e[0;33mSetup script failed!\e[0m";
         fi
         ;;
@@ -432,14 +489,14 @@ esac
 #   Finish installation
 ##
 
-# Step 15: Start the application for the first time
-mark_step_busy 15
+# Step 16: Start the application for the first time
+mark_step_busy 16
 systemctl start io.edgeberry.core
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
-    mark_step_completed 15
+    mark_step_completed 16
 else
-    mark_step_failed 15
+    mark_step_failed 16
     echo -e "\e[0;33mFailed to start ${APPNAME}! Exit.\e[0m";
     exit 1;
 fi
