@@ -30,7 +30,9 @@ import { EdgeberryDeviceHubClient } from "@edgeberry/devicehub-device-client";
 import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform, system_button } from "./system.service";
 // Network Manager (WiFi provisioning)
 import { NetworkManager } from './network.manager';
-// Captive Portal (WiFi provisioning UI)
+// Web Server (permanent UI on port 1208)
+import { WebServer } from './webServer';
+// Captive Portal (AP-mode WiFi provisioning feature)
 import { CaptivePortal } from './captivePortal';
 // Direct Methods
 import { initializeDirectMethodAPI } from "./direct.methods";
@@ -47,8 +49,11 @@ stateManager.updateSystemState('state', 'starting');
 /* Network Manager */
 export const networkManager = new NetworkManager();
 
-/* Captive Portal */
-const captivePortal = new CaptivePortal(networkManager);
+/* Web Server */
+const webServer = new WebServer();
+
+/* Captive Portal (AP-mode feature mounted on the web server) */
+const captivePortal = new CaptivePortal(webServer, networkManager);
 
 /* Device Hub */
 export let cloud: EdgeberryDeviceHubClient;
@@ -107,6 +112,10 @@ async function initialize():Promise<void>{
         // settings_storeProvisioningParameters( settings.provisioning ); --- this currently erases cert/key files -_-
     }
 
+    // Start the web UI server permanently on port 1208 so it is always
+    // reachable via nginx regardless of network/cloud connectivity state.
+    webServer.start();
+
     // Check for saved WiFi connection before proceeding to Device Hub.
     // Wrapped in a timeout: if NetworkManager is not available (e.g. device
     // uses dhcpcd instead), the D-Bus call may hang indefinitely.
@@ -143,8 +152,8 @@ async function enterApMode():Promise<void>{
         await networkManager.startAccessPoint(boardId);
         stateManager.updateConnectionState('wifi', 'ap_mode');
         console.log('\x1b[33mDevice is in Access Point mode for WiFi provisioning\x1b[37m');
-        // Start the captive portal web UI
-        captivePortal.start(()=>{
+        // Activate captive portal behaviour on the running web server
+        captivePortal.activate(()=>{
             // onConnected: called after successful WiFi configuration
             exitApMode();
         });
@@ -163,8 +172,8 @@ async function exitApMode():Promise<void>{
             console.error('\x1b[31mCannot exit AP mode: no saved WiFi connection\x1b[37m');
             return;
         }
-        // Stop the captive portal and AP
-        captivePortal.stop();
+        // Deactivate captive portal behaviour (web server keeps running)
+        captivePortal.deactivate();
         await networkManager.stopAccessPoint();
         stateManager.updateConnectionState('wifi', 'disconnected');
         console.log('\x1b[33mExited AP mode, reconnecting to WiFi...\x1b[37m');
@@ -194,7 +203,7 @@ export async function handleWifiProvisioned( ssid:string, passphrase:string ):Pr
     try{
         const success = await networkManager.connectToNetwork(ssid, passphrase);
         if(success){
-            captivePortal.stop();
+            captivePortal.deactivate();
             await networkManager.stopAccessPoint();
             stateManager.updateConnectionState('wifi', 'connected');
             console.log('\x1b[32mWiFi provisioned, connecting to Device Hub...\x1b[37m');

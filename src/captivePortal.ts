@@ -1,71 +1,77 @@
 /*
  *  Captive Portal
- *  Serves a WiFi provisioning web UI on port 80 when the device is
- *  in Access Point mode. Connected clients are redirected to the
- *  provisioning wizard via standard captive portal detection.
+ *  AP-mode WiFi provisioning feature for the Edgeberry Web Server.
+ *
+ *  When the device has no saved WiFi connection it starts a hotspot and
+ *  this module activates on the running WebServer:
+ *   - Serves the provisioning wizard at the root path (/).
+ *   - Exposes /provision/networks and /provision/connect API routes.
+ *   - Installs a catch-all redirect so OS captive-portal detection
+ *     (Apple, Android, Windows) triggers the popup automatically.
+ *
+ *  Everything is deactivated again once the device connects to WiFi.
  *
  *  DNS requirement:
- *  For automatic captive portal popup to work, all DNS queries from
- *  connected clients must resolve to the device's AP address (10.42.0.1).
- *  NetworkManager's shared mode starts dnsmasq, but by default it only
- *  forwards queries upstream (which fails in AP mode — no internet).
- *  Create the following file to redirect all DNS to the portal:
+ *  All DNS queries from AP clients must resolve to 10.42.0.1. Add:
  *
  *    /etc/NetworkManager/dnsmasq-shared.d/captive-portal.conf
  *      address=/#/10.42.0.1
  *
- *  NetworkManager picks this up automatically on the next shared
- *  connection activation (i.e. the next AP start).
+ *  NetworkManager picks this up on the next shared connection activation.
  */
 
-import express, { Request, Response } from 'express';
-import { Server } from 'http';
+import { Request, Response, NextFunction, Router } from 'express';
 import { NetworkManager } from './network.manager';
+import { WebServer } from './webServer';
 
 const AP_ADDRESS = '10.42.0.1';
-const PORTAL_PORT = 80;
 
 export class CaptivePortal {
-    private app: express.Application;
-    private server: Server | null = null;
     private networkManager: NetworkManager;
+    private webServer: WebServer;
     private onConnected: (()=> void) | null = null;
+    private active: boolean = false;
 
-    constructor( networkManager:NetworkManager ){
+    constructor( webServer:WebServer, networkManager:NetworkManager ){
+        this.webServer = webServer;
         this.networkManager = networkManager;
-        this.app = express();
-        this.setupRoutes();
+        this.mountRoutes();
     }
 
-    public start( onConnected:()=> void ):void{
+    /** Activate captive portal behaviour (call when entering AP mode). */
+    public activate( onConnected:()=> void ):void{
         this.onConnected = onConnected;
-        this.server = this.app.listen(PORTAL_PORT, ()=>{
-            console.log('\x1b[32mCaptive Portal: listening on port '+PORTAL_PORT+'\x1b[37m');
-        });
-        this.server.on('error', (err:any)=>{
-            console.error('\x1b[31mCaptive Portal: failed to start — '+err.message+'\x1b[37m');
-        });
+        this.active = true;
+        console.log('\x1b[33mCaptive Portal: active\x1b[37m');
     }
 
-    public stop():void{
-        if(this.server){
-            this.server.close(()=>{
-                console.log('\x1b[33mCaptive Portal: stopped\x1b[37m');
-            });
-            this.server = null;
-        }
+    /** Deactivate captive portal behaviour (call when leaving AP mode). */
+    public deactivate():void{
+        this.active = false;
+        this.onConnected = null;
+        console.log('\x1b[33mCaptive Portal: inactive\x1b[37m');
     }
 
-    private setupRoutes():void{
-        this.app.use(express.json());
+    private mountRoutes():void{
+        const app = this.webServer.getApp();
 
-        // Provisioning wizard page
-        this.app.get('/', (_req:Request, res:Response)=>{
-            res.type('html').send(provisioningPage());
+        // Root: serve provisioning wizard when active, fall through otherwise
+        app.get('/', (req:Request, res:Response, next:NextFunction)=>{
+            if(this.active){
+                res.type('html').send(provisioningPage());
+            } else {
+                next();
+            }
         });
 
-        // WiFi network scan
-        this.app.get('/api/networks', async (_req:Request, res:Response)=>{
+        // Provisioning API routes (active in AP mode only)
+        const router = Router();
+
+        router.get('/networks', async (_req:Request, res:Response)=>{
+            if(!this.active){
+                res.status(403).json({ error: 'Not in AP mode' });
+                return;
+            }
             try{
                 try{ await this.networkManager.requestScan(); } catch(_e){}
                 await new Promise(r => setTimeout(r, 2000));
@@ -76,8 +82,11 @@ export class CaptivePortal {
             }
         });
 
-        // Connect to a WiFi network
-        this.app.post('/api/connect', async (req:Request, res:Response)=>{
+        router.post('/connect', async (req:Request, res:Response)=>{
+            if(!this.active){
+                res.status(403).json({ success:false, error:'Not in AP mode' });
+                return;
+            }
             const { ssid, passphrase } = req.body;
             if(!ssid){
                 res.status(400).json({ success:false, error:'Missing ssid' });
@@ -88,7 +97,7 @@ export class CaptivePortal {
                 res.json({ success });
                 if(success){
                     setTimeout(()=>{
-                        this.stop();
+                        this.deactivate();
                         if(this.onConnected) this.onConnected();
                     }, 3000);
                 }
@@ -97,12 +106,18 @@ export class CaptivePortal {
             }
         });
 
+        this.webServer.use('/provision', router);
+
         // Catch-all: redirect to portal for captive portal detection.
         // The 302 (not 200) triggers the OS captive portal popup on
         // Apple (hotspot-detect.html), Android (generate_204), and
         // Windows (connecttest.txt, ncsi.txt).
-        this.app.use((_req:Request, res:Response)=>{
-            res.redirect(302, 'http://'+AP_ADDRESS+'/');
+        app.use((_req:Request, res:Response, next:NextFunction)=>{
+            if(this.active){
+                res.redirect(302, 'http://'+AP_ADDRESS+'/');
+            } else {
+                next();
+            }
         });
     }
 }
@@ -274,7 +289,7 @@ body{\
 \
   function loadNetworks(){\
     networkList.innerHTML="<div class=\\"network-loading\\">Scanning for networks\\u2026</div>";\
-    fetch("/api/networks")\
+    fetch("/provision/networks")\
       .then(function(r){return r.json();})\
       .then(function(networks){\
         if(!networks.length){\
@@ -318,7 +333,7 @@ body{\
     stateSuccess.style.display="none";\
     stateFailure.style.display="none";\
     showStep(stepResult);\
-    fetch("/api/connect",{\
+    fetch("/provision/connect",{\
       method:"POST",\
       headers:{"Content-Type":"application/json"},\
       body:JSON.stringify({ssid:ssid,passphrase:passphrase})\
@@ -367,3 +382,4 @@ body{\
 </body>\
 </html>';
 }
+
