@@ -5,7 +5,7 @@
 
 import EventEmitter from "events";
 import { system_beepBuzzer, system_setStatusLed,
-         showIdentify, showApError, showLink } from "./system.service";
+         showIdentify, showApError, showLink } from "./systemService";
 
 // Normalise incoming state values to lowercase at ingress so all downstream
 // comparisons are reliable regardless of what casing the caller uses.

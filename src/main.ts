@@ -23,24 +23,24 @@ import { tmpdir } from "os";
 import { spawnSync } from "child_process";
 import path from "path";
 import { connect, MqttClient, IClientOptions } from "mqtt";
-import { StateManager } from "./state.manager";
+import { StateManager } from "./stateManager";
 // Dashboard cloud client
 import { EdgeberryDeviceHubClient } from "@edgeberry/devicehub-device-client";
 // System features
-import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform, system_button } from "./system.service";
+import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform, system_button } from "./systemService";
 // Network Manager (WiFi provisioning)
-import { NetworkManager } from './network.manager';
+import { NetworkManager } from './networkManager';
 // Web Server (permanent UI on port 1208)
 import { WebServer } from './webServer';
 // Captive Portal (AP-mode WiFi provisioning feature)
 import { CaptivePortal } from './captivePortal';
 // Direct Methods
-import { initializeDirectMethodAPI } from "./direct.methods";
+import { initializeDirectMethodAPI } from "./directMethods";
 // Persistent settings
-import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './settings.store';
+import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './settingsStore';
 // Commandline Interface (for inter-process communication)
-import './dbus.interface';
-import { emitCloudMessage, emitButtonEvent, emitStateUpdate } from './dbus.interface';
+import './dbusInterface';
+import { emitCloudMessage, emitButtonEvent, emitStateUpdate } from './dbusInterface';
 
 /* State Manager */
 export const stateManager = new StateManager();

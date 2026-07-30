@@ -21,7 +21,7 @@
  */
 
 import { Request, Response, NextFunction, Router } from 'express';
-import { NetworkManager } from './network.manager';
+import { NetworkManager } from './networkManager';
 import { WebServer } from './webServer';
 
 const AP_ADDRESS = '10.42.0.1';

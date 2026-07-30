@@ -5,8 +5,8 @@
  */
 
 import { cloud, stateManager } from "./main";
-import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "./application.service";
-import { system_button, system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./system.service";
+import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "./applicationService";
+import { system_button, system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./systemService";
 
 
 /*
