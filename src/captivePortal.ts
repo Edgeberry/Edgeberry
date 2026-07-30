@@ -55,23 +55,11 @@ export class CaptivePortal {
     private mountRoutes():void{
         const app = this.webServer.getApp();
 
-        // Root: serve provisioning wizard when active, fall through otherwise
-        app.get('/', (req:Request, res:Response, next:NextFunction)=>{
-            if(this.active){
-                res.type('html').send(provisioningPage());
-            } else {
-                next();
-            }
-        });
-
-        // Provisioning API routes (active in AP mode only)
+        // Network provisioning API — always available so the webUI can
+        // offer a 'connect to network' feature regardless of AP mode.
         const router = Router();
 
         router.get('/networks', async (_req:Request, res:Response)=>{
-            if(!this.active){
-                res.status(403).json({ error: 'Not in AP mode' });
-                return;
-            }
             try{
                 try{ await this.networkManager.requestScan(); } catch(_e){}
                 await new Promise(r => setTimeout(r, 2000));
@@ -83,10 +71,6 @@ export class CaptivePortal {
         });
 
         router.post('/connect', async (req:Request, res:Response)=>{
-            if(!this.active){
-                res.status(403).json({ success:false, error:'Not in AP mode' });
-                return;
-            }
             const { ssid, passphrase } = req.body;
             if(!ssid){
                 res.status(400).json({ success:false, error:'Missing ssid' });
@@ -122,11 +106,10 @@ export class CaptivePortal {
     }
 }
 
+// NOTE: provisioningPage() was removed here. The webUI will handle
+// the 'connect to network' feature going forward. The /provision API
+// routes above remain available for it to call at any time.
 /*
- *  Provisioning Page
- *  Self-contained HTML with inline CSS and JS. No external assets —
- *  the device has no internet in AP mode.
- */
 function provisioningPage():string{
     return '<!DOCTYPE html>\
 <html lang="en">\
@@ -382,4 +365,4 @@ body{\
 </body>\
 </html>';
 }
-
+*/

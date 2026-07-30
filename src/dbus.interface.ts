@@ -218,7 +218,7 @@ function updateNetworkConnectivityState(){
     try{
         networkManagerInterface.CheckConnectivity((err:string|null, res:number)=>{
             if(err) return;
-            const { stateManager } = require('./main');
+            const { stateManager, cloud, connectToDeviceHub } = require('./main');
             stateManager.updateConnectionState('network', res>=4?'connected':'disconnected');
             let stateName:string;
             switch(res){
@@ -234,6 +234,17 @@ function updateNetworkConnectivityState(){
                             break;
             }
             console.log('Connectivity state: '+stateName);
+
+            // If full internet connectivity just arrived and the cloud client
+            // is not connected (e.g. boot-time DNS failure, or post-AP-mode),
+            // attempt to connect now. Guard against concurrent calls since
+            // StateChanged can fire multiple times in quick succession.
+            if(res >= 4){
+                const cloudConnected = stateManager.getState()?.connection?.connection === 'connected';
+                if(!cloudConnected){
+                    connectToDeviceHub();
+                }
+            }
         });
     } catch(err){}
 }

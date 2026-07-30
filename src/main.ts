@@ -58,6 +58,7 @@ const captivePortal = new CaptivePortal(webServer, networkManager);
 /* Device Hub */
 export let cloud: EdgeberryDeviceHubClient;
 let provisioningClient: MqttClient | null = null;
+let cloudConnectInProgress = false;
 
 // Utility functions for provisioning
 function openssl(args: string[], input?: string): { code: number, out: string, err: string } {
@@ -178,8 +179,13 @@ async function exitApMode():Promise<void>{
         stateManager.updateConnectionState('wifi', 'disconnected');
         console.log('\x1b[33mExited AP mode, reconnecting to WiFi...\x1b[37m');
 
-        // Wait for the WiFi chip to transition from AP mode back to station mode
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Wait until the WiFi chip has fully left AP mode and is ready to
+        // accept a new connection. A fixed sleep is unreliable — poll instead.
+        const ready = await networkManager.waitForWifiDeviceReady();
+        if(!ready){
+            console.error('\x1b[31mWiFi device did not become ready after AP teardown\x1b[37m');
+            return;
+        }
 
         // Explicitly activate the saved WiFi connection
         const reconnected = await networkManager.activateSavedWifiConnection();
@@ -221,7 +227,13 @@ export async function handleWifiProvisioned( ssid:string, passphrase:string ):Pr
  *  Device Hub Connectivity
  */
 
-async function connectToDeviceHub():Promise<void>{
+export async function connectToDeviceHub():Promise<void>{
+    if(cloudConnectInProgress) return;
+    cloudConnectInProgress = true;
+    try{ await _connectToDeviceHub(); } finally{ cloudConnectInProgress = false; }
+}
+
+async function _connectToDeviceHub():Promise<void>{
     // If we have connection settings, create client and connect
     if(settings.connection){
         try{
@@ -263,6 +275,9 @@ async function connectToDeviceHub():Promise<void>{
             }
         } catch(err){
             console.error('Cloud connect failed:', err);
+            // Discard the broken client so the next connectToDeviceHub()
+            // call (e.g. triggered by StateChanged reaching Full) starts fresh.
+            cloud = null as any;
         }
     }
     // If there were no connection settings, but we have provisioning

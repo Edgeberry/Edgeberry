@@ -38,6 +38,11 @@ const NM_DEVICE_TYPE_WIFI = 2;
 const NM_ACTIVE_STATE_ACTIVATED   = 2;
 const NM_ACTIVE_STATE_DEACTIVATED = 4;
 
+// NetworkManager device states (subset)
+// https://networkmanager.dev/docs/api/latest/nm-dbus-types.html#NMDeviceState
+const NM_DEVICE_STATE_DISCONNECTED = 30;
+const NM_DEVICE_STATE_ACTIVATED    = 100;
+
 export type AccessPointInfo = {
     ssid: string;
     strength: number;
@@ -343,10 +348,39 @@ export class NetworkManager extends EventEmitter {
      *  Reconnect to a saved WiFi connection
      */
 
-    // Activate an existing saved WiFi connection profile.
-    // Uses ActivateConnection (not AddAndActivateConnection) to avoid creating duplicates.
-    // Returns true if the connection reaches the Activated state within the timeout.
-    public async activateSavedWifiConnection( timeoutMs:number = 30000 ):Promise<boolean>{
+    // Wait until the WiFi device reaches a connectable state after AP teardown.
+    // NM device state 30 (Disconnected) means the chip is back in station mode
+    // and ready to accept ActivateConnection. Returns false if the timeout
+    // expires before that state is reached.
+    public async waitForWifiDeviceReady( timeoutMs:number = 15000 ):Promise<boolean>{
+        const devicePath = await this.getWifiDevicePath();
+        const pollIntervalMs = 500;
+        const maxAttempts = Math.ceil(timeoutMs / pollIntervalMs);
+
+        for(let i = 0; i < maxAttempts; i++){
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+            try{
+                const state = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'State');
+                if(state >= NM_DEVICE_STATE_DISCONNECTED && state < NM_DEVICE_STATE_ACTIVATED){
+                    return true;
+                }
+            } catch(err){
+                // property read may transiently fail during transition; keep polling
+            }
+        }
+        console.error('\x1b[31mNetworkManager: WiFi device did not become ready in time\x1b[37m');
+        return false;
+    }
+
+    // Activate the most-recently-used saved WiFi connection.
+    // NM stores a unix timestamp in the connection.timestamp field which we
+    // use to pick the right profile — not [0] (filesystem order) which is
+    // wrong if the device has multiple saved networks.
+    // We call ActivateConnection explicitly because NM's autoconnect is
+    // unreliable after a user-requested AP teardown (it may suppress it).
+    // If NM already started autoconnecting (ActiveConnection is set), we
+    // use that path instead to avoid creating a conflicting activation.
+    public async activateSavedWifiConnection( timeoutMs:number = 45000 ):Promise<boolean>{
         const wifiConnections = await this.listSavedWifiConnections();
         if(wifiConnections.length === 0){
             console.error('\x1b[31mNetworkManager: No saved WiFi connections to activate\x1b[37m');
@@ -356,35 +390,74 @@ export class NetworkManager extends EventEmitter {
         const devicePath = await this.getWifiDevicePath();
         const nmIface = await this.getInterface(NM_PATH, NM_IFACE);
 
-        // Activate the first saved WiFi connection
-        const connPath = wifiConnections[0];
-        console.log('\x1b[33mNetworkManager: Activating saved WiFi connection...\x1b[37m');
+        // Pick the most recently connected profile by NM's stored timestamp
+        let bestPath = wifiConnections[0];
+        let bestTimestamp = 0;
+        for(const connPath of wifiConnections){
+            try{
+                const connIface = await this.getInterface(connPath, NM_CONNECTION_IFACE);
+                const settings:any = await new Promise((resolve, reject)=>{
+                    connIface.GetSettings((err:any, result:any)=>{
+                        if(err) return reject(err);
+                        resolve(result);
+                    });
+                });
+                const connSection = settings.find((s:any)=> s[0] === 'connection');
+                if(connSection){
+                    const tsEntry = connSection[1].find((e:any)=> e[0] === 'timestamp');
+                    const ts = tsEntry ? Number(this.unwrapVariant(tsEntry[1])) : 0;
+                    if(ts > bestTimestamp){
+                        bestTimestamp = ts;
+                        bestPath = connPath;
+                    }
+                }
+            } catch(_e){}
+        }
 
-        const activeConnPath:string = await new Promise((resolve, reject)=>{
-            nmIface.ActivateConnection(connPath, devicePath, '/', (err:any, activeConnectionPath:string)=>{
-                if(err) return reject(err);
-                resolve(activeConnectionPath);
-            });
-        });
-
-        // Poll the active connection state
         const pollIntervalMs = 500;
         const maxAttempts = Math.ceil(timeoutMs / pollIntervalMs);
 
+        // If NM already started autoconnecting, ride that activation instead
+        let activeConnPath: string | null = null;
+        try{
+            const existing = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'ActiveConnection');
+            if(existing && existing !== '/') activeConnPath = existing;
+        } catch(_e){}
+
+        if(!activeConnPath){
+            console.log('\x1b[33mNetworkManager: Activating saved WiFi connection...\x1b[37m');
+            try{
+                activeConnPath = await new Promise((resolve, reject)=>{
+                    nmIface.ActivateConnection(bestPath, devicePath, '/', (err:any, path:string)=>{
+                        if(err) return reject(err);
+                        resolve(path);
+                    });
+                });
+            } catch(err){
+                // Autoconnect may have raced us; check again
+                try{
+                    const fallback = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'ActiveConnection');
+                    if(fallback && fallback !== '/'){
+                        activeConnPath = fallback;
+                    } else {
+                        console.error('\x1b[31mNetworkManager: ActivateConnection failed: '+err+'\x1b[37m');
+                        return false;
+                    }
+                } catch(_e){ return false; }
+            }
+        }
+
+        // Poll until the active connection reaches Activated
         for(let i = 0; i < maxAttempts; i++){
             await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
             try{
-                const state = await this.getProperty(activeConnPath, NM_ACTIVE_CONN_IFACE, 'State');
+                const state = await this.getProperty(activeConnPath!, NM_ACTIVE_CONN_IFACE, 'State');
                 if(state === NM_ACTIVE_STATE_ACTIVATED){
                     console.log('\x1b[32mNetworkManager: Reconnected to saved WiFi\x1b[37m');
                     return true;
                 }
-                if(state >= NM_ACTIVE_STATE_DEACTIVATED){
-                    break;
-                }
-            } catch(err){
-                break;
-            }
+                if(state >= NM_ACTIVE_STATE_DEACTIVATED) break;
+            } catch(_err){ break; }
         }
 
         console.error('\x1b[31mNetworkManager: Failed to reconnect to saved WiFi\x1b[37m');
