@@ -7,7 +7,8 @@
   "main": "build/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
+    "build": "npm run build:webui && tsc",
+    "build:webui": "npm --prefix webui ci && npm --prefix webui run build",
     "deploy": "bash ./scripts/deploy.sh",
     "dev": "nodemon --watch src --exec ts-node src/main.ts",
     "start": "node build/main.js"
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^20.11.30",
+    "@types/ws": "^8.18.1",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.3"
@@ -41,6 +43,8 @@
     "@edgeberry/devicehub-device-client": "^1.8.0",
     "dbus-native": "^0.4.0",
     "express": "^5.2.1",
-    "mqtt": "^4.3.8"
+    "mqtt": "^4.3.8",
+    "node-pty": "^1.1.0",
+    "ws": "^8.21.1"
   }
 }

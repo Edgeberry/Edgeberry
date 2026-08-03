@@ -19,15 +19,16 @@
  */
 
 import { readFileSync, writeFileSync, mkdtempSync } from "fs";
-import { tmpdir } from "os";
+import { tmpdir, networkInterfaces } from "os";
 import { spawnSync } from "child_process";
 import path from "path";
 import { connect, MqttClient, IClientOptions } from "mqtt";
+import { Router as ExpressRouter } from 'express';
 import { StateManager } from "./stateManager";
 // Dashboard cloud client
 import { EdgeberryDeviceHubClient } from "@edgeberry/devicehub-device-client";
 // System features
-import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform, system_button } from "./systemService";
+import { system_board_getProductName, system_board_getProductVersion, system_board_getUUID, system_getApplicationInfo, system_getPlatform, system_button, system_restart, system_shutdown } from "./systemService";
 // Network Manager (WiFi provisioning)
 import { NetworkManager } from './networkManager';
 // Web Server (permanent UI on port 1208)
@@ -38,6 +39,8 @@ import { CaptivePortal } from './captivePortal';
 import { initializeDirectMethodAPI } from "./directMethods";
 // Persistent settings
 import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './settingsStore';
+// Terminal Service (PTY over WebSocket)
+import { startTerminalService } from './terminalService';
 // Commandline Interface (for inter-process communication)
 import './dbusInterface';
 import { emitCloudMessage, emitButtonEvent, emitStateUpdate } from './dbusInterface';
@@ -51,6 +54,64 @@ export const networkManager = new NetworkManager();
 
 /* Web Server */
 const webServer = new WebServer();
+
+/* API — minimal state endpoint used by the web UI */
+const apiRouter = ExpressRouter();
+apiRouter.get('/state', (_req, res) => {
+    const state = stateManager.getState() as any;
+    state.system = { ...state.system, hostname: require('os').hostname() };
+    res.json(state);
+});
+apiRouter.post('/system/reboot',   (_req, res) => { system_restart();  res.json({ ok: true }); });
+apiRouter.post('/system/shutdown', (_req, res) => { system_shutdown(); res.json({ ok: true }); });
+apiRouter.get('/network/wifi/active', async (_req, res) => {
+    try {
+        const ssid = await networkManager.getActiveWifiSsid();
+        res.json({ ssid: ssid ?? null });
+    } catch(_err) {
+        res.json({ ssid: null });
+    }
+});
+apiRouter.get('/network/wifi', async (_req, res) => {
+    try {
+        try { await networkManager.requestScan(); } catch(_e) {}
+        await new Promise(r => setTimeout(r, 2000));
+        const [available, saved, active] = await Promise.all([
+            networkManager.getAccessPoints(),
+            networkManager.getSavedWifiNetworks(),
+            networkManager.getActiveWifiSsid(),
+        ]);
+        res.json({ available, saved, active });
+    } catch(err) {
+        res.status(500).json({ error: 'Failed to retrieve WiFi data' });
+    }
+});
+apiRouter.post('/network/wifi/ipconfig', async (req, res) => {
+    const { ssid, mode, address, prefix, gateway, dns } = req.body ?? {};
+    if(!ssid || !mode) { res.status(400).json({ error: 'ssid and mode required' }); return; }
+    try {
+        await networkManager.setWifiIpConfig(ssid, mode, address, prefix !== undefined ? Number(prefix) : undefined, gateway, dns);
+        res.json({ ok: true });
+    } catch(err:any) {
+        res.status(500).json({ error: err?.message ?? 'Failed to update IP config' });
+    }
+});
+apiRouter.get('/network/interfaces', (_req, res) => {
+    const raw = networkInterfaces();
+    const result = Object.entries(raw).map(([name, addrs]) => ({
+        name,
+        addresses: (addrs ?? []).map(a => ({
+            address:  a.address,
+            family:   a.family,
+            netmask:  a.netmask,
+            mac:      a.mac,
+            internal: a.internal,
+            cidr:     a.cidr,
+        })),
+    }));
+    res.json(result);
+});
+webServer.use('/api', apiRouter);
 
 /* Captive Portal (AP-mode feature mounted on the web server) */
 const captivePortal = new CaptivePortal(webServer, networkManager);
@@ -116,6 +177,15 @@ async function initialize():Promise<void>{
     // Start the web UI server permanently on port 1208 so it is always
     // reachable via nginx regardless of network/cloud connectivity state.
     webServer.start();
+    const httpServer = webServer.getHttpServer();
+    if(httpServer) startTerminalService(httpServer);
+
+    // Keep connection.wifi state accurate by subscribing to NM device state.
+    // Guard: never overwrite 'ap_mode' — AP mode transitions manage that themselves.
+    networkManager.subscribeToWifiState((state) => {
+        if(stateManager.getState().connection.wifi !== 'ap_mode')
+            stateManager.updateConnectionState('wifi', state);
+    }).catch(() => {});
 
     // Check for saved WiFi connection before proceeding to Device Hub.
     // Wrapped in a timeout: if NetworkManager is not available (e.g. device

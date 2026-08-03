@@ -1,0 +1,23 @@
+.card {
+  width: 100%;
+  max-width: 460px;
+  text-align: center;
+  border-radius: 12px;
+}
+
+.card .logo {
+  max-width: 180px;
+  height: auto;
+  margin-bottom: 24px;
+}
+
+.card h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.card p {
+  font-size: 14px;
+  opacity: .6;
+}

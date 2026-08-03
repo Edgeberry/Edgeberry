@@ -161,6 +161,29 @@ export class NetworkManager extends EventEmitter {
         return wifiConnections;
     }
 
+    // Return SSID + autoconnect flag for every saved WiFi profile
+    public async getSavedWifiNetworks():Promise<{ ssid:string; autoconnect:boolean }[]>{
+        const paths = await this.listSavedWifiConnections();
+        const result:{ ssid:string; autoconnect:boolean }[] = [];
+        for(const connPath of paths){
+            try{
+                const connIface = await this.getInterface(connPath, NM_CONNECTION_IFACE);
+                const settings:any = await new Promise((resolve, reject)=>{
+                    connIface.GetSettings((err:any, s:any)=>{ if(err) return reject(err); resolve(s); });
+                });
+                const wifiSection  = settings.find((s:any)=> s[0] === '802-11-wireless');
+                const connSection  = settings.find((s:any)=> s[0] === 'connection');
+                if(!wifiSection) continue;
+                const ssidEntry    = wifiSection[1].find((e:any)=> e[0] === 'ssid');
+                const ssid         = ssidEntry ? Buffer.from(this.unwrapVariant(ssidEntry[1])).toString('utf-8') : '?';
+                const acEntry      = connSection?.[1].find((e:any)=> e[0] === 'autoconnect');
+                const autoconnect  = acEntry ? Boolean(this.unwrapVariant(acEntry[1])) : true;
+                result.push({ ssid, autoconnect });
+            } catch(_e){}
+        }
+        return result;
+    }
+
     // Check if any saved WiFi connection exists (for the boot check)
     public async hasSavedWifiConnection():Promise<boolean>{
         const connections = await this.listSavedWifiConnections();
@@ -176,6 +199,69 @@ export class NetworkManager extends EventEmitter {
                 resolve();
             });
         });
+    }
+
+    // Return the SSID of the currently active WiFi connection, or null
+    public async getActiveWifiSsid():Promise<string|null>{
+        try{
+            const devicePath = await this.getWifiDevicePath();
+            const activeConnPath = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'ActiveConnection');
+            if(!activeConnPath || activeConnPath === '/') return null;
+            const connPath = await this.getProperty(activeConnPath, NM_ACTIVE_CONN_IFACE, 'Connection');
+            if(!connPath || connPath === '/') return null;
+            const connIface = await this.getInterface(connPath, NM_CONNECTION_IFACE);
+            const settings:any = await new Promise((resolve, reject)=>{
+                connIface.GetSettings((err:any, s:any)=>{ if(err) return reject(err); resolve(s); });
+            });
+            const wifiSection = settings.find((s:any)=> s[0] === '802-11-wireless');
+            if(!wifiSection) return null;
+            const ssidEntry = wifiSection[1].find((e:any)=> e[0] === 'ssid');
+            return ssidEntry ? Buffer.from(this.unwrapVariant(ssidEntry[1])).toString('utf-8') : null;
+        } catch(_e){ return null; }
+    }
+
+    // Set IPv4 config for a saved connection profile by SSID.
+    // mode: 'auto' (DHCP) | 'manual' (static)
+    // For static: address, prefix (0-32), gateway, dns (comma-separated) required.
+    public async setWifiIpConfig( ssid:string, mode:'auto'|'manual', address?:string, prefix?:number, gateway?:string, dns?:string ):Promise<void>{
+        const paths = await this.listSavedWifiConnections();
+        for(const connPath of paths){
+            const connIface = await this.getInterface(connPath, NM_CONNECTION_IFACE);
+            const settings:any = await new Promise((resolve, reject)=>{
+                connIface.GetSettings((err:any, s:any)=>{ if(err) return reject(err); resolve(s); });
+            });
+            const wifiSection = settings.find((s:any)=> s[0] === '802-11-wireless');
+            if(!wifiSection) continue;
+            const ssidEntry = wifiSection[1].find((e:any)=> e[0] === 'ssid');
+            const profileSsid = ssidEntry ? Buffer.from(this.unwrapVariant(ssidEntry[1])).toString('utf-8') : null;
+            if(profileSsid !== ssid) continue;
+
+            // Build new settings object — preserve all sections except ipv4 which we replace
+            const newSettings = settings.filter((s:any)=> s[0] !== 'ipv4');
+            if(mode === 'auto'){
+                newSettings.push(['ipv4', [['method', ['s', 'auto']]]]);
+            } else {
+                if(!address || prefix === undefined || !gateway) throw new Error('address, prefix, gateway required for static');
+                const dnsServers = (dns||'').split(',').map(d=>d.trim()).filter(Boolean).map(d=>{
+                    const parts = d.split('.').map(Number);
+                    return (parts[0]<<24)|(parts[1]<<16)|(parts[2]<<8)|parts[3];
+                });
+                const addrParts = address.split('.').map(Number);
+                const addrInt = (addrParts[0]<<24)|(addrParts[1]<<16)|(addrParts[2]<<8)|addrParts[3];
+                const gwParts = gateway.split('.').map(Number);
+                const gwInt = (gwParts[0]<<24)|(gwParts[1]<<16)|(gwParts[2]<<8)|gwParts[3];
+                newSettings.push(['ipv4', [
+                    ['method',    ['s', 'manual']],
+                    ['addresses', ['aau', [[[addrInt, prefix, gwInt]]]]],
+                    ['dns',       ['au', [dnsServers]]],
+                ]]);
+            }
+            await new Promise<void>((resolve, reject)=>{
+                connIface.Update(newSettings, (err:any)=>{ if(err) return reject(err); resolve(); });
+            });
+            return;
+        }
+        throw new Error(`No saved connection found for SSID: ${ssid}`);
     }
 
     /*
@@ -556,5 +642,36 @@ export class NetworkManager extends EventEmitter {
             this.emit('stateChanged', newState, oldState);
         });
         console.log('\x1b[32mNetworkManager: Subscribed to WiFi state changes\x1b[37m');
+    }
+
+    // Map a raw NM device state number to a simple wifi status string.
+    // AP mode is tracked separately by the caller (enterApMode/exitApMode).
+    private nmDeviceStateToWifi(state: number): 'connected' | 'disconnected' {
+        return state >= NM_DEVICE_STATE_ACTIVATED ? 'connected' : 'disconnected';
+    }
+
+    // Subscribe to WiFi connection state changes and invoke callback immediately
+    // with the current state, then again on every NM device StateChanged signal.
+    // Does NOT overwrite 'ap_mode' — the caller must guard against that.
+    public async subscribeToWifiState(
+        callback: (state: 'connected' | 'disconnected') => void
+    ): Promise<void> {
+        try {
+            const devicePath = await this.getWifiDevicePath();
+            // Read current state immediately
+            try {
+                const currentState = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'State');
+                callback(this.nmDeviceStateToWifi(currentState));
+            } catch(_e) {}
+
+            // Subscribe to future changes
+            const deviceIface = await this.getInterface(devicePath, NM_DEVICE_IFACE);
+            deviceIface.on('StateChanged', (newState: number) => {
+                callback(this.nmDeviceStateToWifi(newState));
+            });
+            console.log('\x1b[32mNetworkManager: WiFi state monitoring active\x1b[37m');
+        } catch(err) {
+            console.error('\x1b[31mNetworkManager: Failed to subscribe to WiFi state: ' + err + '\x1b[37m');
+        }
     }
 }

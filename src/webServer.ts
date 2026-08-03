@@ -11,6 +11,7 @@
 
 import express, { Request, Response, Router } from 'express';
 import { Server } from 'http';
+import path from 'path';
 
 const WEB_UI_PORT = 1208;
 
@@ -21,12 +22,12 @@ export class WebServer {
     constructor(){
         this.app = express();
         this.app.use(express.json());
-        this.setupRoutes();
     }
 
     /** Start the server. Should be called once at application start. */
     public start():void{
         if(this.server) return;
+        this.setupRoutes();
         this.server = this.app.listen(WEB_UI_PORT, '127.0.0.1', ()=>{
             console.log('\x1b[32mWeb Server: listening on port '+WEB_UI_PORT+'\x1b[37m');
         });
@@ -49,48 +50,16 @@ export class WebServer {
         return this.app;
     }
 
+    /** Expose the underlying HTTP server (available after start()). */
+    public getHttpServer(): Server | null{
+        return this.server;
+    }
+
     private setupRoutes():void{
-        this.app.get('/', (_req:Request, res:Response)=>{
-            res.type('html').send(placeholderPage());
+        const webUiDir = path.join(__dirname, '..', 'public', 'webui');
+        this.app.use(express.static(webUiDir));
+        this.app.use((_req:Request, res:Response)=>{
+            res.sendFile(path.join(webUiDir, 'index.html'));
         });
     }
-}
-
-/*
- *  Placeholder Page
- *  Served at the root until the webUI application is installed and
- *  nginx is configured to serve static assets instead.
- */
-function placeholderPage():string{
-    return '<!DOCTYPE html>\
-<html lang="en">\
-<head>\
-<meta charset="UTF-8">\
-<meta name="viewport" content="width=device-width, initial-scale=1.0">\
-<title>Edgeberry</title>\
-<link rel="stylesheet" href="/theme/tokens.css">\
-<link rel="stylesheet" href="/theme/brand.css">\
-<link rel="icon" href="/theme/logo/symbol.svg" type="image/svg+xml">\
-<style>\
-*{margin:0;padding:0;box-sizing:border-box}\
-body{\
-  font-family:var(--eb-font);\
-  background:var(--eb-bg);color:var(--eb-fg);min-height:100vh;\
-  display:flex;align-items:center;justify-content:center;padding:16px;\
-}\
-.card{background:var(--eb-bg);border:1px solid var(--eb-line);border-top:4px solid var(--eb-accent);border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,.08);\
-  width:100%;max-width:400px;padding:32px;text-align:center;}\
-.logo{width:180px;max-width:100%;height:auto;margin-bottom:24px;}\
-h1{font-size:22px;font-weight:700;margin-bottom:8px;}\
-p{color:var(--eb-fg);font-size:14px;}\
-</style>\
-</head>\
-<body>\
-<div class="card">\
-  <img class="logo" src="/theme/logo/logo.svg" alt="Edgeberry">\
-  <h1>Device Software</h1>\
-  <p>Device is running.</p>\
-</div>\
-</body>\
-</html>';
 }

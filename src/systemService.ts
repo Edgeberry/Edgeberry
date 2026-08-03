@@ -129,6 +129,18 @@ export function system_restart( timeoutMs?:number ){
     }
 }
 
+// Shut down the system
+export function system_shutdown( timeoutMs?:number ){
+    stateManager.updateSystemState('state', 'rebooting');
+    try{
+        const delay = typeof timeoutMs === 'number' ? timeoutMs : 1500;
+        setTimeout(()=>{ exec(`shutdown -h now`); }, delay);
+        return true;
+    } catch(err){
+        return 'Error: '+err;
+    }
+}
+
 // Get the Raspberry Pi hardware version
 export async function system_getPlatform(){
     try{

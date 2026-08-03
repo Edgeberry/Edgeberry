@@ -3,3 +3,6 @@ build/
 settings.json
 sdk-ipc/
 certificates/
+webui/node_modules/
+webui/dist/
+public/webui/
