@@ -32,9 +32,11 @@ jobs:
             mkdir ./tempdir/scripts ./tempdir/config; \
             mv ./scripts/edgeberry_cli.sh ./tempdir/scripts/; \
             mv ./scripts/setup.sh ./tempdir/scripts/; \
+            mv ./config/nginx ./tempdir/config/; \
             mv ./config/edgeberry-core.conf ./tempdir/config/; \
             mv ./config/io.edgeberry.core.service ./tempdir/config/; \
-            mv ./scripts/uninstall.sh ./tempdir/scripts/;
+            mv ./scripts/uninstall.sh ./tempdir/scripts/; \
+            mv ./share ./tempdir/;
 
       - name: Create tarball
         run: tar -C ./tempdir -zcvf package.tar.gz .

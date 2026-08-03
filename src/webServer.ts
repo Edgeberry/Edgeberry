@@ -68,22 +68,27 @@ function placeholderPage():string{
 <meta charset="UTF-8">\
 <meta name="viewport" content="width=device-width, initial-scale=1.0">\
 <title>Edgeberry</title>\
+<link rel="stylesheet" href="/theme/tokens.css">\
+<link rel="stylesheet" href="/theme/brand.css">\
+<link rel="icon" href="/theme/logo/symbol.svg" type="image/svg+xml">\
 <style>\
 *{margin:0;padding:0;box-sizing:border-box}\
 body{\
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;\
-  background:#f5f5f5;color:#222;min-height:100vh;\
+  font-family:var(--eb-font);\
+  background:var(--eb-bg);color:var(--eb-fg);min-height:100vh;\
   display:flex;align-items:center;justify-content:center;padding:16px;\
 }\
-.card{background:#fff;border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,.08);\
+.card{background:var(--eb-bg);border:1px solid var(--eb-line);border-top:4px solid var(--eb-accent);border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,.08);\
   width:100%;max-width:400px;padding:32px;text-align:center;}\
+.logo{width:180px;max-width:100%;height:auto;margin-bottom:24px;}\
 h1{font-size:22px;font-weight:700;margin-bottom:8px;}\
-p{color:#888;font-size:14px;}\
+p{color:var(--eb-fg);font-size:14px;}\
 </style>\
 </head>\
 <body>\
 <div class="card">\
-  <h1>Edgeberry</h1>\
+  <img class="logo" src="/theme/logo/logo.svg" alt="Edgeberry">\
+  <h1>Device Software</h1>\
   <p>Device is running.</p>\
 </div>\
 </body>\

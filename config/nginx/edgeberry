@@ -18,6 +18,27 @@ server {
     # Keep redirects on the client's host:port rather than nginx's idea of it.
     absolute_redirect off;
 
+    error_page 404             /errors/404.html;
+    error_page 500 502 503 504  /errors/50x.html;
+
+    location /theme/ {
+        root /etc/edgeberry;
+        try_files $uri @theme_shipped;
+    }
+    location @theme_shipped {
+        root /opt/Edgeberry/share;
+    }
+
+    location /errors/ {
+        internal;
+        root /etc/edgeberry;
+        try_files $uri @errors_shipped;
+    }
+    location @errors_shipped {
+        internal;
+        root /opt/Edgeberry/share;
+    }
+
     # Application routes. Longest-prefix match means files here take
     # precedence over the catch-all below regardless of include order.
     # An empty directory is not an error.
@@ -27,5 +48,6 @@ server {
     location / {
         proxy_pass http://127.0.0.1:1208;
         include /opt/Edgeberry/Core/config/nginx/proxy_params;
+        proxy_intercept_errors on;
     }
 }

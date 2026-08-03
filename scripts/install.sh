@@ -27,6 +27,7 @@ APPNAME=Edgeberry
 APPCOMP=Core
 REPONAME=Edgeberry
 REPOOWNER=Edgeberry
+SHAREDIR=/opt/${APPNAME}/share
 NGINX_APPDIR=/opt/${APPNAME}/${APPCOMP}/config/nginx
 
 # Parse arguments
@@ -329,6 +330,10 @@ mkdir -p /opt/${APPNAME}/${APPCOMP}  > /dev/null 2>&1;
 tar -xvzf repo.tar.gz -C /opt/${APPNAME}/${APPCOMP} > /dev/null 2>&1
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
+    if [ -d "/opt/${APPNAME}/${APPCOMP}/share" ]; then
+        rm -rf "${SHAREDIR}"
+        mv "/opt/${APPNAME}/${APPCOMP}/share" "${SHAREDIR}"
+    fi
     mark_step_completed 7
 else
     mark_step_failed 7

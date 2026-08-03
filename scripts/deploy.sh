@@ -18,6 +18,7 @@ APPNAME=Edgeberry
 APPCOMP=Core
 SERVICENAME="io.edgeberry.core"
 APPDIR=/opt/${APPNAME}/${APPCOMP}
+SHAREDIR=/opt/${APPNAME}/share
 
 DEFAULT_USER=spuq
 DEFAULT_HOST=192.168.1.103
@@ -127,7 +128,7 @@ if [ $? -eq 0 ]; then mark_step_completed 4; else mark_step_failed 4; echo -e "\
 
 # Step 5: Copy artifacts to remote
 mark_step_busy 5
-"${SCP_BASE[@]}" -r ./build ./package.json ./scripts ./config ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1
+"${SCP_BASE[@]}" -r ./build ./package.json ./scripts ./config ./share ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1
 SCP_STATUS=$?
 if [ -f package-lock.json ]; then
   "${SCP_BASE[@]}" ./package-lock.json ${USER}@${HOST}:"$REMOTE_TEMP"/ >/dev/null 2>&1 || true
@@ -140,12 +141,12 @@ if [ $SCP_STATUS -eq 0 ]; then mark_step_completed 5; else mark_step_failed 5; e
 
 # Step 6: Prepare app directory
 mark_step_busy 6
-"${SSH_BASE[@]}" ${USER}@${HOST} "sudo mkdir -p \"$APPDIR\" && sudo chown -R \"$USER\":\"$USER\" \"$APPDIR\"" >/dev/null 2>&1
+"${SSH_BASE[@]}" ${USER}@${HOST} "sudo mkdir -p \"$APPDIR\" \"$SHAREDIR\" && sudo chown -R \"$USER\":\"$USER\" \"$APPDIR\" \"$SHAREDIR\"" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 6; else mark_step_failed 6; echo -e "\e[0;33mFailed to prepare app directory\e[0m"; exit 1; fi
 
 # Step 7: Copy temp -> appdir
 mark_step_busy 7
-"${SSH_BASE[@]}" ${USER}@${HOST} "sudo rsync -a --delete --exclude 'settings.json' --exclude 'certificates/' \"$REMOTE_TEMP/\" \"$APPDIR/\" && rm -rf \"$REMOTE_TEMP\"" >/dev/null 2>&1
+"${SSH_BASE[@]}" ${USER}@${HOST} "sudo rsync -a --delete --exclude 'settings.json' --exclude 'certificates/' --exclude 'share/' \"$REMOTE_TEMP/\" \"$APPDIR/\" && if [ -d \"$REMOTE_TEMP/share\" ]; then sudo rsync -a --delete \"$REMOTE_TEMP/share/\" \"$SHAREDIR/\"; fi && sudo rm -rf \"$APPDIR/share\" \"$REMOTE_TEMP\"" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 7; else mark_step_failed 7; echo -e "\e[0;33mFailed to copy files into app directory\e[0m"; exit 1; fi
 
 # Step 8: Install dependencies (remote, prod only)

@@ -1,0 +1,12 @@
+:root {
+  --eb-bg:     #ffffff;
+  --eb-fg:     #1e1e1e;
+  --eb-line:   #c0c0c0;
+  --eb-accent: #0007ff;
+
+  --eb-ok:     #007a2e;
+  --eb-warn:   #b35c00;
+  --eb-fault:  #d40000;
+
+  --eb-font:   system-ui, -apple-system, "Segoe UI", sans-serif;
+}
