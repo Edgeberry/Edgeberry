@@ -328,25 +328,6 @@ export async function exitApMode():Promise<void>{
     }
 }
 
-// Called after successful WiFi configuration through the captive portal
-export async function handleWifiProvisioned( ssid:string, passphrase:string ):Promise<boolean>{
-    try{
-        const success = await networkManager.connectToNetwork(ssid, passphrase);
-        if(success){
-            captivePortal.deactivate();
-            await networkManager.stopAccessPoint();
-            stateManager.updateConnectionState('wifi', 'connected');
-            console.log('\x1b[32mWiFi provisioned, connecting to Device Hub...\x1b[37m');
-            await connectToDeviceHub();
-            return true;
-        }
-        return false;
-    } catch(err){
-        console.error('\x1b[31mWiFi provisioning failed: '+err+'\x1b[37m');
-        return false;
-    }
-}
-
 /*
  *  Device Hub Connectivity
  */
