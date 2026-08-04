@@ -30,41 +30,33 @@ Edgeberry provides a Node-RED node to interact with the Edgeberry Device Softwar
 
 ## WiFi Provisioning
 
-The Edgeberry Device Software includes WiFi provisioning via Access Point (AP) mode. This allows headless configuration of WiFi credentials without needing a monitor or keyboard.
+Headless WiFi setup through Access Point (AP) mode — no monitor or keyboard required.
 
-### How it works
+When no WiFi network is configured, the device enters AP mode by itself and broadcasts an open network named `EDGB-XXXXXX`. Connect to it and the setup page should open automatically; if it doesn't, browse to **http://10.42.0.1**. Choose a network, enter its password, and the device joins it and shuts the access point down.
 
-1. **Automatic AP mode on first boot**: If no saved WiFi connection exists, the device automatically enters AP mode.
-2. **Manual AP mode toggle**: Hold the user button for ~3 seconds to enter or exit AP mode.
+You can also toggle AP mode yourself: hold the user button for ~3 seconds, or use the switch behind the WiFi icon in the web interface. That switch is locked on while no network is configured, since leaving AP mode with nowhere to return to would make the device unreachable.
 
-### AP Mode behavior
+The device stays fully usable in AP mode — it does not need a network to run your application.
 
-| State | LED Pattern | Description |
-|-------|-------------|-------------|
-| AP Mode active | Triple orange blink | Device is broadcasting an open AP (SSID: `EDGB-XXXXXX`) |
-| Connecting to WiFi | Orange/green alternating | Device is connecting to a configured network |
-| Connected | Green heartbeat | Device is connected to WiFi and Device Hub |
-| No network | Red blinking (300ms) | No network connectivity |
+> [!IMPORTANT]
+> The button is the only way back into AP mode when the device can no longer reach its saved network, after a move for example. It is on no network at that point, so the web interface cannot be reached either. This is deliberate: the device never reconfigures itself.
 
 ### Button controls
 
 | Press duration | Action |
 |----------------|--------|
-| ~3 seconds | Toggle AP mode (enter or exit) |
-| ~5 seconds | Reboot device |
 | Short press | Beep (acknowledge) |
+| ~3 seconds | Toggle AP mode |
+| ~5 seconds | Reboot device |
 
-### Exiting AP mode
+### Status LED
 
-When exiting AP mode (via 3-second button press), the device:
-1. Tears down the AP
-2. Waits for the WiFi chip to transition back to station mode
-3. Activates the saved WiFi connection
-4. Reconnects to the Device Hub
-5. Beeps once on successful reconnection
-
-> [!NOTE]
-> Exiting AP mode requires a saved WiFi connection. If none exists, the device will beep an error pattern and remain in AP mode.
+| State | Pattern |
+|-------|---------|
+| AP mode | Triple orange blink |
+| Connecting to WiFi | Orange/green alternating |
+| Connected | Green heartbeat |
+| No network | Red blink (300 ms) |
 
 ## CLI
 You can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
