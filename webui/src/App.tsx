@@ -24,9 +24,29 @@ function CloudIcon({ provision, connection }: { provision: ProvisionState; conne
   return <i className="fa-solid fa-cloud" style={{ color: 'rgba(255,255,255,0.3)' }} title="Cloud status unknown" />
 }
 
-function NetworkIcon({ wifi, network, ssid }: { wifi: WifiState; network: string; ssid: string | null }) {
+function NetworkIcon({ wifi, network, ssid, apSsid }: { wifi: WifiState; network: string; ssid: string | null; apSsid: string | null }) {
+  // AP mode is the one state that is categorically different — the device is a
+  // hotspot, not a client — so it carries a badge rather than only a hue shift.
+  // Amber alone reads too close to the no-internet yellow on a navbar glyph.
   if (wifi === 'ap_mode')
-    return <i className="fa-solid fa-wifi" style={{ color: '#f59e0b' }} title="Access point mode" />
+    return (
+      <span
+        style={{ position: 'relative', display: 'inline-flex' }}
+        title={apSsid ? `Access Point ${apSsid}` : 'Access Point'}
+      >
+        <i className="fa-solid fa-wifi" style={{ color: '#f59e0b' }} />
+        <span
+          style={{
+            position: 'absolute', right: -5, bottom: -4,
+            fontSize: '0.5rem', fontWeight: 700, lineHeight: 1,
+            letterSpacing: '-0.02em', color: '#f59e0b',
+            // Punches the badge out of the navbar so the glyph's tail does not
+            // bleed through the lettering.
+            background: 'var(--eb-fg)', padding: '0 1px', borderRadius: 2,
+          }}
+        >AP</span>
+      </span>
+    )
   if (wifi === 'connected' && network === 'connected')
     return <i className="fa-solid fa-wifi" style={{ color: '#4ade80' }} title={ssid ? `Connected to ${ssid}` : 'WiFi connected'} />
   if (wifi === 'connected')
@@ -118,9 +138,9 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
   )
 }
 
-function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiState, networkState, activeSsid, provisionState, connectionState, hostname }:
+function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiState, networkState, activeSsid, apSsid, provisionState, connectionState, hostname }:
   { onOpenTerminal: () => void; onOpenNetwork: () => void; onOpenCloud: () => void; onOpenPower: () => void;
-    wifiState: WifiState; networkState: string; activeSsid: string | null;
+    wifiState: WifiState; networkState: string; activeSsid: string | null; apSsid: string | null;
     provisionState: ProvisionState; connectionState: ConnectionState; hostname: string }) {
   return (
     <nav className="navbar navbar-dark" style={{ backgroundColor: 'var(--eb-fg)' }}>
@@ -138,7 +158,7 @@ function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiS
             onClick={onOpenNetwork}
             title="Network"
           >
-            <NetworkIcon wifi={wifiState} network={networkState} ssid={activeSsid} />
+            <NetworkIcon wifi={wifiState} network={networkState} ssid={activeSsid} apSsid={apSsid} />
           </button>
           <button
             className="btn btn-sm d-flex align-items-center"
@@ -379,6 +399,7 @@ function AppShell() {
   const [wifiState,       setWifiState]       = useState<WifiState>('unknown')
   const [networkState,    setNetworkState]    = useState<string>('unknown')
   const [activeSsid,      setActiveSsid]      = useState<string | null>(null)
+  const [apSsid,          setApSsid]          = useState<string | null>(null)
   const [provisionState,  setProvisionState]  = useState<ProvisionState>('unknown')
   const [connectionState, setConnectionState] = useState<ConnectionState>('unknown')
   const [hostname,        setHostname]        = useState<string>('')
@@ -395,6 +416,7 @@ function AppShell() {
           setProvisionState(data?.connection?.provision ?? 'unknown')
           setConnectionState(data?.connection?.connection ?? 'unknown')
           setHostname(data?.system?.hostname ?? '')
+          setApSsid(data?.system?.apSsid ?? null)
         })
         .catch(() => {})
       fetch('/api/network/wifi/active')
@@ -417,6 +439,7 @@ function AppShell() {
         wifiState={wifiState}
         networkState={networkState}
         activeSsid={activeSsid}
+        apSsid={apSsid}
         provisionState={provisionState}
         connectionState={connectionState}
         hostname={hostname}
@@ -428,7 +451,11 @@ function AppShell() {
       <div style={{ height: 'calc(100vh - 56px)' }}>
         <main style={{ overflow: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Routes>
-            <Route path="/" element={<ApplicationPage />} />
+            {/* In AP mode the device is unconfigured or being reconfigured, and
+                the captive portal drops the user on '/'. Land them on the
+                network view so the setup path and the button/toggle path all
+                arrive at the same screen. */}
+            <Route path="/" element={wifiState === 'ap_mode' ? <div className="p-4"><Network /></div> : <ApplicationPage />} />
             <Route path="/network" element={<div className="p-4"><Network /></div>} />
             <Route path="/cloud" element={<div className="p-4"><Placeholder title="Cloud Connection" /></div>} />
             <Route path="*" element={<div className="p-4"><Home /></div>} />

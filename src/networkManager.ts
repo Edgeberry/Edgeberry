@@ -127,7 +127,22 @@ export class NetworkManager extends EventEmitter {
      *  Saved Connections
      */
 
-    // List saved WiFi connection paths
+    // True if a connection profile is an Access Point profile (mode 'ap')
+    private isApProfile( settings:any ):boolean{
+        const wifiSection = settings.find((s:any)=> s[0] === '802-11-wireless');
+        if(!wifiSection) return false;
+        const modeEntry = wifiSection[1].find((e:any)=> e[0] === 'mode');
+        return modeEntry ? this.unwrapVariant(modeEntry[1]) === 'ap' : false;
+    }
+
+    // List saved WiFi connection paths.
+    // AP profiles are excluded: startAccessPoint() persists one through
+    // AddAndActivateConnection, and it carries type '802-11-wireless' just
+    // like a real network. Counting it would make hasSavedWifiConnection()
+    // report a configured network while the AP is up, let exitApMode() pass
+    // its "somewhere to return to" guard on the AP itself, and let
+    // activateSavedWifiConnection() re-activate the AP (its timestamp is
+    // always the freshest).
     public async listSavedWifiConnections():Promise<string[]>{
         const settingsIface = await this.getInterface(NM_SETTINGS_PATH, NM_SETTINGS_IFACE);
         const connections:string[] = await new Promise((resolve, reject)=>{
@@ -152,7 +167,7 @@ export class NetworkManager extends EventEmitter {
                 if(connectionSection){
                     const typeEntry = connectionSection[1].find((e:any)=> e[0] === 'type');
                     const typeVal = typeEntry ? this.unwrapVariant(typeEntry[1]) : null;
-                    if(typeVal === '802-11-wireless'){
+                    if(typeVal === '802-11-wireless' && !this.isApProfile(settings)){
                         wifiConnections.push(connPath);
                     }
                 }
@@ -188,6 +203,36 @@ export class NetworkManager extends EventEmitter {
     public async hasSavedWifiConnection():Promise<boolean>{
         const connections = await this.listSavedWifiConnections();
         return connections.length > 0;
+    }
+
+    // Delete AP profiles left behind by a previous run. stopAccessPoint()
+    // removes the profile it created, but the path is tracked in memory only,
+    // so losing power while in AP mode orphans it. Called once at boot before
+    // deciding whether the device has a network configured.
+    public async deleteOrphanedApProfiles():Promise<number>{
+        const settingsIface = await this.getInterface(NM_SETTINGS_PATH, NM_SETTINGS_IFACE);
+        const connections:string[] = await new Promise((resolve, reject)=>{
+            settingsIface.ListConnections((err:any, paths:string[])=>{
+                if(err) return reject(err);
+                resolve(paths);
+            });
+        });
+
+        let deleted = 0;
+        for(const connPath of connections){
+            try{
+                const connIface = await this.getInterface(connPath, NM_CONNECTION_IFACE);
+                const settings:any = await new Promise((resolve, reject)=>{
+                    connIface.GetSettings((err:any, s:any)=>{ if(err) return reject(err); resolve(s); });
+                });
+                if(!this.isApProfile(settings)) continue;
+                await this.deleteConnection(connPath);
+                deleted++;
+            } catch(_e){}
+        }
+        if(deleted > 0)
+            console.log('\x1b[33mNetworkManager: removed '+deleted+' orphaned AP profile(s)\x1b[37m');
+        return deleted;
     }
 
     // Delete a saved connection by path
@@ -359,12 +404,18 @@ export class NetworkManager extends EventEmitter {
      *  Access Point Mode
      */
 
+    // Derive the AP SSID from the board UUID: EDGB-XXXXXX (first 6 hex chars).
+    // Static so callers can display the name without the AP being up.
+    public static apSsidFromUUID( hardwareUUID:string ):string{
+        return 'EDGB-' + hardwareUUID.replace(/-/g, '').substring(0, 6);
+    }
+
     // Start an open AP. SSID format: EDGB-XXXXXX (first 6 chars of hardware UUID)
     public async startAccessPoint( hardwareUUID:string ):Promise<void>{
         const devicePath = await this.getWifiDevicePath();
         const nmIface = await this.getInterface(NM_PATH, NM_IFACE);
 
-        const apSsid = 'EDGB-' + hardwareUUID.replace(/-/g, '').substring(0, 6);
+        const apSsid = NetworkManager.apSsidFromUUID(hardwareUUID);
 
         const connectionSettings = [
             ['connection', [
@@ -561,7 +612,7 @@ export class NetworkManager extends EventEmitter {
         const devicePath = await this.getWifiDevicePath();
         const nmIface = await this.getInterface(NM_PATH, NM_IFACE);
 
-        const connectionSettings = [
+        const connectionSettings:any[] = [
             ['connection', [
                 ['type',        ['s', '802-11-wireless']],
                 ['autoconnect', ['b', true]]
@@ -570,14 +621,19 @@ export class NetworkManager extends EventEmitter {
                 ['ssid', ['ay', [...Buffer.from(ssid)]]],
                 ['mode', ['s', 'infrastructure']]
             ]],
-            ['802-11-wireless-security', [
-                ['key-mgmt', ['s', 'wpa-psk']],
-                ['psk',      ['s', passphrase]]
-            ]],
             ['ipv4', [
                 ['method', ['s', 'auto']]
             ]]
         ];
+
+        // Open networks must carry no security section at all — NM rejects a
+        // wpa-psk section holding an empty psk.
+        if(passphrase){
+            connectionSettings.push(['802-11-wireless-security', [
+                ['key-mgmt', ['s', 'wpa-psk']],
+                ['psk',      ['s', passphrase]]
+            ]]);
+        }
 
         const { settingsPath, activeConnectionPath } = await new Promise<{settingsPath:string, activeConnectionPath:string}>((resolve, reject)=>{
             nmIface.AddAndActivateConnection(connectionSettings, devicePath, '/', (err:any, settingsPath:string, activeConnectionPath:string)=>{

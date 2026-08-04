@@ -81,8 +81,11 @@ export class CaptivePortal {
                 res.json({ success });
                 if(success){
                     setTimeout(()=>{
+                        // Capture the callback before deactivating — deactivate()
+                        // clears onConnected, so reading it afterwards is always null.
+                        const done = this.onConnected;
                         this.deactivate();
-                        if(this.onConnected) this.onConnected();
+                        if(done) done();
                     }, 3000);
                 }
             } catch(err){
@@ -96,12 +99,19 @@ export class CaptivePortal {
         // The 302 (not 200) triggers the OS captive portal popup on
         // Apple (hotspot-detect.html), Android (generate_204), and
         // Windows (connecttest.txt, ncsi.txt).
-        app.use((_req:Request, res:Response, next:NextFunction)=>{
-            if(this.active){
-                res.redirect(302, 'http://'+AP_ADDRESS+'/');
-            } else {
-                next();
-            }
+        //
+        // Requests already addressed to the portal fall through to the static
+        // webUI below. Without that check this middleware also redirects '/'
+        // and every /assets/* request — including the redirect target itself —
+        // which is an infinite loop that serves no page at all. It is
+        // registered before express.static because WebServer.setupRoutes()
+        // only runs at start(), so falling through is the only correct
+        // behaviour here.
+        app.use((req:Request, res:Response, next:NextFunction)=>{
+            if(!this.active) return next();
+            const host = (req.headers.host ?? '').split(':')[0];
+            if(host === AP_ADDRESS) return next();
+            res.redirect(302, 'http://'+AP_ADDRESS+'/');
         });
     }
 }

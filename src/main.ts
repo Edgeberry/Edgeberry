@@ -59,7 +59,16 @@ const webServer = new WebServer();
 const apiRouter = ExpressRouter();
 apiRouter.get('/state', (_req, res) => {
     const state = stateManager.getState() as any;
-    state.system = { ...state.system, hostname: require('os').hostname() };
+    // apSsid is derived from the board UUID, so it is known whether or not the
+    // AP is up. Served here because the webUI polls this endpoint anyway —
+    // /api/network/ap walks every NetworkManager profile over D-Bus and is far
+    // too expensive for the navbar's poll interval.
+    const uuid = system_board_getUUID();
+    state.system = {
+        ...state.system,
+        hostname: require('os').hostname(),
+        apSsid:   uuid ? NetworkManager.apSsidFromUUID(uuid) : null,
+    };
     res.json(state);
 });
 apiRouter.post('/system/reboot',    (_req, res) => { system_restart();  res.json({ ok: true }); });
@@ -96,6 +105,43 @@ apiRouter.post('/network/wifi/ipconfig', async (req, res) => {
     } catch(err:any) {
         res.status(500).json({ error: err?.message ?? 'Failed to update IP config' });
     }
+});
+apiRouter.get('/network/ap', async (_req, res) => {
+    const uuid = system_board_getUUID();
+    let canExit = false;
+    try { canExit = await networkManager.hasSavedWifiConnection(); } catch(_e) {}
+    res.json({
+        active:  stateManager.getState().connection.wifi === 'ap_mode',
+        ssid:    uuid ? NetworkManager.apSsidFromUUID(uuid) : null,
+        canExit,
+    });
+});
+apiRouter.post('/network/ap', async (req, res) => {
+    const { enabled } = req.body ?? {};
+    if(typeof enabled !== 'boolean'){ res.status(400).json({ error: 'enabled (boolean) required' }); return; }
+
+    const inApMode = stateManager.getState().connection.wifi === 'ap_mode';
+    if(enabled === inApMode){ res.json({ ok: true, unchanged: true }); return; }
+
+    if(!enabled){
+        // Refuse to strand the device: leaving AP mode needs somewhere to go.
+        let canExit = false;
+        try { canExit = await networkManager.hasSavedWifiConnection(); } catch(_e) {}
+        if(!canExit){ res.status(409).json({ error: 'No saved WiFi network to return to' }); return; }
+    }
+
+    // Respond before acting. Both transitions tear down the interface this
+    // request arrived on, so the response has to be flushed first — otherwise
+    // the caller only ever sees a dropped connection.
+    res.json({ ok: true });
+    setTimeout(async () => {
+        if(enabled){
+            try { await networkManager.disconnect(); } catch(_e) {}
+            await enterApMode();
+        } else {
+            await exitApMode();
+        }
+    }, 1000);
 });
 apiRouter.get('/network/interfaces', (_req, res) => {
     const raw = networkInterfaces();
@@ -192,6 +238,13 @@ async function initialize():Promise<void>{
     // Wrapped in a timeout: if NetworkManager is not available (e.g. device
     // uses dhcpcd instead), the D-Bus call may hang indefinitely.
     try{
+        // Clear AP profiles orphaned by an unclean shutdown first — an orphan
+        // is indistinguishable from a configured network to the check below,
+        // and would permanently suppress automatic AP mode.
+        await Promise.race([
+            networkManager.deleteOrphanedApProfiles(),
+            new Promise<void>((resolve)=> setTimeout(resolve, 5000))
+        ]);
         const hasWifi = await Promise.race([
             networkManager.hasSavedWifiConnection(),
             new Promise<null>((_, reject)=> setTimeout(()=> reject(new Error('WiFi check timed out')), 5000))
@@ -214,7 +267,7 @@ async function initialize():Promise<void>{
  *  Functions for entering and exiting AP mode for WiFi provisioning.
  */
 
-async function enterApMode():Promise<void>{
+export async function enterApMode():Promise<void>{
     const boardId = system_board_getUUID();
     if(!boardId){
         console.error('\x1b[31mCannot start AP: no board UUID\x1b[37m');
@@ -234,7 +287,7 @@ async function enterApMode():Promise<void>{
     }
 }
 
-async function exitApMode():Promise<void>{
+export async function exitApMode():Promise<void>{
     try{
         // Check if there's a saved WiFi connection to return to
         const hasWifi = await networkManager.hasSavedWifiConnection();
@@ -588,6 +641,12 @@ stateManager.on('state', (state)=>{
 /*
  *  Button AP Mode Toggle
  *  A ~3 second press toggles AP mode on/off for WiFi provisioning.
+ *
+ *  DO NOT REMOVE: this is the only recovery path for a device carrying a
+ *  saved network it can no longer reach (e.g. moved to a new location).
+ *  There is deliberately no automatic fallback into AP mode, and the webUI
+ *  toggle is unreachable in exactly that situation — the device is on no
+ *  network to serve it. The physical button is load-bearing.
  */
 system_button.on('apToggle', async()=>{
     const currentState = stateManager.getState();
