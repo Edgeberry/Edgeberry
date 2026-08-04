@@ -5,6 +5,7 @@
 import { exec, execSync } from "child_process";
 import { stateManager } from "./main";
 import { readFileSync } from "fs";
+import path from "path";
 import { EventEmitter } from "stream";
 
 /*
@@ -165,7 +166,13 @@ export async function system_getPlatform(){
 export function system_getApplicationInfo():Promise<string|any>{
     return new Promise<string|any>((resolve, reject)=>{
         try{
-                var packageJson = JSON.parse(readFileSync('/opt/Edgeberry/package.json').toString());
+                // Resolve relative to this module rather than an absolute
+                // install path: the previous '/opt/Edgeberry/package.json' is
+                // one directory too high — the file lives in the component
+                // directory (/opt/Edgeberry/Core) — so this always threw and
+                // the device reported its version as 'unknown'. Going through
+                // __dirname also keeps `npm run dev` working from src/.
+                var packageJson = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json')).toString());
             }
         catch(err){
             packageJson = {}

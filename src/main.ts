@@ -585,7 +585,9 @@ async function startProvisioningWithMqtt(): Promise<void> {
                     name: `Edgeberry Device ${deviceId}`,
                     meta: {
                         model: system_board_getProductName(),
-                        firmware: '3.0.0',
+                        // Report the running version, not a literal that has to
+                        // be remembered on every release.
+                        firmware: stateManager.getState().system.version,
                         startedAt: new Date().toISOString(),
                         platform: 'edgeberry'
                     }

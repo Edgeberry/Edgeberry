@@ -37,6 +37,7 @@ declare -a STEPS=(
     "Reload systemd"
     "Remove D-Bus policy"
     "Remove captive portal DNS config"
+    "Remove nginx configuration"
     "Remove CLI symlink"
     "Remove application directory"
 )
@@ -214,23 +215,42 @@ else
     mark_step_skipped 6
 fi
 
-# Step 7: Remove CLI symlink
+# Step 7: Remove the nginx configuration.
+# This must happen before the application directory is deleted: the site file
+# does a literal 'include /opt/Edgeberry/Core/config/nginx/proxy_params', so
+# leaving it in place while removing /opt/Edgeberry makes 'nginx -t' fail and
+# nginx refuse to start — breaking any other site on the machine.
 mark_step_busy 7
-if [ -L "/usr/local/bin/edgeberry" ] || [ -f "/usr/local/bin/edgeberry" ]; then
-    rm -f /usr/local/bin/edgeberry
-    if [ $? -eq 0 ]; then
+NGINX_TOUCHED=false
+for f in /etc/nginx/sites-enabled/edgeberry \
+         /etc/nginx/sites-available/edgeberry \
+         /etc/nginx/conf.d/edgeberry.conf; do
+    if [ -e "$f" ] || [ -L "$f" ]; then
+        rm -f "$f"
+        NGINX_TOUCHED=true
+    fi
+done
+if [ "$NGINX_TOUCHED" = true ]; then
+    # Restore the stock default site if nothing else is enabled, so the host
+    # is not left without any server block at all.
+    if [ -z "$(ls -A /etc/nginx/sites-enabled 2>/dev/null)" ] && [ -f /etc/nginx/sites-available/default ]; then
+        ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+    fi
+    if command -v nginx >/dev/null 2>&1 && nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx >/dev/null 2>&1
         mark_step_completed 7
     else
         mark_step_failed 7
+        echo -e "\e[0;33mnginx configuration removed but validation failed — check 'nginx -t'.\e[0m"
     fi
 else
     mark_step_skipped 7
 fi
 
-# Step 8: Remove application directory
+# Step 8: Remove CLI symlink
 mark_step_busy 8
-if [ -d "/opt/${APPNAME}/${APPCOMP}" ] || [ -d "/opt/${APPNAME}" ]; then
-    rm -rf "/opt/${APPNAME}"
+if [ -L "/usr/local/bin/edgeberry" ] || [ -f "/usr/local/bin/edgeberry" ]; then
+    rm -f /usr/local/bin/edgeberry
     if [ $? -eq 0 ]; then
         mark_step_completed 8
     else
@@ -238,6 +258,19 @@ if [ -d "/opt/${APPNAME}/${APPCOMP}" ] || [ -d "/opt/${APPNAME}" ]; then
     fi
 else
     mark_step_skipped 8
+fi
+
+# Step 9: Remove application directory
+mark_step_busy 9
+if [ -d "/opt/${APPNAME}/${APPCOMP}" ] || [ -d "/opt/${APPNAME}" ]; then
+    rm -rf "/opt/${APPNAME}"
+    if [ $? -eq 0 ]; then
+        mark_step_completed 9
+    else
+        mark_step_failed 9
+    fi
+else
+    mark_step_skipped 9
 fi
 
 echo ""

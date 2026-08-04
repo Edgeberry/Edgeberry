@@ -3,64 +3,88 @@ on:
   release:
     types: [created]
 
+# Required by softprops/action-gh-release to attach assets.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        # Must satisfy vite's engine requirement (^20.19 || >=22.12) — the web
+        # UI build fails outright on older runtimes.
+        uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '22.x'
 
       - name: Install dependencies
-        run: npm install --include=dev
+        run: npm ci --include=dev
 
       - name: Build project
-        env:
-          CI: ""
+        # Builds the web UI into public/webui, then compiles src/ into build/.
         run: npm run build
 
       - name: Gather required files
         run: |
-            mkdir tempdir;                         \
-            mv ./package.json ./tempdir/;          \
-            mv ./build ./tempdir/;                 \
-            mkdir ./tempdir/scripts ./tempdir/config; \
-            mv ./scripts/edgeberry_cli.sh ./tempdir/scripts/; \
-            mv ./scripts/setup.sh ./tempdir/scripts/; \
-            mv ./config/nginx ./tempdir/config/; \
-            mv ./config/edgeberry-core.conf ./tempdir/config/; \
-            mv ./config/io.edgeberry.core.service ./tempdir/config/; \
-            mv ./scripts/uninstall.sh ./tempdir/scripts/; \
-            mv ./share ./tempdir/;
+          mkdir -p tempdir/scripts tempdir/config
+          # Runtime: the compiled server, the built web UI it serves, and the
+          # theme/error pages nginx serves directly.
+          cp -r build  tempdir/
+          cp -r public tempdir/
+          cp -r share  tempdir/
+          # package-lock.json ships so the device installs the exact dependency
+          # tree that was built and tested here.
+          cp package.json package-lock.json tempdir/
+          # Configuration that install.sh moves to system locations.
+          cp -r config/nginx tempdir/config/
+          cp config/edgeberry-core.conf       tempdir/config/
+          cp config/io.edgeberry.core.service tempdir/config/
+          # Scripts that stay on the device.
+          cp scripts/edgeberry_cli.sh scripts/setup.sh scripts/uninstall.sh tempdir/scripts/
+
+      - name: Verify package contents
+        # The web UI was silently absent from the package before this check
+        # existed. Fail the build rather than ship a device with no interface.
+        run: |
+          set -e
+          for f in \
+            tempdir/build/main.js \
+            tempdir/public/webui/index.html \
+            tempdir/package.json \
+            tempdir/package-lock.json \
+            tempdir/config/io.edgeberry.core.service \
+            tempdir/config/edgeberry-core.conf \
+            tempdir/config/nginx/edgeberry \
+            tempdir/config/nginx/edgeberry.conf \
+            tempdir/config/nginx/proxy_params \
+            tempdir/scripts/edgeberry_cli.sh \
+            tempdir/scripts/setup.sh \
+            tempdir/scripts/uninstall.sh \
+            tempdir/share/errors/404.html
+          do
+            test -f "$f" || { echo "MISSING: $f"; exit 1; }
+          done
+          ls tempdir/public/webui/assets/*.js >/dev/null 2>&1 \
+            || { echo "MISSING: web UI javascript bundle"; exit 1; }
+          echo "Package contents verified."
 
       - name: Create tarball
-        run: tar -C ./tempdir -zcvf package.tar.gz .
+        run: |
+          NAME="$(echo '${{ github.repository }}' | cut -d'/' -f2)"
+          ASSET="${NAME}-${{ github.event.release.tag_name }}.tar.gz"
+          tar -C ./tempdir -zcf "${ASSET}" .
+          echo "ASSET=${ASSET}" >> "$GITHUB_ENV"
 
-      - name: Get Project Name
-        id: project_name
-        run: echo "name=$(echo ${{ github.repository }} | cut -d'/' -f2)" >> $GITHUB_OUTPUT
-
-      - name: Upload packaged project build to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN:  ${{ secrets.GH_TOKEN }}
+      - name: Upload release assets
+        # actions/upload-release-asset@v1 is archived and unmaintained.
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: package.tar.gz
-          asset_name: ${{ steps.project_name.outputs.name }}-${{ github.event.release.tag_name }}.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload install script to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN:  ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: scripts/install.sh
-          asset_name: install.sh
-          asset_content_type: application/octet-stream
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            ${{ env.ASSET }}
+            scripts/install.sh

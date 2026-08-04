@@ -50,7 +50,7 @@ done
 declare -a STEPS=(
     "Check/Install NodeJS"
     "Check/Install NPM"
-    "Check/Install CMake"
+    "Check/Install build tools"
     "Check/Install JQ"
     "Get latest release info"
     "Get download URL"
@@ -161,6 +161,20 @@ mark_step_failed() {
     set_step_status "$step_index" "$SYMBOL_FAILED"
 }
 
+# Refresh the apt package lists, at most once per run.
+# Without this, 'apt-get install' resolves against whatever index is already on
+# disk. On a freshly imaged or long-idle device those entries point at package
+# versions the mirrors have since replaced, and every install fails with a 404.
+# Called lazily so a device that already has everything installed skips it.
+APT_UPDATED=false
+ensure_apt_updated() {
+    if [ "$APT_UPDATED" = true ]; then
+        return 0
+    fi
+    apt-get update > /dev/null 2>&1
+    APT_UPDATED=true
+}
+
 # Precondition: require root privileges
 if [ "$EUID" -ne 0 ]; then
     echo -e "\e[0;31mUser is not root. Exit.\e[0m"
@@ -182,7 +196,8 @@ mark_step_busy 0
 if which node >/dev/null 2>&1; then 
     mark_step_skipped 0
 else 
-    apt install -y nodejs > /dev/null 2>&1;
+    ensure_apt_updated
+    apt-get install -y nodejs > /dev/null 2>&1;
     # Check if the last command succeeded
     if [ $? -eq 0 ]; then
         mark_step_completed 0
@@ -197,12 +212,24 @@ if [[ "${STEP_STATUS[0]}" == "$SYMBOL_BUSY" ]]; then
     mark_step_completed 0
 fi
 
+# Whatever apt provided, it must be new enough to run the device software.
+# Express 5 requires Node 18 or later; older distributions ship Node 12/16,
+# which fails at runtime in ways that are hard to diagnose from the logs.
+NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//; s/\..*//')
+if [ -n "$NODE_MAJOR" ] && [ "$NODE_MAJOR" -lt 18 ]; then
+    mark_step_failed 0
+    echo -e "\e[0;31mNodeJS $(node -v) is too old — version 18 or later is required.\e[0m"
+    echo -e "\e[0mInstall a newer NodeJS (e.g. from https://deb.nodesource.com) and run this script again.\e[0m"
+    exit 1;
+fi
+
 # Step 1: Check for NPM. If it's not installed, install it.
 mark_step_busy 1
 if which npm >/dev/null 2>&1; then 
     mark_step_skipped 1
 else 
-    apt install -y npm > /dev/null 2>&1;
+    ensure_apt_updated
+    apt-get install -y npm > /dev/null 2>&1;
     # Check if the last command succeeded
     if [ $? -eq 0 ]; then
         mark_step_completed 1
@@ -217,22 +244,28 @@ if [[ "${STEP_STATUS[1]}" == "$SYMBOL_BUSY" ]]; then
     mark_step_completed 1
 fi
 
-# Step 2: Check for CMAKE (required by AWS SDK). If it's not installed, install it.
+# Step 2: Check for the toolchain node-gyp needs. node-pty is a native module
+# with no prebuilt binaries for this platform, so it is compiled during
+# 'npm ci' and needs a C++ compiler, make and python3.
+# (This step previously installed CMake for the AWS IoT SDK, which the device
+#  software no longer uses — CMake is not required by any current dependency.)
 mark_step_busy 2
-if which cmake >/dev/null 2>&1; then  
+if command -v cc >/dev/null 2>&1 && command -v make >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
     mark_step_skipped 2
-else 
-    apt install -y cmake > /dev/null 2>&1
+else
+    ensure_apt_updated
+    apt-get install -y build-essential python3 > /dev/null 2>&1
     # Check if the last command succeeded
     if [ $? -eq 0 ]; then
         mark_step_completed 2
     else
         mark_step_failed 2
-        echo -e "\e[0;33mFailed to install CMake! Exit.\e[0m";
+        echo -e "\e[0;33mFailed to install build tools! Exit.\e[0m";
+        echo -e "\e[0mThese are required to compile node-pty (terminal support).\e[0m";
         exit 1;
     fi
 fi
-# If CMake was already installed, mark as completed
+# If the toolchain was already present, mark as completed
 if [[ "${STEP_STATUS[2]}" == "$SYMBOL_BUSY" ]]; then
     mark_step_completed 2
 fi
@@ -242,7 +275,8 @@ mark_step_busy 3
 if which jq >/dev/null 2>&1; then  
     mark_step_skipped 3
 else 
-    apt install -y jq > /dev/null 2>&1
+    ensure_apt_updated
+    apt-get install -y jq > /dev/null 2>&1
     # Check if the last command succeeded
     if [ $? -eq 0 ]; then
         mark_step_completed 3
@@ -334,6 +368,15 @@ if [ $? -eq 0 ]; then
         rm -rf "${SHAREDIR}"
         mv "/opt/${APPNAME}/${APPCOMP}/share" "${SHAREDIR}"
     fi
+    # Sanity-check the package. The web interface is served from
+    # <appdir>/public/webui by the device software; a release built without it
+    # installs cleanly and then serves nothing, which is hard to attribute.
+    if [ ! -f "/opt/${APPNAME}/${APPCOMP}/public/webui/index.html" ]; then
+        mark_step_failed 7
+        echo -e "\e[0;31mThis release package does not contain the web interface.\e[0m";
+        echo -e "\e[0mExpected public/webui/index.html. Install a newer release.\e[0m";
+        exit 1;
+    fi
     mark_step_completed 7
 else
     mark_step_failed 7
@@ -341,9 +384,17 @@ else
     exit 1;
 fi
 
-# Step 8: Install package dependencies
+# Step 8: Install package dependencies.
+# Production only — the release package ships compiled JavaScript, so the
+# TypeScript toolchain in devDependencies is dead weight on the device.
+# 'npm ci' is preferred: it installs the exact tree the release was built
+# against. Older packages shipped without a lockfile, so fall back gracefully.
 mark_step_busy 8
-npm install --prefix /opt/${APPNAME}/${APPCOMP} > /dev/null 2>&1
+if [ -f "/opt/${APPNAME}/${APPCOMP}/package-lock.json" ]; then
+    npm ci --omit=dev --prefix /opt/${APPNAME}/${APPCOMP} > /dev/null 2>&1
+else
+    npm install --omit=dev --prefix /opt/${APPNAME}/${APPCOMP} > /dev/null 2>&1
+fi
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
     mark_step_completed 8
@@ -406,6 +457,7 @@ mark_step_busy 13
 
 # 13a: ensure nginx is installed
 if ! command -v nginx > /dev/null 2>&1; then
+    ensure_apt_updated
     apt-get install -y nginx > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         mark_step_failed 13
