@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { BrowserRouter, NavLink, Routes, Route } from 'react-router-dom'
 import { Modal } from 'bootstrap'
 import Network from './pages/Network'
+import Cloud from './pages/Cloud'
 import TerminalPage from './pages/Terminal'
 import ApplicationPage from './pages/Application'
 
@@ -10,17 +11,19 @@ type WifiState       = 'ap_mode' | 'connected' | 'disconnected' | 'unknown'
 type ProvisionState  = 'disabled' | 'provisioned' | 'not provisioned' | 'provisioning' | 'unknown'
 type ConnectionState = 'connected' | 'disconnected' | 'connecting' | 'unknown'
 
-function CloudIcon({ provision, connection }: { provision: ProvisionState; connection: ConnectionState }) {
+function CloudIcon({ provision, connection, hubHost }: { provision: ProvisionState; connection: ConnectionState; hubHost: string | null }) {
+  // Fall back to the generic name only when no hub is configured yet.
+  const hub = hubHost ?? 'Device Hub'
   if (provision === 'not provisioned')
     return <i className="fa-solid fa-cloud" style={{ color: 'rgba(255,255,255,0.3)' }} title="Not configured" />
   if (provision === 'provisioning')
-    return <i className="fa-solid fa-cloud" style={{ color: '#f59e0b' }} title="Provisioning…" />
+    return <i className="fa-solid fa-cloud" style={{ color: '#f59e0b' }} title={`Provisioning with ${hub}…`} />
   if (connection === 'connecting')
-    return <i className="fa-solid fa-cloud" style={{ color: '#f59e0b' }} title="Connecting…" />
+    return <i className="fa-solid fa-cloud" style={{ color: '#f59e0b' }} title={`Connecting to ${hub}…`} />
   if (connection === 'connected')
-    return <i className="fa-solid fa-cloud" style={{ color: '#4ade80' }} title="Connected to Device Hub" />
+    return <i className="fa-solid fa-cloud" style={{ color: '#4ade80' }} title={`Connected to ${hub}`} />
   if (connection === 'disconnected')
-    return <i className="fa-solid fa-cloud" style={{ color: '#f87171' }} title="Disconnected from Device Hub" />
+    return <i className="fa-solid fa-cloud" style={{ color: '#f87171' }} title={`Disconnected from ${hub}`} />
   return <i className="fa-solid fa-cloud" style={{ color: 'rgba(255,255,255,0.3)' }} title="Cloud status unknown" />
 }
 
@@ -138,10 +141,10 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
   )
 }
 
-function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiState, networkState, activeSsid, apSsid, provisionState, connectionState, hostname }:
+function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiState, networkState, activeSsid, apSsid, provisionState, connectionState, hubHost, hostname }:
   { onOpenTerminal: () => void; onOpenNetwork: () => void; onOpenCloud: () => void; onOpenPower: () => void;
     wifiState: WifiState; networkState: string; activeSsid: string | null; apSsid: string | null;
-    provisionState: ProvisionState; connectionState: ConnectionState; hostname: string }) {
+    provisionState: ProvisionState; connectionState: ConnectionState; hubHost: string | null; hostname: string }) {
   return (
     <nav className="navbar navbar-dark" style={{ backgroundColor: 'var(--eb-fg)' }}>
       <div className="container-fluid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
@@ -165,7 +168,7 @@ function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiS
             style={{ lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.4rem' }}
             onClick={onOpenCloud}
           >
-            <CloudIcon provision={provisionState} connection={connectionState} />
+            <CloudIcon provision={provisionState} connection={connectionState} hubHost={hubHost} />
           </button>
           <NavMenu onOpenTerminal={onOpenTerminal} onOpenPower={onOpenPower} />
         </div>
@@ -208,7 +211,7 @@ function CloudModal({ onReady }: { onReady: (show: () => void) => void }) {
             <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div className="modal-body" style={{ overflow: 'auto' }}>
-            {open && <Placeholder title="Cloud Connection" />}
+            {open && <Cloud />}
           </div>
         </div>
       </div>
@@ -382,15 +385,6 @@ function Home() {
   )
 }
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <>
-      <h1 className="h4">{title}</h1>
-      <p className="text-muted">Coming soon.</p>
-    </>
-  )
-}
-
 function AppShell() {
   const openTerminal = useRef<() => void>(() => {})
   const openNetwork  = useRef<() => void>(() => {})
@@ -400,6 +394,7 @@ function AppShell() {
   const [networkState,    setNetworkState]    = useState<string>('unknown')
   const [activeSsid,      setActiveSsid]      = useState<string | null>(null)
   const [apSsid,          setApSsid]          = useState<string | null>(null)
+  const [hubHost,         setHubHost]         = useState<string | null>(null)
   const [provisionState,  setProvisionState]  = useState<ProvisionState>('unknown')
   const [connectionState, setConnectionState] = useState<ConnectionState>('unknown')
   const [hostname,        setHostname]        = useState<string>('')
@@ -422,6 +417,7 @@ function AppShell() {
           setConnectionState(data?.connection?.connection ?? 'unknown')
           setHostname(data?.system?.hostname ?? '')
           setApSsid(data?.system?.apSsid ?? null)
+          setHubHost(data?.connection?.hubHost ?? null)
         })
         .catch(() => {})
       fetch('/api/network/wifi/active')
@@ -447,6 +443,7 @@ function AppShell() {
         apSsid={apSsid}
         provisionState={provisionState}
         connectionState={connectionState}
+        hubHost={hubHost}
         hostname={hostname}
       />
       <CloudModal    onReady={(fn) => { openCloud.current    = fn }} />
@@ -489,7 +486,7 @@ function AppShell() {
                 a setup screen — the banner above offers configuration instead. */}
             <Route path="/" element={<ApplicationPage />} />
             <Route path="/network" element={<div className="p-4"><Network /></div>} />
-            <Route path="/cloud" element={<div className="p-4"><Placeholder title="Cloud Connection" /></div>} />
+            <Route path="/cloud" element={<div className="p-4"><Cloud /></div>} />
             <Route path="*" element={<div className="p-4"><Home /></div>} />
           </Routes>
         </main>

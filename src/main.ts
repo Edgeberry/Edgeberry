@@ -39,6 +39,8 @@ import { CaptivePortal } from './captivePortal';
 import { initializeDirectMethodAPI } from "./directMethods";
 // Persistent settings
 import { settings, settings_deleteConnectionParameters, settings_storeConnectionParameters, settings_storeProvisioningParameters } from './settingsStore';
+// Device Hub onboarding (web-interface equivalent of `edgeberry --setup`)
+import { fetchProvisioningCertificates, readCertificateInfo } from './deviceHubSetup';
 // Terminal Service (PTY over WebSocket)
 import { startTerminalService } from './terminalService';
 // Commandline Interface (for inter-process communication)
@@ -68,6 +70,12 @@ apiRouter.get('/state', (_req, res) => {
         ...state.system,
         hostname: require('os').hostname(),
         apSsid:   uuid ? NetworkManager.apSsidFromUUID(uuid) : null,
+    };
+    // Served here rather than from /api/cloud because the navbar polls this
+    // endpoint — /api/cloud shells out to openssl to read the certificate.
+    state.connection = {
+        ...state.connection,
+        hubHost: settings?.connection?.hostName ?? settings?.provisioning?.hostName ?? null,
     };
     res.json(state);
 });
@@ -104,6 +112,54 @@ apiRouter.post('/network/wifi/ipconfig', async (req, res) => {
         res.json({ ok: true });
     } catch(err:any) {
         res.status(500).json({ error: err?.message ?? 'Failed to update IP config' });
+    }
+});
+apiRouter.get('/cloud', (_req, res) => {
+    const conn  = stateManager.getState().connection;
+    // hostName comes from whichever block is authoritative: once provisioned
+    // the connection block is what the client actually dials.
+    const hostName = settings?.connection?.hostName ?? settings?.provisioning?.hostName ?? null;
+    let clientStatus:any = null;
+    try { clientStatus = cloud ? cloud.getClientStatus() : null; } catch(_e) {}
+    res.json({
+        hostName,
+        deviceId:        settings?.connection?.deviceId ?? settings?.provisioning?.clientId ?? system_board_getUUID(),
+        configured:      Boolean(settings?.provisioning || settings?.connection),
+        provisioned:     Boolean(settings?.connection),
+        provisionState:  conn.provision,
+        connectionState: conn.connection,
+        networkState:    conn.network,
+        clientStatus,
+        certificate:     settings?.connection?.certificateFile ? readCertificateInfo(settings.connection.certificateFile) : { present:false },
+    });
+});
+apiRouter.post('/cloud/provision', async (req, res) => {
+    const { hostName } = req.body ?? {};
+    if(typeof hostName !== 'string' || !hostName.trim()){
+        res.status(400).json({ error: 'hostName required' }); return;
+    }
+    try{
+        await provisionToDeviceHub(hostName.trim());
+        res.json({ ok: true });
+    } catch(err:any){
+        console.error('\x1b[31mDevice Hub provisioning failed: '+err?.message+'\x1b[37m');
+        res.status(502).json({ error: err?.message ?? 'Provisioning failed' });
+    }
+});
+apiRouter.post('/cloud/reconnect', async (_req, res) => {
+    try{
+        await connectToDeviceHub();
+        res.json({ ok: true });
+    } catch(err:any){
+        res.status(500).json({ error: err?.message ?? 'Reconnect failed' });
+    }
+});
+apiRouter.post('/cloud/reset', async (_req, res) => {
+    try{
+        await resetDeviceHubConnection();
+        res.json({ ok: true });
+    } catch(err:any){
+        res.status(500).json({ error: err?.message ?? 'Reset failed' });
     }
 });
 apiRouter.get('/network/ap', async (_req, res) => {
@@ -336,6 +392,57 @@ export async function connectToDeviceHub():Promise<void>{
     if(cloudConnectInProgress) return;
     cloudConnectInProgress = true;
     try{ await _connectToDeviceHub(); } finally{ cloudConnectInProgress = false; }
+}
+
+/*
+ *  Point the device at a Device Hub and provision against it.
+ *  Web-interface equivalent of `edgeberry --setup`: fetch the hub's
+ *  provisioning certificates, store them, discard any existing identity and
+ *  run the CSR exchange again.
+ */
+export async function provisionToDeviceHub( hostName:string ):Promise<void>{
+    const certs = await fetchProvisioningCertificates(hostName);
+    console.log('\x1b[32mFetched provisioning certificates from '+hostName+' via '+certs.via+'\x1b[37m');
+
+    const clientId = system_board_getUUID() ?? settings?.provisioning?.clientId;
+    if(!clientId) throw new Error('No board UUID and no existing clientId — cannot provision');
+
+    // Must pass the PEM *contents*: settings_storeProvisioningParameters()
+    // writes an empty file for any of certificate/privateKey/rootCertificate
+    // it does not receive as a string, so handing it the stored *File paths
+    // would wipe the certificates it is meant to save.
+    settings_storeProvisioningParameters({
+        hostName,
+        clientId,
+        certificate:     certs.certificate,
+        privateKey:      certs.privateKey,
+        rootCertificate: certs.rootCertificate,
+    });
+
+    // Drop the current identity so _connectToDeviceHub() takes the
+    // provisioning branch rather than reconnecting with the old certificate.
+    settings_deleteConnectionParameters();
+    if(cloud){
+        try{ await cloud.disconnect(); } catch(_e){}
+        cloud = null as any;
+    }
+    stateManager.updateConnectionState('connection', 'disconnected');
+
+    await connectToDeviceHub();
+}
+
+/*
+ *  Forget the provisioned identity. The device re-provisions against the
+ *  configured hub on the next connect attempt.
+ */
+export async function resetDeviceHubConnection():Promise<void>{
+    settings_deleteConnectionParameters();
+    if(cloud){
+        try{ await cloud.disconnect(); } catch(_e){}
+        cloud = null as any;
+    }
+    stateManager.updateConnectionState('connection', 'disconnected');
+    stateManager.updateConnectionState('provision', 'not provisioned');
 }
 
 async function _connectToDeviceHub():Promise<void>{
