@@ -1,11 +1,15 @@
 name: Publish Node SDK
 
 on:
-  push:
-    tags:
-      - 'node-sdk-v*'   # triggers on tags like node-sdk-v3.4.0
-  release:
-    types: [created]    # also fires when a GitHub release is created
+  # Manual only — publishing is done by hand.
+  #
+  # This previously ran on 'node-sdk-v*' tags and on every GitHub release.
+  # The release trigger fired for all three SDK workflows on any release,
+  # whether or not the package had changed, so 'npm publish' failed against
+  # the already-published version. Restore those triggers here if automatic
+  # publishing is wanted again; disabling in the Actions UI is not recorded
+  # in the repository and does not survive a fork.
+  workflow_dispatch:
 
 jobs:
   publish:
