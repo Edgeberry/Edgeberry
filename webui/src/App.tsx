@@ -403,8 +403,13 @@ function AppShell() {
   const [provisionState,  setProvisionState]  = useState<ProvisionState>('unknown')
   const [connectionState, setConnectionState] = useState<ConnectionState>('unknown')
   const [hostname,        setHostname]        = useState<string>('')
+  const [apNoticeDismissed, setApNoticeDismissed] = useState(false)
 
   useEffect(() => { if (hostname) document.title = hostname }, [hostname])
+
+  // Re-arm the notice when AP mode ends, so the next entry announces itself
+  // again rather than staying silently dismissed from a previous session.
+  useEffect(() => { if (wifiState !== 'ap_mode') setApNoticeDismissed(false) }, [wifiState])
 
   useEffect(() => {
     const poll = () => {
@@ -450,12 +455,39 @@ function AppShell() {
       <TerminalModal onReady={(fn) => { openTerminal.current = fn }} />
       <div style={{ height: 'calc(100vh - 56px)' }}>
         <main style={{ overflow: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {/* Non-blocking: AP mode is a valid steady state for a device that
+              never needs a network, so this offers setup rather than demanding
+              it. flexShrink:0 keeps the flexing iframe below from squashing it. */}
+          {wifiState === 'ap_mode' && !apNoticeDismissed && (
+            <div
+              className="d-flex align-items-center gap-2 px-3 py-2"
+              style={{
+                background: 'rgba(245,158,11,0.12)',
+                borderBottom: '1px solid rgba(245,158,11,0.35)',
+                fontSize: '0.85rem', flexShrink: 0,
+              }}
+            >
+              <i className="fa-solid fa-wifi" style={{ color: '#f59e0b' }} />
+              <span className="flex-grow-1">
+                Access point mode
+                {apSsid && <> — <span style={{ fontFamily: 'monospace' }}>{apSsid}</span></>}
+              </span>
+              <button className="btn btn-sm btn-outline-warning py-0" onClick={() => openNetwork.current()}>
+                Configure network
+              </button>
+              <button
+                className="btn-close btn-close-white"
+                style={{ fontSize: '0.6rem' }}
+                aria-label="Dismiss"
+                onClick={() => setApNoticeDismissed(true)}
+              />
+            </div>
+          )}
           <Routes>
-            {/* In AP mode the device is unconfigured or being reconfigured, and
-                the captive portal drops the user on '/'. Land them on the
-                network view so the setup path and the button/toggle path all
-                arrive at the same screen. */}
-            <Route path="/" element={wifiState === 'ap_mode' ? <div className="p-4"><Network /></div> : <ApplicationPage />} />
+            {/* '/' always shows the application. Edgeberry devices are useful
+                with no network at all, so AP mode must not replace the app with
+                a setup screen — the banner above offers configuration instead. */}
+            <Route path="/" element={<ApplicationPage />} />
             <Route path="/network" element={<div className="p-4"><Network /></div>} />
             <Route path="/cloud" element={<div className="p-4"><Placeholder title="Cloud Connection" /></div>} />
             <Route path="*" element={<div className="p-4"><Home /></div>} />
