@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { BrowserRouter, NavLink, Routes, Route } from 'react-router-dom'
 import { Modal } from 'bootstrap'
 import Network from './pages/Network'
@@ -35,6 +36,88 @@ function NetworkIcon({ wifi, network, ssid }: { wifi: WifiState; network: string
   return <i className="fa-solid fa-wifi" style={{ color: 'rgba(255,255,255,0.3)' }} title="Network unknown" />
 }
 
+function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; onOpenPower: () => void; }) {
+  const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+
+  function toggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(v => !v)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function close(e: MouseEvent) {
+      if (btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  const menu = open ? createPortal(
+    <ul
+      style={{
+        position: 'fixed', top: pos.top, right: pos.right, zIndex: 99999,
+        listStyle: 'none', margin: 0, padding: '0.25rem 0',
+        backgroundColor: '#1e1e1e', border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: '0.375rem', minWidth: 160,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+      }}
+      onMouseDown={e => e.stopPropagation()}
+    >
+      <li>
+        <button
+          className="dropdown-item d-flex align-items-center gap-2"
+          style={{ color: 'rgba(255,255,255,0.85)' }}
+          onClick={() => { setOpen(false); onOpenTerminal() }}
+        >
+          <i className="fa-solid fa-terminal fa-fw" />Terminal
+        </button>
+      </li>
+      <li><hr className="dropdown-divider" /></li>
+      <li>
+        <button
+          className="dropdown-item d-flex align-items-center gap-2"
+          style={{ color: 'rgba(255,255,255,0.85)' }}
+          onClick={() => { setOpen(false); fetch('/api/system/identify', { method: 'POST' }).catch(() => {}) }}
+        >
+          <i className="fa-solid fa-location-dot fa-fw" />Identify
+        </button>
+      </li>
+      <li><hr className="dropdown-divider" /></li>
+      <li>
+        <button
+          className="dropdown-item d-flex align-items-center gap-2"
+          style={{ color: 'rgba(255,255,255,0.85)' }}
+          onClick={() => { setOpen(false); onOpenPower() }}
+        >
+          <i className="fa-solid fa-power-off fa-fw" />Power
+        </button>
+      </li>
+    </ul>,
+    document.body
+  ) : null
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        className="btn btn-sm"
+        style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.5rem' }}
+        onClick={toggle}
+        title="Menu"
+      >
+        <i className="fa-solid fa-ellipsis-vertical" />
+      </button>
+      {menu}
+    </>
+  )
+}
+
 function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiState, networkState, activeSsid, provisionState, connectionState, hostname }:
   { onOpenTerminal: () => void; onOpenNetwork: () => void; onOpenCloud: () => void; onOpenPower: () => void;
     wifiState: WifiState; networkState: string; activeSsid: string | null;
@@ -48,7 +131,7 @@ function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiS
         <span className="d-none d-sm-block fw-semibold text-truncate" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.9rem', maxWidth: 240, textAlign: 'center' }}>
           {hostname}
         </span>
-        <div className="d-flex align-items-center gap-2" style={{ justifySelf: 'end' }}>
+        <div className="d-flex align-items-center gap-1" style={{ justifySelf: 'end' }}>
           <button
             className="btn btn-sm d-flex align-items-center"
             style={{ lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.4rem' }}
@@ -64,22 +147,7 @@ function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiS
           >
             <CloudIcon provision={provisionState} connection={connectionState} />
           </button>
-          <button
-            className="btn btn-sm"
-            style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1 }}
-            onClick={onOpenTerminal}
-            title="Terminal"
-          >
-            <i className="fa-solid fa-terminal" />
-          </button>
-          <button
-            className="btn btn-sm"
-            style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1 }}
-            onClick={onOpenPower}
-            title="Power"
-          >
-            <i className="fa-solid fa-power-off" />
-          </button>
+          <NavMenu onOpenTerminal={onOpenTerminal} onOpenPower={onOpenPower} />
         </div>
       </div>
     </nav>
@@ -315,6 +383,8 @@ function AppShell() {
   const [connectionState, setConnectionState] = useState<ConnectionState>('unknown')
   const [hostname,        setHostname]        = useState<string>('')
 
+  useEffect(() => { if (hostname) document.title = hostname }, [hostname])
+
   useEffect(() => {
     const poll = () => {
       fetch('/api/state')
@@ -358,8 +428,7 @@ function AppShell() {
       <div style={{ height: 'calc(100vh - 56px)' }}>
         <main style={{ overflow: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Routes>
-            <Route path="/" element={<div className="p-4"><Home /></div>} />
-            <Route path="/application" element={<ApplicationPage />} />
+            <Route path="/" element={<ApplicationPage />} />
             <Route path="/network" element={<div className="p-4"><Network /></div>} />
             <Route path="/cloud" element={<div className="p-4"><Placeholder title="Cloud Connection" /></div>} />
             <Route path="*" element={<div className="p-4"><Home /></div>} />

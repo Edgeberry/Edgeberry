@@ -62,8 +62,9 @@ apiRouter.get('/state', (_req, res) => {
     state.system = { ...state.system, hostname: require('os').hostname() };
     res.json(state);
 });
-apiRouter.post('/system/reboot',   (_req, res) => { system_restart();  res.json({ ok: true }); });
-apiRouter.post('/system/shutdown', (_req, res) => { system_shutdown(); res.json({ ok: true }); });
+apiRouter.post('/system/reboot',    (_req, res) => { system_restart();  res.json({ ok: true }); });
+apiRouter.post('/system/shutdown',  (_req, res) => { system_shutdown(); res.json({ ok: true }); });
+apiRouter.post('/system/identify',  (_req, res) => { stateManager.interruptIndicators('identify'); res.json({ ok: true }); });
 apiRouter.get('/network/wifi/active', async (_req, res) => {
     try {
         const ssid = await networkManager.getActiveWifiSsid();
