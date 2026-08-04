@@ -164,7 +164,10 @@ if [ $? -eq 0 ]; then mark_step_completed 9; else mark_step_failed 9; echo -e "\
 
 # Step 10: Install D-Bus policy
 mark_step_busy 10
-"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/config/edgeberry-core.conf\" /etc/dbus-1/system.d/; elif [ -f \"$APPDIR/edgeberry-core.conf\" ]; then sudo mv -f \"$APPDIR/edgeberry-core.conf\" /etc/dbus-1/system.d/; fi" >/dev/null 2>&1
+# 'install' rather than 'mv' — D-Bus parses this policy as root, and 'mv'
+# carried the deploying user's ownership onto it (matching how the systemd
+# unit is placed in step 12).
+"${SSH_BASE[@]}" ${USER}@${HOST} "if [ -f \"$APPDIR/config/edgeberry-core.conf\" ]; then sudo install -m 644 -o root -g root \"$APPDIR/config/edgeberry-core.conf\" /etc/dbus-1/system.d/edgeberry-core.conf; elif [ -f \"$APPDIR/edgeberry-core.conf\" ]; then sudo install -m 644 -o root -g root \"$APPDIR/edgeberry-core.conf\" /etc/dbus-1/system.d/edgeberry-core.conf; fi" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 10; else mark_step_failed 10; echo -e "\e[0;33mFailed to install D-Bus policy\e[0m"; exit 1; fi
 
 # Step 11: Install/configure nginx as reverse proxy

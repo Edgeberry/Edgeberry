@@ -422,7 +422,10 @@ fi
 
 # Step 10: Install the Edgeberry systemd service
 mark_step_busy 10
-mv -f /opt/${APPNAME}/${APPCOMP}/config/io.edgeberry.core.service /etc/systemd/system/
+# 'install' rather than 'mv': it sets mode and ownership explicitly instead of
+# carrying over whatever the unpacked tarball happened to have, and it leaves
+# the source in place so re-running this script is idempotent.
+install -m 644 -o root -g root /opt/${APPNAME}/${APPCOMP}/config/io.edgeberry.core.service /etc/systemd/system/io.edgeberry.core.service
 systemctl daemon-reload
 if [ $? -eq 0 ]; then
     mark_step_completed 10
@@ -442,7 +445,10 @@ fi
 
 # Step 12: Move the dbus policy to the /etc/dbus-1/system.d directory
 mark_step_busy 12
-mv -f /opt/${APPNAME}/${APPCOMP}/config/edgeberry-core.conf /etc/dbus-1/system.d/
+# Must end up root-owned: D-Bus parses this policy as root, so a file writable
+# by a non-root user would let that user grant itself any bus name. 'mv' here
+# preserved the application directory's ownership instead.
+install -m 644 -o root -g root /opt/${APPNAME}/${APPCOMP}/config/edgeberry-core.conf /etc/dbus-1/system.d/edgeberry-core.conf
 if [ $? -eq 0 ]; then
     mark_step_completed 12
 else

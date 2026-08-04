@@ -52,23 +52,27 @@ jobs:
         # existed. Fail the build rather than ship a device with no interface.
         run: |
           set -e
+          # Whole directory trees must match the source exactly. Diffing rather
+          # than listing filenames means files added to these directories are
+          # covered automatically, with no list here to keep in sync.
+          diff -r build          tempdir/build
+          diff -r public         tempdir/public
+          diff -r share          tempdir/share
+          diff -r config/nginx   tempdir/config/nginx
+          # Files copied individually, so they are named individually.
           for f in \
-            tempdir/build/main.js \
-            tempdir/public/webui/index.html \
             tempdir/package.json \
             tempdir/package-lock.json \
             tempdir/config/io.edgeberry.core.service \
             tempdir/config/edgeberry-core.conf \
-            tempdir/config/nginx/edgeberry \
-            tempdir/config/nginx/edgeberry.conf \
-            tempdir/config/nginx/proxy_params \
             tempdir/scripts/edgeberry_cli.sh \
             tempdir/scripts/setup.sh \
-            tempdir/scripts/uninstall.sh \
-            tempdir/share/errors/404.html
+            tempdir/scripts/uninstall.sh
           do
             test -f "$f" || { echo "MISSING: $f"; exit 1; }
           done
+          # The two artefacts a build can plausibly produce empty.
+          test -f tempdir/build/main.js || { echo "MISSING: compiled server"; exit 1; }
           ls tempdir/public/webui/assets/*.js >/dev/null 2>&1 \
             || { echo "MISSING: web UI javascript bundle"; exit 1; }
           echo "Package contents verified."
