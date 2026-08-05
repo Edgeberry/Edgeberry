@@ -486,8 +486,14 @@ async function _connectToDeviceHub():Promise<void>{
 
                 // disable the provisioning
                 stateManager.updateConnectionState( 'provision', 'disabled' );
-                // Connect the client
-                await cloud.connect();
+                // Connect the client. The underlying mqtt client is created
+                // synchronously inside connect(), so the reconnection policy is
+                // attached before awaiting — the first attempt can fail too
+                // (hub down while the device boots), and that retry needs
+                // jittering just as much as any later one.
+                const connecting = cloud.connect();
+                attachMqttReconnectPolicy();
+                await connecting;
             } else {
                 // Cloud client already exists — force the underlying MQTT
                 // client to reconnect (e.g. after AP mode disrupted WiFi).
@@ -497,9 +503,24 @@ async function _connectToDeviceHub():Promise<void>{
             }
         } catch(err){
             console.error('Cloud connect failed:', err);
-            // Discard the broken client so the next connectToDeviceHub()
-            // call (e.g. triggered by StateChanged reaching Full) starts fresh.
-            cloud = null as any;
+            const client = (cloud as any)?.client;
+            if(client && !client.disconnecting){
+                // mqtt.js is already retrying this client on the backoff
+                // schedule. Keep it: dropping the reference would leave it
+                // reconnecting in the background while the next
+                // connectToDeviceHub() built a second client on the same
+                // clientId — the duplicate-connection fault this file warns
+                // about, which only became reachable once reconnection was
+                // switched back on.
+                console.log('\x1b[90mCloud Connection: retrying in the background\x1b[37m');
+            } else {
+                // Nothing is retrying — e.g. the certificates failed to load,
+                // so no mqtt client was ever created. Drop the half-built
+                // client so a later attempt starts fresh.
+                try{ client?.end(true); } catch(_e){}
+                cloud = null as any;
+                mqttPolicyAttached = false;
+            }
         }
     }
     // If there were no connection settings, but we have provisioning
@@ -519,31 +540,75 @@ async function _connectToDeviceHub():Promise<void>{
 }
 
 /*
- *  Surface mqtt.js's own reconnection activity.
- *  The client library reports only 'connected' and 'disconnected', so a device
- *  that had stopped retrying looked identical in the log to one that was
- *  retrying and failing — a silent gap between the two. Attaching to the
- *  underlying client makes the difference visible.
- *  The client only exists once connect() has run, so this is attached on first
- *  connect and guarded against being attached twice.
+ *  Reconnection policy — backoff with full jitter.
+ *
+ *  mqtt.js retries on a fixed interval. That is fine for one device and bad for
+ *  a fleet: every device dropped by the same hub restart comes back in lockstep,
+ *  so the hub is hit by a synchronised burst of mTLS handshakes the moment it
+ *  returns — potentially enough to push it over again, which re-synchronises
+ *  everyone into a retry storm. Devices have to spread themselves out.
+ *
+ *  Each retry waits a random delay drawn from a window that doubles per
+ *  consecutive failure. Randomising from the first retry smears the fleet
+ *  across the window immediately; doubling decays the offered load if the
+ *  outage is long. The window is capped so recovery stays timely.
+ *
+ *  This works without a custom reconnect loop because mqtt.js re-reads
+ *  options.reconnectPeriod every time it reschedules (_cleanUp calls
+ *  _clearReconnect then _setupReconnect), so varying that value between
+ *  attempts is enough — and reconnection still happens on the existing client
+ *  instance, which is what keeps a second client off the same clientId.
  */
-let mqttLoggingAttached = false;
-function attachMqttLogging(){
-    if(mqttLoggingAttached) return;
+const RECONNECT_MIN_MS  = 1000;     // floor; also keeps the value > 0
+const RECONNECT_BASE_MS = 5000;     // first window: 1–5 s
+const RECONNECT_MAX_MS  = 60000;    // window ceiling
+
+function reconnectDelay( attempt:number ):number{
+    const ceiling = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, attempt));
+    // Must never be 0 — mqtt.js reads reconnectPeriod 0 as "stop reconnecting",
+    // which is precisely how this device ended up staying offline before.
+    return Math.round(RECONNECT_MIN_MS + Math.random() * Math.max(0, ceiling - RECONNECT_MIN_MS));
+}
+
+/*
+ *  Attach the policy, plus logging of mqtt.js's own reconnection activity.
+ *  The client library only reports 'connected'/'disconnected', so a device that
+ *  had stopped retrying looked exactly like one retrying and failing: silence.
+ */
+let mqttPolicyAttached = false;
+function attachMqttReconnectPolicy(){
+    if(mqttPolicyAttached) return;
     const client = (cloud as any)?.client;
     if(!client) return;
-    mqttLoggingAttached = true;
-    client.on('reconnect', ()=>{ console.log('\x1b[90mCloud Connection: reconnecting...\x1b[37m'); });
-    client.on('offline',   ()=>{ console.log('\x1b[33mCloud Connection: offline\x1b[37m'); });
+    mqttPolicyAttached = true;
+
+    let attempt = 0;
+
+    client.on('connect', ()=>{
+        attempt = 0;
+        client.options.reconnectPeriod = reconnectDelay(0);
+    });
+
+    client.on('reconnect', ()=>{
+        attempt++;
+        client.options.reconnectPeriod = reconnectDelay(attempt);
+        console.log('\x1b[90mCloud Connection: reconnecting (attempt '+attempt+
+                    ', next in ~'+Math.round(client.options.reconnectPeriod/1000)+'s)\x1b[37m');
+    });
+
+    client.on('offline', ()=>{ console.log('\x1b[33mCloud Connection: offline\x1b[37m'); });
+
+    // Seed the first window so even the initial retry is jittered.
+    client.options.reconnectPeriod = reconnectDelay(0);
 }
 
 function setupCloudEventHandlers() {
     if (!cloud) return;
     // A fresh client means a fresh underlying mqtt client to attach to.
-    mqttLoggingAttached = false;
+    mqttPolicyAttached = false;
 
     cloud.on('connected', ()=>{
-        attachMqttLogging();
+        attachMqttReconnectPolicy();
         stateManager.interruptIndicators('beep');
         stateManager.updateConnectionState('connection', 'connected');
         console.log('\x1b[32mCloud Connection: connected with device \x1b[37m');
