@@ -457,15 +457,25 @@ async function _connectToDeviceHub():Promise<void>{
                     cert: readFileSync( settings.connection.certificateFile ).toString(),
                     key: readFileSync( settings.connection.privateKeyFile ).toString(),
                     ca: readFileSync( settings.connection.rootCertificateFile ).toString(),
-                    reconnectPeriod: 0
+                    // MUST stay non-zero. mqtt.js treats reconnectPeriod 0 as
+                    // "never reconnect", and the client library's own retry is
+                    // stubbed out below — so 0 left the device permanently
+                    // offline after any drop, including a Device Hub restart.
+                    // mqtt.js retries on its existing client instance, which is
+                    // what makes this safe: no second mqtt.connect(), so no two
+                    // clients sharing a clientId.
+                    // (Passing 0 also silently defeated the library's own
+                    //  `reconnectPeriod || 2000` default, because its options
+                    //  object spreads the caller's values in last.)
+                    reconnectPeriod: 5000
                 });
 
                 // Disable the library's scheduleReconnect: it calls connect() on
                 // every 'close' event, which creates a brand-new mqtt.connect()
                 // without ending the previous client. Two clients with the same
                 // clientId cause the broker to kick one off repeatedly → infinite
-                // connect/disconnect cycle. MQTT.js built-in reconnection handles
-                // reconnects properly on its own.
+                // connect/disconnect cycle. Reconnection is mqtt.js's job here,
+                // configured by reconnectPeriod above.
                 (cloud as any).scheduleReconnect = () => {};
                 
                 // Set up event handlers
@@ -508,10 +518,32 @@ async function _connectToDeviceHub():Promise<void>{
     }
 }
 
+/*
+ *  Surface mqtt.js's own reconnection activity.
+ *  The client library reports only 'connected' and 'disconnected', so a device
+ *  that had stopped retrying looked identical in the log to one that was
+ *  retrying and failing — a silent gap between the two. Attaching to the
+ *  underlying client makes the difference visible.
+ *  The client only exists once connect() has run, so this is attached on first
+ *  connect and guarded against being attached twice.
+ */
+let mqttLoggingAttached = false;
+function attachMqttLogging(){
+    if(mqttLoggingAttached) return;
+    const client = (cloud as any)?.client;
+    if(!client) return;
+    mqttLoggingAttached = true;
+    client.on('reconnect', ()=>{ console.log('\x1b[90mCloud Connection: reconnecting...\x1b[37m'); });
+    client.on('offline',   ()=>{ console.log('\x1b[33mCloud Connection: offline\x1b[37m'); });
+}
+
 function setupCloudEventHandlers() {
     if (!cloud) return;
-    
+    // A fresh client means a fresh underlying mqtt client to attach to.
+    mqttLoggingAttached = false;
+
     cloud.on('connected', ()=>{
+        attachMqttLogging();
         stateManager.interruptIndicators('beep');
         stateManager.updateConnectionState('connection', 'connected');
         console.log('\x1b[32mCloud Connection: connected with device \x1b[37m');
@@ -663,7 +695,9 @@ async function handleProvisioningAccepted(message: Buffer) {
                         cert: readFileSync(settings.connection.certificateFile).toString(),
                         key: readFileSync(settings.connection.privateKeyFile).toString(),
                         ca: readFileSync(settings.connection.rootCertificateFile).toString(),
-                        reconnectPeriod: 0
+                        // Non-zero for the same reason as in connectToDeviceHub:
+                        // 0 disables mqtt.js reconnection entirely.
+                        reconnectPeriod: 5000
                     });
 
                     // Disable library's scheduleReconnect (see connectToDeviceHub)
