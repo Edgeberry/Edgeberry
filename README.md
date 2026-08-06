@@ -1,120 +1,160 @@
 ![Edgeberry Banner](https://raw.githubusercontent.com/Edgeberry/.github/main/brand/Edgeberry_banner_device_software.png)
 
-The **Edgeberry Device Software** turns a Linux device (e.g., Raspberry Pi) into a managed IoT device. It provisions the device to the Edgeberry Device Hub, maintains a secure MQTT connection, and publishes device state. Designed for the Edgeberry Baseboard, it reads the HAT EEPROM to identify the board/UUID, drives the baseboard’s status LED and buzzer, and listens to the user button for actions like identify and link‑to‑user. On‑device it runs as a systemd service with a CLI (`edgeberry`) and a D‑Bus API for apps, providing secure fleet onboarding (X.509, fleet provisioning), consistent shadow/state management, and remote operations (reboot, update, reconnect) so you can fully focus on the application logic of your IoT device.
+The **Edgeberry Device Software** turns a Raspberry Pi into a managed IoT device, so you only have to write your application.
 
-#### Key features
-- Edgeberry Dashboard integration: secure provisioning (X.509, fleet provisioning), persistent MQTT, and device shadow sync, ...
-- Remote control from the cloud: reboot, update, reconnect, and link‑to‑user via direct methods.
-- Integration with the Edgeberry device hardware: EEPROM identity, status LED & buzzer patterns, user button actions, ...
-- Runs as a `systemd` service with a simple CLI (`edgeberry`) and a D‑Bus API (`io.edgeberry.Core`) for local apps.
-- Network/platform detection and safe persistence of settings and certificates.
+It handles the parts every connected device needs and nobody wants to build twice: getting on WiFi without a monitor, enrolling with a cloud back end using X.509 certificates, keeping that connection alive through outages, reporting device state, and accepting remote commands. Your application talks to it over a local D-Bus API — send telemetry, receive cloud messages, report health — and never touches MQTT, certificates or reconnection logic.
+
+On an Edgeberry Base Board it also drives the status LED and buzzer and listens to the user button, so the device can be operated and diagnosed without a screen.
 
 ## Installation
-On your device, install the Edgeberry Device Software by downloading and executing the installation script
-```
-wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/latest/download/install.sh;
-chmod +x ./install.sh;
-sudo ./install.sh -y;
-```
-If the installation was successful, you can access the Edgeberry Commandline Interface (CLI):
-```
-$ sudo edgeberry --help
+
+```sh
+wget -O install.sh https://github.com/Edgeberry/Edgeberry/releases/latest/download/install.sh
+chmod +x ./install.sh
+sudo ./install.sh -y
 ```
 
-### Node-RED
-Edgeberry provides a Node-RED node to interact with the Edgeberry Device Software over D-Bus. [Install Node-RED](https://nodered.org/docs/getting-started/raspberrypi) and the [Edgeberry node](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib).
+The installer sets up the service, the web interface and the `edgeberry` CLI. It needs a network connection — for a device that has none yet, connect it by Ethernet for the install, or flash a WiFi network into the SD card image first.
 
-> [!TIP]
-> During the installation Node-RED, do install the **Raspberry Pi specific nodes**.
+## First run: getting on WiFi
 
+No monitor or keyboard required.
 
-## WiFi Provisioning
+With no WiFi network configured, the device brings up its own open network named **`EDGB-XXXXXX`**. Join it from a phone or laptop and the setup page opens by itself. If it doesn't, browse to **http://10.42.0.1**.
 
-Headless WiFi setup through Access Point (AP) mode — no monitor or keyboard required.
+Pick a network, enter the password, and the device joins it and shuts its own network down.
 
-When no WiFi network is configured, the device enters AP mode by itself and broadcasts an open network named `EDGB-XXXXXX`. Connect to it and the setup page should open automatically; if it doesn't, browse to **http://10.42.0.1**. Choose a network, enter its password, and the device joins it and shuts the access point down.
-
-You can also toggle AP mode yourself: hold the user button for ~3 seconds, or use the switch behind the WiFi icon in the web interface. That switch is locked on while no network is configured, since leaving AP mode with nowhere to return to would make the device unreachable.
-
-The device stays fully usable in AP mode — it does not need a network to run your application.
+You can return to access point mode at any time: hold the user button for ~3 seconds, or use the switch behind the WiFi icon in the web interface. The switch is locked while no network is configured, because leaving with nowhere to return to would make the device unreachable.
 
 > [!IMPORTANT]
-> The button is the only way back into AP mode when the device can no longer reach its saved network, after a move for example. It is on no network at that point, so the web interface cannot be reached either. This is deliberate: the device never reconfigures itself.
+> If the device can no longer reach its saved network — after a move, for example — **the button is the only way back**. It is on no network at that point, so the web interface cannot be reached either. This is deliberate: the device never silently reconfigures itself.
 
-### Button controls
+A device works perfectly well with no internet connection. Nothing forces you to connect it.
 
-| Press duration | Action |
-|----------------|--------|
-| Short press | Beep (acknowledge) |
-| ~3 seconds | Toggle AP mode |
-| ~5 seconds | Reboot device |
+## The web interface
 
-### Status LED
+Open the device's address in a browser (port 80, no login). It gives you:
 
-| State | Pattern |
-|-------|---------|
-| AP mode | Triple orange blink |
-| Connecting to WiFi | Orange/green alternating |
-| Connected | Green heartbeat |
-| No network | Red blink (300 ms) |
+- **Status** — what the device is, what it is connected to, and whether your application is healthy.
+- **Network** — WiFi networks in range, saved networks, the access point switch, static IP configuration.
+- **Cloud** — the Device Hub connection: host, device identity, certificate status and expiry. This is the same thing `sudo edgeberry --setup` does from the command line.
+- **Application** — your Node-RED dashboard, if you have one.
+- **Terminal** — a root shell on the device.
+
+> [!WARNING]
+> The web interface has no authentication, and the terminal it offers is a root shell. Put the device on a trusted network. While it is in access point mode its network is open, and anyone in radio range can reach both.
+
+## Connecting to a Device Hub
+
+You need the hostname of your Edgeberry Device Hub. Enter it on the **Cloud** page, or run `sudo edgeberry --setup`.
+
+The device generates a private key, requests a certificate through fleet provisioning, and stores the result. From then on it connects on its own at boot, and reconnects after an outage with exponential backoff so a fleet coming back at once doesn't overwhelm the hub.
+
+## Physical controls
+
+Button:
+
+| Press | Action |
+|-------|--------|
+| Short | Beep — acknowledges the button works |
+| ~3 seconds | Toggle access point mode |
+| ~5 seconds | Reboot |
+
+Status LED — the device reports the most serious thing wrong, so read from the top:
+
+| Pattern | Meaning |
+|---------|---------|
+| Constant red | Internal fault |
+| Orange, alternating red | Rebooting |
+| Orange blink | Access point mode |
+| Red blink, slow (500 ms) | No network |
+| Red blink, fast (300 ms) | Network up, but no Device Hub connection |
+| Orange, fast (70 ms) | Provisioning, or connecting to the hub |
+| Green heartbeat | Connected and healthy |
+| Green/orange heartbeat | Connected, application reports a warning |
+| Fast red flash + beeping | Application reports critical |
+| Very fast red flash + rapid beeping | Application reports emergency |
+
+The last four follow the health your application reports through `SetApplicationStatus`.
 
 ## CLI
-You can interact with the Edgeberry Device Software using the **Edgeberry CLI**.
-```
+
+```sh
 sudo edgeberry --help
 ```
 
-## Application development
-### Python SDK
-Edgeberry provides a SDK for Python applications
-```bash
+Covers setup, version, service control (`--start`, `--stop`, `--restart`, `--enable`, `--disable`), the hardware UUID and base board version, and `--identify` to make a device announce itself physically — useful for finding one device among many.
+
+## Building an application
+
+Your application runs as its own process and talks to the device software over D-Bus.
+
+### Python
+
+```sh
 pip install edgeberry
 ```
-See [sdk/python](sdk/python) for detailed documentation, API reference, and usage examples.
 
-### D-Bus API
-Edgeberry uses inter-process communication through `D-Bus` to interact with other applications. If there's no SDK available in your favorite language 
-you can use D-Bus directly.
+See [sdk/python](sdk/python) for the API reference and examples.
+
+### Node-RED
+
+Install [Node-RED](https://nodered.org/docs/getting-started/raspberrypi) and the [Edgeberry node](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib). Its dashboard then shows up on the **Application** page of the web interface.
+
+> [!TIP]
+> Do install the **Raspberry Pi specific nodes** during Node-RED setup.
+
+### D-Bus directly
+
+If there is no SDK for your language, use `io.edgeberry.Core` on the system bus at `/io/edgeberry/Core`.
 
 **Methods:**
 
-| Object           | Method              | Argument                                                    | 
-|------------------|---------------------|-------------------------------------------------------------|
-|io.edgeberry.Core |SendMessage          | {"temperature":22.5,...} (any JSON telemetry data)         |
-|                  |SetApplicationInfo   | {"name":[string],"version":[string],"description":[string]} |
-|                  |SetApplicationStatus | {"status":[ok/warning/error/critical/emergency],"message":[string]} |
+| Method | Argument | Purpose |
+|--------|----------|---------|
+| `SendMessage` | `{"temperature":22.5}` — any JSON | Send telemetry to the cloud |
+| `SetApplicationInfo` | `{"name":…,"version":…,"description":…}` | Identify your application |
+| `SetApplicationStatus` | `{"status":"ok\|warning\|critical\|emergency","message":…}` | Report health; drives the status LED |
+| `GetState` | — | Current device state as JSON |
+| `Identify` | — | Blink and beep to physically locate the device |
 
 **Signals:**
 
-| Object           | Signal              | Payload                                                      | 
-|------------------|---------------------|--------------------------------------------------------------|
-|io.edgeberry.Core |CloudMessage         | JSON string with cloud-to-device message data                |
+| Signal | Payload |
+|--------|---------|
+| `CloudMessage` | Cloud-to-device message, JSON |
+| `ButtonEvent` | `click`, `pressrelease`, `apToggle`, `longpress`, `verylongpress` |
+| `StateUpdate` | Device state, JSON, on every change |
 
-Using `dbus-send`, you can request a description (introspection) of the available methods, properties, and signals on the io.edgeberry.Core object. 
+Introspect the live interface on a device:
+
 ```sh
-dbus-send --system --type=method_call --print-reply \
-          --dest=io.edgeberry.Core \
-          /io/edgeberry/Core \
-          org.freedesktop.DBus.Introspectable.Introspect
+sudo dbus-send --system --type=method_call --print-reply \
+     --dest=io.edgeberry.Core /io/edgeberry/Core \
+     org.freedesktop.DBus.Introspectable.Introspect
 ```
 
-### Node-RED Integration
-For Node-RED users, install the Edgeberry node to send telemetry and interact with device software:
-```bash
-cd ~/.node-red
-npm install /path/to/Edgeberry-device-software/sdk/node-red-contrib
-node-red-restart
+`sudo` is required — the D-Bus policy restricts this interface to root.
+
+### Adding your own web routes
+
+Drop an nginx `location` block into `/opt/Edgeberry/Core/config/nginx/routes.d/`. It is matched ahead of the device software's own catch-all, so you can serve your application alongside the device UI on port 80.
+
+### Branding
+
+Every colour in the web interface comes from CSS custom properties, so you can restyle it for your own project without touching the code. Create `/etc/edgeberry/theme/brand.css`:
+
+```css
+:root {
+  --eb-accent:    #ff6600;
+  --eb-navbar-bg: #101820;
+}
 ```
-See [sdk/node-red-contrib](sdk/node-red-contrib) for detailed documentation and usage examples.
+
+That path takes precedence over the shipped theme, so your branding survives a software update. Overriding `--eb-accent` alone is usually enough; see [share/theme/tokens.css](share/theme/tokens.css) for the full set.
 
 ## License & Collaboration
+
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
 
-### Collaboration
-
-If you'd like to contribute to this project, please follow these guidelines:
-1. Fork the repository and create your branch from `main`.
-2. Make your changes and ensure they adhere to the project's coding style and conventions.
-3. Test your changes thoroughly.
-4. Ensure your commits are descriptive and well-documented.
-5. Open a pull request, describing the changes you've made and the problem or feature they address.
+To contribute: fork the repository, branch from `main`, keep to the existing style, test on a real device, and open a pull request describing the problem your change addresses.
