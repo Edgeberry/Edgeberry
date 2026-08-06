@@ -99,10 +99,52 @@ export function board_getUUID(){
 // For the blinking logic
 let primary:boolean=true;
 let blinkInterval:ReturnType<typeof setInterval> | null = null;
-// All in-flight setTimeout handles from blinkTwice/blinkThrice chains.
-// Cleared at the top of board_setStatusLed so a new command never races
-// against an orphaned write from the previous pattern.
-const pendingBlinkTimeouts: ReturnType<typeof setTimeout>[] = [];
+/*
+ *  In-flight setTimeout handles from blinkTwice/blinkThrice chains.
+ *
+ *  Cleared at the top of board_setStatusLed so a new command never races
+ *  against an orphaned write from the previous pattern — but only handles that
+ *  have not yet fired are worth holding. This used to be an array that was
+ *  pushed to and never spliced, drained only when board_setStatusLed ran the
+ *  clear-down. That clear-down sits behind the idempotency guard below, which
+ *  returns early whenever the requested command is unchanged, so a device
+ *  parked in one steady state never reached it.
+ *
+ *  The steady state is the healthy one: showHealthOk() re-runs blinkTwice()
+ *  every 1400 ms, pushing three handles a time. A device that was connected and
+ *  working therefore retained ~2.1 fired handles per second — about 370,000
+ *  objects and 130 MB over two days, which is fatal on a 512 MB board.
+ *
+ *  Each step now removes its own handle as it fires, so this holds only the one
+ *  timer a chain actually has outstanding.
+ */
+const pendingBlinkTimeouts = new Set<ReturnType<typeof setTimeout>>();
+
+/*
+ *  A blink chain is strictly sequential and shorter than the interval that
+ *  restarts it, so more than a couple of outstanding timers means something has
+ *  started leaking again. Warn once rather than throw: a status LED must never
+ *  be the reason the device goes down.
+ */
+const MAX_PENDING_BLINK_TIMEOUTS = 8;
+let pendingBlinkOverflowLogged = false;
+
+/** Schedule one step of a blink chain, dropping its handle once it has run. */
+function scheduleBlinkStep( delayMs:number, step:()=>void ):void{
+    // The callback cannot run before this assignment completes — timers never
+    // fire synchronously — so referencing `handle` inside it is safe.
+    const handle = setTimeout(()=>{
+        pendingBlinkTimeouts.delete(handle);
+        step();
+    }, delayMs);
+
+    pendingBlinkTimeouts.add(handle);
+
+    if( pendingBlinkTimeouts.size > MAX_PENDING_BLINK_TIMEOUTS && !pendingBlinkOverflowLogged ){
+        pendingBlinkOverflowLogged = true;
+        console.error(`\x1b[31mEdgeberry LED: ${pendingBlinkTimeouts.size} blink timers outstanding — leaking\x1b[37m`);
+    }
+}
 
 // Last-applied LED command — used by the idempotency guard to avoid
 // restarting a pattern (and resetting blink phase) when the same command
@@ -135,8 +177,8 @@ export function board_setStatusLed( color:string, blink?:boolean|number, seconda
     // Clear all previous state: interval AND all in-flight blink-chain timeouts.
     if( blinkInterval ) clearInterval( blinkInterval );
     blinkInterval = null;
-    let t: ReturnType<typeof setTimeout> | undefined;
-    while( (t = pendingBlinkTimeouts.pop()) !== undefined ) clearTimeout(t);
+    for( const handle of pendingBlinkTimeouts ) clearTimeout(handle);
+    pendingBlinkTimeouts.clear();
     primary=true;
     setLedColor('off');
 
@@ -176,34 +218,34 @@ export function board_setStatusLed( color:string, blink?:boolean|number, seconda
 
 function blinkTwice(color:string, secondaryColor:string){
     setLedColor(color);
-    pendingBlinkTimeouts.push(setTimeout(()=>{
+    scheduleBlinkStep(90,()=>{
         setLedColor('off');
-        pendingBlinkTimeouts.push(setTimeout(()=>{
+        scheduleBlinkStep(150,()=>{
             setLedColor(secondaryColor?secondaryColor:'red');
-            pendingBlinkTimeouts.push(setTimeout(()=>{
+            scheduleBlinkStep(90,()=>{
                 setLedColor('off');
-            },90));
-        },150));
-    },90));
+            });
+        });
+    });
 }
 
 function blinkThrice(color:string){
     setLedColor(color);
-    pendingBlinkTimeouts.push(setTimeout(()=>{
+    scheduleBlinkStep(90,()=>{
         setLedColor('off');
-        pendingBlinkTimeouts.push(setTimeout(()=>{
+        scheduleBlinkStep(90,()=>{
             setLedColor(color);
-            pendingBlinkTimeouts.push(setTimeout(()=>{
+            scheduleBlinkStep(90,()=>{
                 setLedColor('off');
-                pendingBlinkTimeouts.push(setTimeout(()=>{
+                scheduleBlinkStep(90,()=>{
                     setLedColor(color);
-                    pendingBlinkTimeouts.push(setTimeout(()=>{
+                    scheduleBlinkStep(90,()=>{
                         setLedColor('off');
-                    },90));
-                },90));
-            },90));
-        },90));
-    },90));
+                    });
+                });
+            });
+        });
+    });
 }
 
 // Set status indication on the buzzer
