@@ -219,7 +219,6 @@ export default function SystemInfoMenu({ hostname }: { hostname: string }) {
         style={{
           color: 'var(--eb-navbar-fg)', fontSize: '0.9rem', maxWidth: 240,
           background: 'none', border: 'none', padding: '0.25rem 0.5rem', borderRadius: '0.375rem',
-          justifySelf: 'center',
         }}
         onClick={toggle}
         title="System information"

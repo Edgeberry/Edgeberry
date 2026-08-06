@@ -168,14 +168,24 @@ function NavBar(props: NavBarProps) {
 
   return (
     <nav className="navbar navbar-dark" style={{ backgroundColor: 'var(--eb-navbar-bg)' }}>
+      {/* Each item is pinned to its column rather than left to auto-placement.
+          The device name hides itself below Bootstrap's sm breakpoint, and a
+          display:none item leaves the grid altogether — which used to drop the
+          icons into the middle column, where justifySelf:'end' aligned them to
+          the end of a centred column instead of the right edge of the bar. */}
       <div className="container-fluid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
-        <NavLink className="navbar-brand mb-0" to="/" style={{ justifySelf: 'start' }}>
+        <NavLink className="navbar-brand mb-0" to="/" style={{ gridColumn: 1, justifySelf: 'start' }}>
           <img src="/theme/logo/logo.svg" alt="Edgeberry" height="28" />
         </NavLink>
 
-        <SystemInfoMenu hostname={props.hostname} />
+        {/* The wrapper stays in the grid even when its contents do not, holding
+            the middle column open at zero width so the outer 1fr columns keep
+            splitting the bar evenly. */}
+        <div style={{ gridColumn: 2, justifySelf: 'center', minWidth: 0 }}>
+          <SystemInfoMenu hostname={props.hostname} />
+        </div>
 
-        <div className="d-flex align-items-center gap-1" style={{ justifySelf: 'end' }}>
+        <div className="d-flex align-items-center gap-1" style={{ gridColumn: 3, justifySelf: 'end' }}>
           <button className="btn btn-sm d-flex align-items-center" style={iconButtonStyle}
             onClick={props.onOpenNetwork} title="Network">
             <NetworkIcon wifi={props.wifiState} network={props.networkState} ssid={props.activeSsid} apSsid={props.apSsid} />
