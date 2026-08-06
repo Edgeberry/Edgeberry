@@ -1,65 +1,31 @@
 import { useEffect, useState } from 'react'
+import {
+  api, ApiError,
+  type AccessPoint, type ApStatus, type IpMode, type NetInterface, type WifiData,
+} from '../api'
+import { SectionLabel, InsetPanel, SignalBars } from '../components/ui'
 
-/* ── Types ─────────────────────────────────────────────────── */
+const AP_ADDRESS = '10.42.0.1'
 
-type Address = { address: string; family: string; mac: string; internal: boolean; cidr: string | null }
-type NetInterface = { name: string; addresses: Address[] }
-type SavedNetwork = { ssid: string; autoconnect: boolean }
-type AccessPoint  = { ssid: string; strength: number; frequency: number; secured: boolean }
-
-type WifiData = {
-  available: AccessPoint[]
-  saved:     SavedNetwork[]
-  active:    string | null
-}
+/** Which way the device is about to move. Both directions drop the connection
+ *  this page is served over, so each needs its own instructions. */
+type Transition = { to: 'ap' | 'station'; ssid: string | null }
 
 type IpForm = {
-  mode:    'auto' | 'manual'
+  mode:    IpMode
   address: string
   prefix:  string
   gateway: string
   dns:     string
 }
 
-/* canExit is false when no real (non-AP) network profile is saved — leaving
-   AP mode would strand the device, so the switch locks in the on position. */
-type ApStatus = { active: boolean; ssid: string | null; canExit: boolean }
-
-/* Which way the device is about to move. Both directions drop the connection
-   this page is served over, so each needs its own instructions. */
-type Transition = { to: 'ap' | 'station'; ssid: string | null }
-
-const AP_ADDRESS = '10.42.0.1'
-
-/* ── Helpers ────────────────────────────────────────────────── */
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-uppercase fw-semibold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--eb-accent)' }}>
-      {children}
-    </div>
-  )
-}
-
-function SignalDots({ strength }: { strength: number }) {
-  const bars = Math.round((strength / 100) * 4)
-  const color = strength >= 70 ? 'var(--eb-ok)' : strength >= 40 ? 'var(--eb-warn)' : 'var(--eb-fault)'
-  return (
-    <span style={{ color, fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '-1px' }}>
-      {'▂▄▆█'.split('').map((c, i) => (
-        <span key={i} style={{ opacity: i < bars ? 1 : 0.2 }}>{c}</span>
-      ))}
-    </span>
-  )
-}
-
 /* ── AP mode transition instructions ────────────────────────── */
 
-/* Rendered as a fixed overlay rather than a Bootstrap modal: this component
-   mounts inside the fullscreen Network modal, and nesting Bootstrap modals
-   fights over backdrop and scroll state. It must also survive the polling in
-   AppShell starting to fail — by the time it is visible the device is already
-   leaving the network this page came from. */
+/* A fixed overlay rather than a Bootstrap modal: this component mounts inside
+   the fullscreen Network modal, and nested Bootstrap modals fight over backdrop
+   and scroll state. It must also survive the polling in AppShell beginning to
+   fail — by the time it is visible, the device is already leaving the network
+   this page came from. */
 function TransitionOverlay({ t, onClose }: { t: Transition; onClose: () => void }) {
   const toAp = t.to === 'ap'
   return (
@@ -71,9 +37,12 @@ function TransitionOverlay({ t, onClose }: { t: Transition; onClose: () => void 
       }}
     >
       <div style={{ background: 'var(--eb-bg)', border: '1px solid var(--eb-line)', borderRadius: 8, maxWidth: 420, width: '100%' }}>
-        <div className="d-flex align-items-center gap-2 px-3 py-2" style={{ background: 'var(--eb-fg)', borderRadius: '8px 8px 0 0' }}>
+        <div
+          className="d-flex align-items-center gap-2 px-3 py-2"
+          style={{ background: 'var(--eb-navbar-bg)', borderRadius: '8px 8px 0 0' }}
+        >
           <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-accent)' }} />
-          <span className="fw-semibold" style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>
+          <span className="fw-semibold" style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem' }}>
             {toAp ? 'Access Point mode activated' : 'Leaving Access Point mode'}
           </span>
         </div>
@@ -106,7 +75,7 @@ function TransitionOverlay({ t, onClose }: { t: Transition; onClose: () => void 
   )
 }
 
-/* ── AP mode switch ─────────────────────────────────────────── */
+/* ── Access point switch ────────────────────────────────────── */
 
 function ApSection({ onTransition }: { onTransition: (t: Transition) => void }) {
   const [ap,      setAp]      = useState<ApStatus | null>(null)
@@ -114,27 +83,20 @@ function ApSection({ onTransition }: { onTransition: (t: Transition) => void }) 
   const [busy,    setBusy]    = useState(false)
   const [error,   setError]   = useState<string | null>(null)
 
-  useEffect(() => {
-    fetch('/api/network/ap').then(r => r.json()).then(setAp).catch(() => {})
-  }, [])
+  useEffect(() => { api.network.getAp().then(setAp).catch(() => {}) }, [])
 
-  // Locked on: in AP mode with nowhere to return to. Turning it off would
-  // leave the device unreachable over the network and over this UI.
+  // Locked on: in AP mode with nowhere to return to. Turning it off would leave
+  // the device unreachable over the network and over this interface.
   const locked = ap !== null && ap.active && !ap.canExit
 
-  async function apply(enabled: boolean) {
+  async function apply( enabled:boolean ) {
     setBusy(true); setError(null); setPending(null)
     try {
-      const r = await fetch('/api/network/ap', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled }),
-      })
-      const d = await r.json()
-      if (!r.ok) { setError(d.error ?? 'Failed.'); setBusy(false); return }
-      setAp(a => (a ? { ...a, active: enabled } : a))
+      await api.network.setAp(enabled)
+      setAp(current => (current ? { ...current, active: enabled } : current))
       onTransition({ to: enabled ? 'ap' : 'station', ssid: enabled ? (ap?.ssid ?? null) : null })
-    } catch {
-      setError('Request failed.')
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Request failed.')
     }
     setBusy(false)
   }
@@ -158,7 +120,11 @@ function ApSection({ onTransition }: { onTransition: (t: Transition) => void }) 
         />
         <label className="form-check-label" htmlFor="ap-switch" style={{ fontSize: '0.9rem' }}>
           {ap.active ? 'Active' : 'Off'}
-          {ap.ssid && <span className="text-muted ms-2" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{ap.ssid}</span>}
+          {ap.ssid && (
+            <span className="text-muted ms-2" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+              {ap.ssid}
+            </span>
+          )}
         </label>
       </div>
 
@@ -172,7 +138,7 @@ function ApSection({ onTransition }: { onTransition: (t: Transition) => void }) 
       {error && <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.8rem' }}>{error}</p>}
 
       {pending !== null && (
-        <div className="mt-3 p-3" style={{ background: 'rgba(0,0,0,0.03)', borderRadius: 8 }}>
+        <InsetPanel>
           <p className="mb-2" style={{ fontSize: '0.85rem' }}>
             {pending
               ? <>The device will leave your network and broadcast <strong style={{ fontFamily: 'monospace' }}>{ap.ssid ?? 'its own access point'}</strong>. You will lose this page.</>
@@ -186,20 +152,20 @@ function ApSection({ onTransition }: { onTransition: (t: Transition) => void }) 
               Cancel
             </button>
           </div>
-        </div>
+        </InsetPanel>
       )}
     </div>
   )
 }
 
-/* ── IP config panel ────────────────────────────────────────── */
+/* ── IP configuration ───────────────────────────────────────── */
 
 function IpConfigPanel({ ssid, onSaved }: { ssid: string; onSaved: () => void }) {
-  const [form, setForm] = useState<IpForm>({ mode: 'auto', address: '', prefix: '24', gateway: '', dns: '' })
+  const [form,   setForm]   = useState<IpForm>({ mode: 'auto', address: '', prefix: '24', gateway: '', dns: '' })
   const [saving, setSaving] = useState(false)
-  const [msg, setMsg]     = useState<{ ok: boolean; text: string } | null>(null)
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
-  function field(key: keyof IpForm, label: string, placeholder: string) {
+  function field( key:keyof IpForm, label:string, placeholder:string ) {
     return (
       <div className="mb-2">
         <label className="form-label mb-1" style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{label}</label>
@@ -216,60 +182,71 @@ function IpConfigPanel({ ssid, onSaved }: { ssid: string; onSaved: () => void })
   }
 
   async function save() {
-    setSaving(true); setMsg(null)
-    const body: any = { ssid, mode: form.mode }
-    if (form.mode === 'manual') {
-      body.address = form.address
-      body.prefix  = Number(form.prefix)
-      body.gateway = form.gateway
-      body.dns     = form.dns
-    }
+    setSaving(true); setMessage(null)
     try {
-      const r = await fetch('/api/network/wifi/ipconfig', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      await api.network.setIpConfig({
+        ssid,
+        mode:    form.mode,
+        ...(form.mode === 'manual' ? {
+          address: form.address,
+          prefix:  Number(form.prefix),
+          gateway: form.gateway,
+          dns:     form.dns,
+        } : {}),
       })
-      const d = await r.json()
-      if (d.ok) { setMsg({ ok: true, text: 'Saved.' }); onSaved() }
-      else setMsg({ ok: false, text: d.error ?? 'Failed.' })
-    } catch { setMsg({ ok: false, text: 'Request failed.' }) }
+      setMessage({ ok: true, text: 'Saved.' })
+      onSaved()
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof ApiError ? err.message : 'Request failed.' })
+    }
     setSaving(false)
   }
 
   return (
-    <div className="mt-3 p-3" style={{ background: 'rgba(0,0,0,0.03)', borderRadius: 8, fontFamily: 'monospace', fontSize: '0.875rem' }}>
+    <InsetPanel>
       <div className="mb-3">
         <SectionLabel>IP configuration</SectionLabel>
         <div className="d-flex gap-3">
-          {(['auto', 'manual'] as const).map(m => (
-            <div key={m} className="form-check">
-              <input className="form-check-input" type="radio" id={`ip-${m}-${ssid}`}
-                checked={form.mode === m} onChange={() => setForm(f => ({ ...f, mode: m }))} disabled={saving} />
-              <label className="form-check-label" htmlFor={`ip-${m}-${ssid}`}
-                style={{ textTransform: 'capitalize' }}>{m === 'auto' ? 'DHCP' : 'Static'}</label>
+          {(['auto', 'manual'] as const).map(mode => (
+            <div key={mode} className="form-check">
+              <input
+                className="form-check-input" type="radio" id={`ip-${mode}-${ssid}`}
+                checked={form.mode === mode}
+                onChange={() => setForm(f => ({ ...f, mode }))}
+                disabled={saving}
+              />
+              <label className="form-check-label" htmlFor={`ip-${mode}-${ssid}`}>
+                {mode === 'auto' ? 'DHCP' : 'Static'}
+              </label>
             </div>
           ))}
         </div>
       </div>
-      {field('address', 'Address',     '192.168.1.100')}
+
+      {field('address', 'Address',      '192.168.1.100')}
       {field('prefix',  'Prefix length','24')}
       {field('gateway', 'Gateway',      '192.168.1.1')}
       {field('dns',     'DNS servers',  '1.1.1.1, 8.8.8.8')}
+
       <div className="d-flex align-items-center gap-3 mt-3">
         <button className="btn btn-sm btn-primary" onClick={save} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
-        {msg && <span className={msg.ok ? 'text-success' : 'text-danger'} style={{ fontSize: '0.8rem' }}>{msg.text}</span>}
+        {message && (
+          <span className={message.ok ? 'text-success' : 'text-danger'} style={{ fontSize: '0.8rem' }}>
+            {message.text}
+          </span>
+        )}
       </div>
-    </div>
+    </InsetPanel>
   )
 }
 
-/* ── WiFi join panel ────────────────────────────────────────── */
+/* ── Joining a network ──────────────────────────────────────── */
 
-/* Posts to /provision/connect, which is mounted unconditionally by
-   CaptivePortal — so the same panel serves both the AP-mode setup wizard and
-   an ordinary "switch networks" action from the dashboard. When the portal is
-   active a successful join also tears down the AP on the device side. */
+/* When the captive portal is active, a successful join also tears down the
+   access point on the device side — the same call therefore serves both the
+   setup wizard and an ordinary "switch networks" from the dashboard. */
 function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void }) {
   const [passphrase, setPassphrase] = useState('')
   const [reveal,     setReveal]     = useState(false)
@@ -278,12 +255,8 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
   async function connect() {
     setState('connecting')
     try {
-      const r = await fetch('/provision/connect', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ssid: ap.ssid, passphrase: ap.secured ? passphrase : '' }),
-      })
-      const d = await r.json()
-      if (d.success) { setState('ok'); onJoined() } else setState('fail')
+      const { success } = await api.network.join(ap.ssid, ap.secured ? passphrase : '')
+      if (success) { setState('ok'); onJoined() } else setState('fail')
     } catch {
       setState('fail')
     }
@@ -304,7 +277,7 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
     )
 
   return (
-    <div className="mt-3 p-3" style={{ background: 'rgba(0,0,0,0.03)', borderRadius: 8 }}>
+    <InsetPanel>
       <SectionLabel>Join network</SectionLabel>
       {ap.secured ? (
         <div className="input-group input-group-sm mb-2">
@@ -335,11 +308,11 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
           </span>
         )}
       </div>
-    </div>
+    </InsetPanel>
   )
 }
 
-/* ── WiFi list row ──────────────────────────────────────────── */
+/* ── Network list ───────────────────────────────────────────── */
 
 function WifiRow({ ap, isSaved, isActive, onRefresh }: {
   ap: AccessPoint; isSaved: boolean; isActive: boolean; onRefresh: () => void
@@ -353,7 +326,7 @@ function WifiRow({ ap, isSaved, isActive, onRefresh }: {
         style={{ cursor: 'pointer', userSelect: 'none' }}
         onClick={() => setOpen(o => !o)}
       >
-        <SignalDots strength={ap.strength} />
+        <SignalBars strength={ap.strength} />
         <span className="flex-grow-1 fw-medium" style={{ fontSize: '0.9rem' }}>
           {isActive && <span className="me-1" style={{ color: 'var(--eb-ok)' }}>✓</span>}
           {ap.ssid}
@@ -371,8 +344,8 @@ function WifiRow({ ap, isSaved, isActive, onRefresh }: {
       </div>
 
       {/* IP configuration only applies to a profile that already exists —
-          setWifiIpConfig() throws for an SSID with no saved profile, so an
-          unsaved network gets the join panel instead. */}
+          setWifiIpConfig() rejects an SSID with no saved profile, so an unsaved
+          network gets the join panel instead. */}
       {open && (isSaved
         ? <IpConfigPanel ssid={ap.ssid} onSaved={onRefresh} />
         : <WifiJoinPanel ap={ap} onJoined={onRefresh} />)}
@@ -380,24 +353,21 @@ function WifiRow({ ap, isSaved, isActive, onRefresh }: {
   )
 }
 
-/* ── Network interfaces section ─────────────────────────────── */
-
 function Interfaces() {
-  const [ifaces, setIfaces] = useState<NetInterface[]>([])
+  const [interfaces, setInterfaces] = useState<NetInterface[]>([])
 
   useEffect(() => {
-    fetch('/api/network/interfaces')
-      .then(r => r.json())
-      .then((d: NetInterface[]) => setIfaces(d.filter(i => !i.addresses.every(a => a.internal))))
+    api.network.getInterfaces()
+      .then(list => setInterfaces(list.filter(i => !i.addresses.every(a => a.internal))))
       .catch(() => {})
   }, [])
 
-  if (ifaces.length === 0) return null
+  if (interfaces.length === 0) return null
 
   return (
     <div className="mb-4">
       <SectionLabel>Interfaces</SectionLabel>
-      {ifaces.map(iface => (
+      {interfaces.map(iface => (
         <div key={iface.name} className="mb-2" style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
           <div className="fw-bold">{iface.name}</div>
           {iface.addresses.map((addr, i) => (
@@ -412,7 +382,7 @@ function Interfaces() {
   )
 }
 
-/* ── Main page ──────────────────────────────────────────────── */
+/* ── Page ───────────────────────────────────────────────────── */
 
 export default function Network() {
   const [wifi,       setWifi]       = useState<WifiData | null>(null)
@@ -424,9 +394,8 @@ export default function Network() {
 
   function load() {
     setScanning(true); setError(null)
-    fetch('/api/network/wifi')
-      .then(r => r.json())
-      .then((d: WifiData) => { setWifi(d); setScanning(false) })
+    api.network.getWifi()
+      .then(data => { setWifi(data); setScanning(false) })
       .catch(() => { setError('Scan failed.'); setScanning(false) })
   }
 
@@ -437,7 +406,6 @@ export default function Network() {
       <h1 className="h4 mb-4">Network</h1>
 
       <ApSection onTransition={setTransition} />
-
       <Interfaces />
 
       <div className="d-flex align-items-center justify-content-between mb-2">
@@ -448,12 +416,11 @@ export default function Network() {
       </div>
 
       {error && <p className="text-danger" style={{ fontSize: '0.875rem' }}>{error}</p>}
-
       {wifi && wifi.available.length === 0 && (
         <p className="text-muted" style={{ fontSize: '0.875rem' }}>No networks found.</p>
       )}
 
-      {wifi && wifi.available.map(ap => (
+      {wifi?.available.map(ap => (
         <WifiRow
           key={ap.ssid}
           ap={ap}

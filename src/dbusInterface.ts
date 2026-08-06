@@ -1,16 +1,24 @@
 /*
  *  D-Bus interface
- *  D-Bus is an IPC that is by default present on most Linux distributions. It allows
- *  applications to communicate with each other (inter-process communication) through
- *  methods (remote procedure calls) and signals.
- * 
- *  D-Bus configuration file 'edgeberry-dbus.conf' should be placed in /etc/dbus-1/system.d/ 
- * 
- *  commandline examples:
- *      dbus-send --system --print-reply --dest=io.edgeberry.Service /io/edgeberry/Object io.edgeberry.Interface.Identify
+ *  D-Bus is an IPC that is present by default on most Linux distributions. It
+ *  lets applications call each other (remote procedure calls) and broadcast
+ *  events (signals).
+ *
+ *  This module exposes the `io.edgeberry.Core` service that the Python, Node
+ *  and Node-RED SDKs bind to. That name is a published API — renaming it or
+ *  changing a method signature breaks every application on every device.
+ *
+ *  The policy file `edgeberry-core.conf` must be installed to
+ *  /etc/dbus-1/system.d/ for the service name to be claimable.
+ *
+ *  Command-line example:
+ *      dbus-send --system --print-reply --dest=io.edgeberry.Core \
+ *                /io/edgeberry/Core io.edgeberry.Core.Identify
  */
 
-import { app_setApplicationInfo, ApplicationInfo } from "./applicationService";
+import { StateManager } from './stateManager';
+import { DeviceHubService } from './deviceHub';
+import { app_setApplicationInfo, ApplicationInfo } from './application';
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
@@ -18,236 +26,165 @@ const serviceName = 'io.edgeberry.Core';
 const objectPath = '/io/edgeberry/Core';
 const interfaceName = 'io.edgeberry.Core';
 
-// Connect to the session bus
-const systemBus = dbus.systemBus();
+export type DbusDeps = {
+    stateManager: StateManager;
+    deviceHub:    DeviceHubService;
+};
 
-if(systemBus)
-    console.log('\x1b[32mD-Bus client connected to system bus\x1b[30m');
-else
-    console.log('\x1b[31mD-Bus client could not connect to system bus\x1b[30m');
+/*
+ *  The bus connection is module-level state because the signal emitters below
+ *  are free functions called from elsewhere in the application. It is assigned
+ *  by start(), so importing this module does not connect to the system bus.
+ */
+let systemBus:any = null;
 
-// Request a unique service name (io.edgeberry.Service)
-systemBus.requestName(serviceName,0, (err:string|null, res:number|null)=>{
-    if(err)
-        return console.log('\x1b[31mD-Bus service name aquisition failed: '+err+'\x1b[30m');
-    else if( res )
-        return console.log('\x1b[32mD-Bus service name "'+serviceName+'" successfully aquired \x1b[30m');
-});
+/**
+ * Claim the service name, export the interface, and subscribe to the system
+ * signals we care about.
+ *
+ * Takes its dependencies as arguments. This module previously reached back into
+ * main.ts with `require('./main')` at each call site — six of them — purely to
+ * dodge the import cycle that created.
+ */
+export function startDbusInterface( deps:DbusDeps ):void{
+    const { stateManager, deviceHub } = deps;
 
-// Create the service object
-const serviceObject = {
-    Identify: ()=>{
-        console.log('Device identification requested via D-Bus');
-        // Import stateManager dynamically to avoid circular dependency
-        const { stateManager } = require('./main');
-        stateManager.interruptIndicators('identify');
-        return;
-    },
-    SetApplicationInfo:(arg:string)=>{
-        try{
-            const info = JSON.parse(arg.toString()) as ApplicationInfo;
-            app_setApplicationInfo(info);
-            return 'ok';
-        }
-        catch(err){
-            return 'err';
-        }
-    },
-    SetApplicationStatus:(arg:string)=>{
-        try{
-            const status = JSON.parse(arg.toString());
-            // Import stateManager dynamically to avoid circular dependency
-            const { stateManager } = require('./main');
-            stateManager.updateApplicationState('health', status.level );
-            return 'ok';
-        }
-        catch(err){
-            return 'err';
-        }
-    },
-    SendMessage:(arg:string)=>{
-        try{
-            const data = JSON.parse(arg.toString());
-            // Import cloud dynamically to avoid circular dependency
-            const { cloud } = require('./main');
-            if (!cloud) {
-                console.error('Cannot send message: Device Hub client not initialized');
-                return 'err:not_initialized';
-            }
-            try {
-                cloud.sendTelemetry(data);
+    systemBus = dbus.systemBus();
+    if(systemBus)
+        console.log('\x1b[32mD-Bus client connected to system bus\x1b[30m');
+    else
+        return console.log('\x1b[31mD-Bus client could not connect to system bus\x1b[30m');
+
+    systemBus.requestName(serviceName, 0, (err:string|null, res:number|null)=>{
+        if(err)
+            return console.log('\x1b[31mD-Bus service name aquisition failed: '+err+'\x1b[30m');
+        else if( res )
+            return console.log('\x1b[32mD-Bus service name "'+serviceName+'" successfully aquired \x1b[30m');
+    });
+
+    /*
+     *  The exported service object.
+     *  Every method takes and returns a JSON string ('s'), which is what the
+     *  published SDKs expect.
+     */
+    const serviceObject = {
+        Identify: ()=>{
+            console.log('Device identification requested via D-Bus');
+            stateManager.interruptIndicators('identify');
+            return;
+        },
+        SetApplicationInfo:(arg:string)=>{
+            try{
+                app_setApplicationInfo(JSON.parse(arg.toString()) as ApplicationInfo);
                 return 'ok';
-            } catch (sendErr: any) {
-                console.error('Cannot send message:', sendErr.message);
-                return 'err:not_connected';
             }
-        }
-        catch(err){
-            console.error('SendMessage error:', err);
-            return 'err:invalid_data';
-        }
-    },
-    GetState:()=>{
-        try{
-            const { stateManager } = require('./main');
-            return JSON.stringify(stateManager.getState());
-        }
-        catch(err){
-            console.error('GetState error:', err);
-            return '';
-        }
-    },
-    AnotherMethod: (arg:string)=>{
-        console.log("Another Method was called");
-        console.log(arg);
-        return 'this worked!'
-    }
-}
-
-// Register a service object with the object path
-// and define an interface with methods and signals
-// NOTE: exportInterface modifies serviceObject, it doesn't return anything
-systemBus.exportInterface( serviceObject, objectPath, {
-    name: interfaceName,
-    methods: {
-        Identify:['',''],
-        SetApplicationInfo:['s','s'],
-        SetApplicationStatus:['s','s'],
-        SendMessage:['s','s'],
-        GetState:['','s'],
-        AnotherMethod:['s','s']
-    },
-    signals: {
-        CloudMessage: ['s'],   // Signal for cloud-to-device messages
-        ButtonEvent:  ['s'],   // Signal for hardware button events (click/pressrelease/apToggle/longpress/verylongpress)
-        StateUpdate:  ['s']    // Signal emitted on every device state change (full deviceState JSON)
-    }
-});
-
-// Export function to emit cloud messages via D-Bus signal
-export function emitCloudMessage(message: any): void {
-    try {
-        const messageJson = JSON.stringify(message);
-        
-        // Emit signal using systemBus.sendSignal
-        // Body must be an array of values matching signature 's' (one string)
-        systemBus.sendSignal(objectPath, interfaceName, 'CloudMessage', 's', [messageJson]);
-        
-        console.log('\x1b[32mEmitted cloud message via D-Bus signal\x1b[30m');
-    } catch (err) {
-        console.error('\x1b[31mFailed to emit cloud message:\x1b[30m', err);
-    }
-}
-
-/**
- *  Emit a hardware button event over D-Bus.
- *  `event` is one of: 'click' | 'pressrelease' | 'apToggle' | 'longpress' | 'verylongpress'
- */
-export function emitButtonEvent(event: string): void {
-    try {
-        const payload = JSON.stringify({ event, timestamp: Date.now() });
-        systemBus.sendSignal(objectPath, interfaceName, 'ButtonEvent', 's', [payload]);
-    } catch (err) {
-        console.error('\x1b[31mFailed to emit button event:\x1b[30m', err);
-    }
-}
-
-/**
- *  Emit a device state update over D-Bus. The full `deviceState` is
- *  serialized to JSON so subscribers can pick whatever fields they care
- *  about (system / connection / application).
- */
-export function emitStateUpdate(state: any): void {
-    try {
-        const payload = JSON.stringify(state);
-        systemBus.sendSignal(objectPath, interfaceName, 'StateUpdate', 's', [payload]);
-    } catch (err) {
-        console.error('\x1b[31mFailed to emit state update:\x1b[30m', err);
-    }
-}
-
-
-/*
- *  D-Bus system interface
- */
-
-// Listen for system shutdown event
-systemBus.getService('org.freedesktop.login1').getInterface(    '/org/freedesktop/login1', 
-                                                                'org.freedesktop.login1.Manager',
-                                                                (err:any, iface:any)=>{
-                                                                    if(err) return console.log(err);
-                                                                    iface.on('PrepareForShutdown', (shutdown:boolean)=>{
-                                                                        if(shutdown){
-                                                                            const { stateManager } = require('./main');
-                                                                            stateManager.updateSystemState('state', 'restarting');
-                                                                            console.log('System shutting down');
-                                                                        }
-                                                                    });
-                                                                }
-                                                            );
-
-/*
- *  D-Bus Network Manager
- *  concept implementation of listening for the network
- *  manager state change, and calling a method to get the
- *  current state.
- * 
- *  TODO:  This does not belong here, and is a quick POC
- *         implementation !
- */
-
-let networkManagerInterface:any = null;
-
-async function initializeNetworkConnectionState(){
-    // Connect to the system D-Bus Network Manager interface
-    try{
-    systemBus.getService('org.freedesktop.NetworkManager').getInterface( '/org/freedesktop/NetworkManager',
-        'org.freedesktop.NetworkManager',
-        (err:string|null, iface:any)=>{
-            networkManagerInterface = iface;
-            // Get the current connectivity state
-            updateNetworkConnectivityState();
-            // Listen for state change events
-            networkManagerInterface.on('StateChanged', ()=>{updateNetworkConnectivityState()} );
-        }
-       );
-    } catch(err){}
-}
-
-function updateNetworkConnectivityState(){
-    try{
-        networkManagerInterface.CheckConnectivity((err:string|null, res:number)=>{
-            if(err) return;
-            const { stateManager, cloud, connectToDeviceHub } = require('./main');
-            stateManager.updateConnectionState('network', res>=4?'connected':'disconnected');
-            let stateName:string;
-            switch(res){
-                case(1):    stateName = 'None';
-                            break;
-                case(2):    stateName = 'Portal';
-                            break;
-                case(3):    stateName = 'Limited';
-                            break;
-                case(4):    stateName = 'Full';
-                            break;
-                default:    stateName = 'Unknown'
-                            break;
+            catch(err){
+                return 'err';
             }
-            console.log('Connectivity state: '+stateName);
-
-            // If full internet connectivity just arrived and the cloud client
-            // is not connected (e.g. boot-time DNS failure, or post-AP-mode),
-            // attempt to connect now. Guard against concurrent calls since
-            // StateChanged can fire multiple times in quick succession.
-            if(res >= 4){
-                const cloudConnected = stateManager.getState()?.connection?.connection === 'connected';
-                if(!cloudConnected){
-                    connectToDeviceHub();
+        },
+        SetApplicationStatus:(arg:string)=>{
+            try{
+                const status = JSON.parse(arg.toString());
+                stateManager.updateApplicationState('health', status.level );
+                return 'ok';
+            }
+            catch(err){
+                return 'err';
+            }
+        },
+        SendMessage:(arg:string)=>{
+            try{
+                const data = JSON.parse(arg.toString());
+                try{
+                    deviceHub.sendTelemetry(data);
+                    return 'ok';
+                } catch(sendErr:any){
+                    console.error('Cannot send message:', sendErr.message);
+                    return 'err:not_connected';
                 }
             }
-        });
-    } catch(err){}
+            catch(err){
+                console.error('SendMessage error:', err);
+                return 'err:invalid_data';
+            }
+        },
+        GetState:()=>{
+            try{
+                return JSON.stringify(stateManager.getState());
+            }
+            catch(err){
+                console.error('GetState error:', err);
+                return '';
+            }
+        },
+    };
+
+    // exportInterface mutates serviceObject; it does not return anything.
+    systemBus.exportInterface( serviceObject, objectPath, {
+        name: interfaceName,
+        methods: {
+            Identify:['',''],
+            SetApplicationInfo:['s','s'],
+            SetApplicationStatus:['s','s'],
+            SendMessage:['s','s'],
+            GetState:['','s'],
+        },
+        signals: {
+            CloudMessage: ['s'],   // cloud-to-device message
+            ButtonEvent:  ['s'],   // click | pressrelease | apToggle | longpress | verylongpress
+            StateUpdate:  ['s']    // full deviceState, on every change
+        }
+    });
+
+    subscribeToShutdown(stateManager);
 }
 
-// Initialize the network connection state
-initializeNetworkConnectionState();
+/*
+ *  Signal emitters
+ *  Safe to call before start(): they no-op rather than throwing, so a device
+ *  without a usable system bus still runs.
+ */
+
+function emitSignal( name:string, payload:string ):void{
+    if(!systemBus) return;
+    try{
+        systemBus.sendSignal(objectPath, interfaceName, name, 's', [payload]);
+    } catch(err){
+        console.error('\x1b[31mFailed to emit '+name+':\x1b[30m', err);
+    }
+}
+
+/** Cloud-to-device message, for applications listening over D-Bus. */
+export function emitCloudMessage( message:any ):void{
+    emitSignal('CloudMessage', JSON.stringify(message));
+}
+
+/** Hardware button event: click | pressrelease | apToggle | longpress | verylongpress */
+export function emitButtonEvent( event:string ):void{
+    emitSignal('ButtonEvent', JSON.stringify({ event, timestamp: Date.now() }));
+}
+
+/** Full device state, emitted on every change so subscribers can pick fields. */
+export function emitStateUpdate( state:any ):void{
+    emitSignal('StateUpdate', JSON.stringify(state));
+}
+
+/*
+ *  System integration
+ */
+
+function subscribeToShutdown( stateManager:StateManager ):void{
+    systemBus.getService('org.freedesktop.login1').getInterface(
+        '/org/freedesktop/login1',
+        'org.freedesktop.login1.Manager',
+        (err:any, iface:any)=>{
+            if(err) return console.log(err);
+            iface.on('PrepareForShutdown', (shutdown:boolean)=>{
+                if(shutdown){
+                    stateManager.updateSystemState('state', 'restarting');
+                    console.log('System shutting down');
+                }
+            });
+        }
+    );
+}

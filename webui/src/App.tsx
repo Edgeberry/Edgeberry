@@ -2,32 +2,40 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BrowserRouter, NavLink, Routes, Route } from 'react-router-dom'
 import { Modal } from 'bootstrap'
+import { api, type ConnectionState, type ProvisionState, type WifiState } from './api'
 import Network from './pages/Network'
 import Cloud from './pages/Cloud'
 import TerminalPage from './pages/Terminal'
 import ApplicationPage from './pages/Application'
 
-type WifiState       = 'ap_mode' | 'connected' | 'disconnected' | 'unknown'
-type ProvisionState  = 'disabled' | 'provisioned' | 'not provisioned' | 'provisioning' | 'unknown'
-type ConnectionState = 'connected' | 'disconnected' | 'connecting' | 'unknown'
+/* How often the navbar refreshes device state. /api/state is deliberately cheap
+   for this reason — see the note on that route. */
+const POLL_INTERVAL_MS = 10000
 
-function CloudIcon({ provision, connection, hubHost }: { provision: ProvisionState; connection: ConnectionState; hubHost: string | null }) {
+/* ── Status icons ───────────────────────────────────────────── */
+
+function CloudIcon({ provision, connection, hubHost }: {
+  provision: ProvisionState; connection: ConnectionState; hubHost: string | null
+}) {
   // Fall back to the generic name only when no hub is configured yet.
   const hub = hubHost ?? 'Device Hub'
+
   if (provision === 'not provisioned')
-    return <i className="fa-solid fa-cloud" style={{ color: 'rgba(255,255,255,0.3)' }} title="Not configured" />
+    return <i className="fa-solid fa-cloud" style={{ color: 'var(--eb-idle)' }} title="Not configured" />
   if (provision === 'provisioning')
-    return <i className="fa-solid fa-cloud" style={{ color: '#f59e0b' }} title={`Provisioning with ${hub}…`} />
+    return <i className="fa-solid fa-cloud" style={{ color: 'var(--eb-warn)' }} title={`Provisioning with ${hub}…`} />
   if (connection === 'connecting')
-    return <i className="fa-solid fa-cloud" style={{ color: '#f59e0b' }} title={`Connecting to ${hub}…`} />
+    return <i className="fa-solid fa-cloud" style={{ color: 'var(--eb-warn)' }} title={`Connecting to ${hub}…`} />
   if (connection === 'connected')
-    return <i className="fa-solid fa-cloud" style={{ color: '#4ade80' }} title={`Connected to ${hub}`} />
+    return <i className="fa-solid fa-cloud" style={{ color: 'var(--eb-ok)' }} title={`Connected to ${hub}`} />
   if (connection === 'disconnected')
-    return <i className="fa-solid fa-cloud" style={{ color: '#f87171' }} title={`Disconnected from ${hub}`} />
-  return <i className="fa-solid fa-cloud" style={{ color: 'rgba(255,255,255,0.3)' }} title="Cloud status unknown" />
+    return <i className="fa-solid fa-cloud" style={{ color: 'var(--eb-fault)' }} title={`Disconnected from ${hub}`} />
+  return <i className="fa-solid fa-cloud" style={{ color: 'var(--eb-idle)' }} title="Cloud status unknown" />
 }
 
-function NetworkIcon({ wifi, network, ssid, apSsid }: { wifi: WifiState; network: string; ssid: string | null; apSsid: string | null }) {
+function NetworkIcon({ wifi, network, ssid, apSsid }: {
+  wifi: WifiState; network: string; ssid: string | null; apSsid: string | null
+}) {
   // AP mode is the one state that is categorically different — the device is a
   // hotspot, not a client — so it carries a badge rather than only a hue shift.
   // Amber alone reads too close to the no-internet yellow on a navbar glyph.
@@ -37,37 +45,40 @@ function NetworkIcon({ wifi, network, ssid, apSsid }: { wifi: WifiState; network
         style={{ position: 'relative', display: 'inline-flex' }}
         title={apSsid ? `Access Point ${apSsid}` : 'Access Point'}
       >
-        <i className="fa-solid fa-wifi" style={{ color: '#f59e0b' }} />
+        <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-warn)' }} />
         <span
           style={{
             position: 'absolute', right: -5, bottom: -4,
             fontSize: '0.5rem', fontWeight: 700, lineHeight: 1,
-            letterSpacing: '-0.02em', color: '#f59e0b',
+            letterSpacing: '-0.02em', color: 'var(--eb-warn)',
             // Punches the badge out of the navbar so the glyph's tail does not
             // bleed through the lettering.
-            background: 'var(--eb-fg)', padding: '0 1px', borderRadius: 2,
+            background: 'var(--eb-navbar-bg)', padding: '0 1px', borderRadius: 2,
           }}
         >AP</span>
       </span>
     )
+
   if (wifi === 'connected' && network === 'connected')
-    return <i className="fa-solid fa-wifi" style={{ color: '#4ade80' }} title={ssid ? `Connected to ${ssid}` : 'WiFi connected'} />
+    return <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-ok)' }} title={ssid ? `Connected to ${ssid}` : 'WiFi connected'} />
   if (wifi === 'connected')
-    return <i className="fa-solid fa-wifi" style={{ color: '#facc15' }} title={ssid ? `Connected to ${ssid} (no internet)` : 'WiFi connected (no internet)'} />
+    return <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-warn)' }} title={ssid ? `Connected to ${ssid} (no internet)` : 'WiFi connected (no internet)'} />
   if (wifi === 'disconnected')
-    return <i className="fa-solid fa-wifi" style={{ color: 'rgba(255,255,255,0.3)' }} title="WiFi disconnected" />
-  return <i className="fa-solid fa-wifi" style={{ color: 'rgba(255,255,255,0.3)' }} title="Network unknown" />
+    return <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-idle)' }} title="WiFi disconnected" />
+  return <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-idle)' }} title="Network unknown" />
 }
 
-function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; onOpenPower: () => void; }) {
+/* ── Navigation ─────────────────────────────────────────────── */
+
+function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; onOpenPower: () => void }) {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const [pos, setPos] = useState({ top: 0, right: 0 })
 
   function toggle() {
     if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect()
-      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
     }
     setOpen(v => !v)
   }
@@ -81,43 +92,38 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
     return () => document.removeEventListener('mousedown', close)
   }, [open])
 
+  const itemStyle = { color: 'var(--eb-navbar-fg)' }
+
+  // Rendered into document.body: the navbar establishes a stacking context that
+  // would otherwise clip the menu.
   const menu = open ? createPortal(
     <ul
       style={{
         position: 'fixed', top: pos.top, right: pos.right, zIndex: 99999,
         listStyle: 'none', margin: 0, padding: '0.25rem 0',
-        backgroundColor: '#1e1e1e', border: '1px solid rgba(255,255,255,0.12)',
+        backgroundColor: 'var(--eb-navbar-bg)', border: '1px solid rgba(255,255,255,0.12)',
         borderRadius: '0.375rem', minWidth: 160,
         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
       }}
       onMouseDown={e => e.stopPropagation()}
     >
       <li>
-        <button
-          className="dropdown-item d-flex align-items-center gap-2"
-          style={{ color: 'rgba(255,255,255,0.85)' }}
-          onClick={() => { setOpen(false); onOpenTerminal() }}
-        >
+        <button className="dropdown-item d-flex align-items-center gap-2" style={itemStyle}
+          onClick={() => { setOpen(false); onOpenTerminal() }}>
           <i className="fa-solid fa-terminal fa-fw" />Terminal
         </button>
       </li>
       <li><hr className="dropdown-divider" /></li>
       <li>
-        <button
-          className="dropdown-item d-flex align-items-center gap-2"
-          style={{ color: 'rgba(255,255,255,0.85)' }}
-          onClick={() => { setOpen(false); fetch('/api/system/identify', { method: 'POST' }).catch(() => {}) }}
-        >
+        <button className="dropdown-item d-flex align-items-center gap-2" style={itemStyle}
+          onClick={() => { setOpen(false); api.system.identify().catch(() => {}) }}>
           <i className="fa-solid fa-location-dot fa-fw" />Identify
         </button>
       </li>
       <li><hr className="dropdown-divider" /></li>
       <li>
-        <button
-          className="dropdown-item d-flex align-items-center gap-2"
-          style={{ color: 'rgba(255,255,255,0.85)' }}
-          onClick={() => { setOpen(false); onOpenPower() }}
-        >
+        <button className="dropdown-item d-flex align-items-center gap-2" style={itemStyle}
+          onClick={() => { setOpen(false); onOpenPower() }}>
           <i className="fa-solid fa-power-off fa-fw" />Power
         </button>
       </li>
@@ -130,7 +136,7 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
       <button
         ref={btnRef}
         className="btn btn-sm"
-        style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.5rem' }}
+        style={{ color: 'var(--eb-navbar-fg)', lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.5rem' }}
         onClick={toggle}
         title="Menu"
       >
@@ -141,77 +147,110 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
   )
 }
 
-function NavBar({ onOpenTerminal, onOpenNetwork, onOpenCloud, onOpenPower, wifiState, networkState, activeSsid, apSsid, provisionState, connectionState, hubHost, hostname }:
-  { onOpenTerminal: () => void; onOpenNetwork: () => void; onOpenCloud: () => void; onOpenPower: () => void;
-    wifiState: WifiState; networkState: string; activeSsid: string | null; apSsid: string | null;
-    provisionState: ProvisionState; connectionState: ConnectionState; hubHost: string | null; hostname: string }) {
+type NavBarProps = {
+  onOpenTerminal: () => void
+  onOpenNetwork:  () => void
+  onOpenCloud:    () => void
+  onOpenPower:    () => void
+  wifiState:       WifiState
+  networkState:    string
+  activeSsid:      string | null
+  apSsid:          string | null
+  provisionState:  ProvisionState
+  connectionState: ConnectionState
+  hubHost:         string | null
+  hostname:        string
+}
+
+function NavBar(props: NavBarProps) {
+  const iconButtonStyle = { lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.4rem' }
+
   return (
-    <nav className="navbar navbar-dark" style={{ backgroundColor: 'var(--eb-fg)' }}>
+    <nav className="navbar navbar-dark" style={{ backgroundColor: 'var(--eb-navbar-bg)' }}>
       <div className="container-fluid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
         <NavLink className="navbar-brand mb-0" to="/" style={{ justifySelf: 'start' }}>
           <img src="/theme/logo/logo.svg" alt="Edgeberry" height="28" />
         </NavLink>
-        <span className="d-none d-sm-block fw-semibold text-truncate" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.9rem', maxWidth: 240, textAlign: 'center' }}>
-          {hostname}
+
+        <span
+          className="d-none d-sm-block fw-semibold text-truncate"
+          style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem', maxWidth: 240, textAlign: 'center' }}
+        >
+          {props.hostname}
         </span>
+
         <div className="d-flex align-items-center gap-1" style={{ justifySelf: 'end' }}>
-          <button
-            className="btn btn-sm d-flex align-items-center"
-            style={{ lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.4rem' }}
-            onClick={onOpenNetwork}
-            title="Network"
-          >
-            <NetworkIcon wifi={wifiState} network={networkState} ssid={activeSsid} apSsid={apSsid} />
+          <button className="btn btn-sm d-flex align-items-center" style={iconButtonStyle}
+            onClick={props.onOpenNetwork} title="Network">
+            <NetworkIcon wifi={props.wifiState} network={props.networkState} ssid={props.activeSsid} apSsid={props.apSsid} />
           </button>
-          <button
-            className="btn btn-sm d-flex align-items-center"
-            style={{ lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.4rem' }}
-            onClick={onOpenCloud}
-          >
-            <CloudIcon provision={provisionState} connection={connectionState} hubHost={hubHost} />
+          <button className="btn btn-sm d-flex align-items-center" style={iconButtonStyle}
+            onClick={props.onOpenCloud}>
+            <CloudIcon provision={props.provisionState} connection={props.connectionState} hubHost={props.hubHost} />
           </button>
-          <NavMenu onOpenTerminal={onOpenTerminal} onOpenPower={onOpenPower} />
+          <NavMenu onOpenTerminal={props.onOpenTerminal} onOpenPower={props.onOpenPower} />
         </div>
       </div>
     </nav>
   )
 }
 
-function CloudModal({ onReady }: { onReady: (show: () => void) => void }) {
+/* ── Modals ─────────────────────────────────────────────────── */
+
+/**
+ * Bootstrap modal wrapper.
+ *
+ * Children are mounted only while the modal is open, so pages inside do not
+ * poll the device in the background. They receive a `close` callback for the
+ * cases where the content itself needs to dismiss the modal — the terminal does
+ * this when its shell exits. `onReady` hands the caller a show() function
+ * rather than exposing the Bootstrap instance.
+ */
+function ModalShell({ title, icon, onReady, bodyClassName, background, children }: {
+  title:          string
+  icon:           string
+  onReady:        (show: () => void) => void
+  bodyClassName?: string
+  background?:    string
+  children:       (open: boolean, close: () => void) => React.ReactNode
+}) {
   const [open, setOpen] = useState(false)
-  const modalRef        = useRef<HTMLDivElement>(null)
-  const modalInstance   = useRef<Modal | null>(null)
+  const elementRef  = useRef<HTMLDivElement>(null)
+  const instanceRef = useRef<Modal | null>(null)
 
   useEffect(() => {
-    const el = modalRef.current
-    if (!el) return
-    const instance = new Modal(el)
-    modalInstance.current = instance
+    const element = elementRef.current
+    if (!element) return
+
+    const instance = new Modal(element)
+    instanceRef.current = instance
     onReady(() => instance.show())
-    const show = () => setOpen(true)
-    const hide = () => setOpen(false)
-    el.addEventListener('shown.bs.modal', show)
-    el.addEventListener('hidden.bs.modal', hide)
+
+    const onShown  = () => setOpen(true)
+    const onHidden = () => setOpen(false)
+    element.addEventListener('shown.bs.modal', onShown)
+    element.addEventListener('hidden.bs.modal', onHidden)
+
     return () => {
-      el.removeEventListener('shown.bs.modal', show)
-      el.removeEventListener('hidden.bs.modal', hide)
+      element.removeEventListener('shown.bs.modal', onShown)
+      element.removeEventListener('hidden.bs.modal', onHidden)
       instance.dispose()
-      modalInstance.current = null
+      instanceRef.current = null
     }
   }, [])
 
   return (
-    <div ref={modalRef} className="modal fade" tabIndex={-1} aria-hidden="true">
+    <div ref={elementRef} className="modal fade" tabIndex={-1} aria-hidden="true">
       <div className="modal-dialog modal-fullscreen">
-        <div className="modal-content" style={{ background: 'var(--eb-bg)', border: 'none' }}>
-          <div className="modal-header" style={{ background: 'var(--eb-fg)', border: 'none', padding: '0.5rem 1rem' }}>
-            <span className="modal-title fw-semibold" style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>
-              <i className="fa-solid fa-cloud me-2" style={{ color: 'var(--eb-accent)' }} />Cloud Connection
+        <div className="modal-content" style={{ background: background ?? 'var(--eb-bg)', border: 'none' }}>
+          <div className="modal-header" style={{ background: 'var(--eb-navbar-bg)', border: 'none', padding: '0.5rem 1rem' }}>
+            <span className="modal-title fw-semibold" style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem' }}>
+              <i className={`fa-solid ${icon} me-2`} style={{ color: 'var(--eb-accent)' }} />{title}
             </span>
             <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" />
           </div>
-          <div className="modal-body" style={{ overflow: 'auto' }}>
-            {open && <Cloud />}
+          <div className={bodyClassName ?? 'modal-body'} style={{ overflow: 'auto' }}>
+            {children(open, () => instanceRef.current?.hide())}
           </div>
         </div>
       </div>
@@ -220,50 +259,44 @@ function CloudModal({ onReady }: { onReady: (show: () => void) => void }) {
 }
 
 function PowerModal({ onReady }: { onReady: (show: () => void) => void }) {
-  const modalRef      = useRef<HTMLDivElement>(null)
-  const modalInstance = useRef<Modal | null>(null)
+  const elementRef  = useRef<HTMLDivElement>(null)
+  const instanceRef = useRef<Modal | null>(null)
   const [busy, setBusy] = useState<'reboot' | 'shutdown' | null>(null)
 
   useEffect(() => {
-    const el = modalRef.current
-    if (!el) return
-    const instance = new Modal(el)
-    modalInstance.current = instance
+    const element = elementRef.current
+    if (!element) return
+    const instance = new Modal(element)
+    instanceRef.current = instance
     onReady(() => instance.show())
-    return () => { instance.dispose(); modalInstance.current = null }
+    return () => { instance.dispose(); instanceRef.current = null }
   }, [])
 
-  async function trigger(action: 'reboot' | 'shutdown') {
+  async function trigger( action:'reboot' | 'shutdown' ) {
     setBusy(action)
-    await fetch(`/api/system/${action}`, { method: 'POST' }).catch(() => {})
-    modalInstance.current?.hide()
+    await (action === 'reboot' ? api.system.reboot() : api.system.shutdown()).catch(() => {})
+    instanceRef.current?.hide()
     setBusy(null)
   }
 
   return (
-    <div ref={modalRef} className="modal fade" tabIndex={-1} aria-hidden="true">
+    <div ref={elementRef} className="modal fade" tabIndex={-1} aria-hidden="true">
       <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 340 }}>
         <div className="modal-content" style={{ background: 'var(--eb-bg)', border: '1px solid var(--eb-line)' }}>
-          <div className="modal-header" style={{ background: 'var(--eb-fg)', border: 'none', padding: '0.5rem 1rem' }}>
-            <span className="modal-title fw-semibold" style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>
+          <div className="modal-header" style={{ background: 'var(--eb-navbar-bg)', border: 'none', padding: '0.5rem 1rem' }}>
+            <span className="modal-title fw-semibold" style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem' }}>
               <i className="fa-solid fa-power-off me-2" style={{ color: 'var(--eb-accent)' }} />Power
             </span>
             <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" />
           </div>
           <div className="modal-body d-flex flex-column gap-2 p-3">
-            <button
-              className="btn btn-outline-warning w-100 d-flex align-items-center gap-2"
-              onClick={() => trigger('reboot')}
-              disabled={busy !== null}
-            >
+            <button className="btn btn-outline-warning w-100 d-flex align-items-center gap-2"
+              onClick={() => trigger('reboot')} disabled={busy !== null}>
               <i className="fa-solid fa-rotate-right" />
               {busy === 'reboot' ? 'Rebooting…' : 'Reboot'}
             </button>
-            <button
-              className="btn btn-outline-danger w-100 d-flex align-items-center gap-2"
-              onClick={() => trigger('shutdown')}
-              disabled={busy !== null}
-            >
+            <button className="btn btn-outline-danger w-100 d-flex align-items-center gap-2"
+              onClick={() => trigger('shutdown')} disabled={busy !== null}>
               <i className="fa-solid fa-power-off" />
               {busy === 'shutdown' ? 'Shutting down…' : 'Shut down'}
             </button>
@@ -274,129 +307,21 @@ function PowerModal({ onReady }: { onReady: (show: () => void) => void }) {
   )
 }
 
-function NetworkModal({ onReady }: { onReady: (show: () => void) => void }) {
-  const [open, setOpen] = useState(false)
-  const modalRef        = useRef<HTMLDivElement>(null)
-  const modalInstance   = useRef<Modal | null>(null)
-
-  useEffect(() => {
-    const el = modalRef.current
-    if (!el) return
-    const instance = new Modal(el)
-    modalInstance.current = instance
-    onReady(() => instance.show())
-    const show = () => setOpen(true)
-    const hide = () => setOpen(false)
-    el.addEventListener('shown.bs.modal', show)
-    el.addEventListener('hidden.bs.modal', hide)
-    return () => {
-      el.removeEventListener('shown.bs.modal', show)
-      el.removeEventListener('hidden.bs.modal', hide)
-      instance.dispose()
-      modalInstance.current = null
-    }
-  }, [])
-
-  return (
-    <div ref={modalRef} className="modal fade" tabIndex={-1} aria-hidden="true">
-      <div className="modal-dialog modal-fullscreen">
-        <div className="modal-content" style={{ background: 'var(--eb-bg)', border: 'none' }}>
-          <div className="modal-header" style={{ background: 'var(--eb-fg)', border: 'none', padding: '0.5rem 1rem' }}>
-            <span className="modal-title fw-semibold" style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>
-              <i className="fa-solid fa-wifi me-2" style={{ color: 'var(--eb-accent)' }} />Network
-            </span>
-            <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" />
-          </div>
-          <div className="modal-body" style={{ overflow: 'auto' }}>
-            {open && <Network />}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TerminalModal({ onReady }: { onReady: (show: () => void) => void }) {
-  const [open, setOpen]   = useState(false)
-  const modalRef          = useRef<HTMLDivElement>(null)
-  const modalInstance     = useRef<Modal | null>(null)
-
-  useEffect(() => {
-    const el = modalRef.current
-    if (!el) return
-    const instance = new Modal(el)
-    modalInstance.current = instance
-    onReady(() => instance.show())
-    const show = () => setOpen(true)
-    const hide = () => setOpen(false)
-    el.addEventListener('shown.bs.modal', show)
-    el.addEventListener('hidden.bs.modal', hide)
-    return () => {
-      el.removeEventListener('shown.bs.modal', show)
-      el.removeEventListener('hidden.bs.modal', hide)
-      instance.dispose()
-      modalInstance.current = null
-    }
-  }, [])
-
-  function closeModal() {
-    modalInstance.current?.hide()
-  }
-
-  return (
-    <div ref={modalRef} className="modal fade" id="terminalModal" tabIndex={-1} aria-labelledby="terminalModalLabel" aria-hidden="true">
-      <div className="modal-dialog modal-fullscreen">
-        <div className="modal-content" style={{ background: '#0d0d0d', border: 'none' }}>
-          <div className="modal-header" style={{ background: 'var(--eb-fg)', border: 'none', padding: '0.5rem 1rem' }}>
-            <span className="modal-title fw-semibold" id="terminalModalLabel" style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem' }}>
-              <i className="fa-solid fa-terminal me-2" style={{ color: 'var(--eb-accent)' }} />Terminal
-            </span>
-            <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" />
-          </div>
-          <div className="modal-body p-0" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {open && <TerminalPage onRequestClose={closeModal} />}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-function Home() {
-  const [name, setName] = useState<string>('—')
-  const [status, setStatus] = useState<string>('—')
-
-  useEffect(() => {
-    fetch('/api/state')
-      .then(r => r.json())
-      .then(data => {
-        setName(data?.system?.name ?? data?.system?.board ?? '—')
-        setStatus(data?.system?.state ?? '—')
-      })
-      .catch(() => setStatus('unreachable'))
-  }, [])
-
-  return (
-    <>
-      <h1 className="h4">{name}</h1>
-      <p className="text-muted">{status}</p>
-    </>
-  )
-}
+/* ── Shell ──────────────────────────────────────────────────── */
 
 function AppShell() {
   const openTerminal = useRef<() => void>(() => {})
   const openNetwork  = useRef<() => void>(() => {})
   const openCloud    = useRef<() => void>(() => {})
   const openPower    = useRef<() => void>(() => {})
+
   const [wifiState,       setWifiState]       = useState<WifiState>('unknown')
   const [networkState,    setNetworkState]    = useState<string>('unknown')
   const [activeSsid,      setActiveSsid]      = useState<string | null>(null)
   const [apSsid,          setApSsid]          = useState<string | null>(null)
-  const [hubHost,         setHubHost]         = useState<string | null>(null)
   const [provisionState,  setProvisionState]  = useState<ProvisionState>('unknown')
   const [connectionState, setConnectionState] = useState<ConnectionState>('unknown')
+  const [hubHost,         setHubHost]         = useState<string | null>(null)
   const [hostname,        setHostname]        = useState<string>('')
   const [apNoticeDismissed, setApNoticeDismissed] = useState(false)
 
@@ -408,26 +333,26 @@ function AppShell() {
 
   useEffect(() => {
     const poll = () => {
-      fetch('/api/state')
-        .then(r => r.json())
-        .then(data => {
-          setWifiState(data?.connection?.wifi ?? 'unknown')
-          setNetworkState(data?.connection?.network ?? 'unknown')
-          setProvisionState(data?.connection?.provision ?? 'unknown')
-          setConnectionState(data?.connection?.connection ?? 'unknown')
-          setHostname(data?.system?.hostname ?? '')
-          setApSsid(data?.system?.apSsid ?? null)
-          setHubHost(data?.connection?.hubHost ?? null)
+      api.getState()
+        .then(state => {
+          setWifiState(state.connection.wifi ?? 'unknown')
+          setNetworkState(state.connection.network ?? 'unknown')
+          setProvisionState(state.connection.provision ?? 'unknown')
+          setConnectionState(state.connection.connection ?? 'unknown')
+          setHubHost(state.connection.hubHost ?? null)
+          setHostname(state.system.hostname ?? '')
+          setApSsid(state.system.apSsid ?? null)
         })
         .catch(() => {})
-      fetch('/api/network/wifi/active')
-        .then(r => r.json())
-        .then(data => setActiveSsid(data?.ssid ?? null))
+
+      api.network.getActiveSsid()
+        .then(({ ssid }) => setActiveSsid(ssid))
         .catch(() => {})
     }
+
     poll()
-    const id = setInterval(poll, 10000)
-    return () => clearInterval(id)
+    const timer = setInterval(poll, POLL_INTERVAL_MS)
+    return () => clearInterval(timer)
   }, [])
 
   return (
@@ -446,10 +371,24 @@ function AppShell() {
         hubHost={hubHost}
         hostname={hostname}
       />
-      <CloudModal    onReady={(fn) => { openCloud.current    = fn }} />
-      <PowerModal    onReady={(fn) => { openPower.current    = fn }} />
-      <NetworkModal  onReady={(fn) => { openNetwork.current  = fn }} />
-      <TerminalModal onReady={(fn) => { openTerminal.current = fn }} />
+
+      <ModalShell title="Cloud Connection" icon="fa-cloud" onReady={fn => { openCloud.current = fn }}>
+        {open => open && <Cloud />}
+      </ModalShell>
+      <ModalShell title="Network" icon="fa-wifi" onReady={fn => { openNetwork.current = fn }}>
+        {open => open && <Network />}
+      </ModalShell>
+      <ModalShell
+        title="Terminal"
+        icon="fa-terminal"
+        onReady={fn => { openTerminal.current = fn }}
+        background="var(--eb-navbar-bg)"
+        bodyClassName="modal-body p-0 d-flex flex-column"
+      >
+        {(open, close) => open && <TerminalPage onRequestClose={close} />}
+      </ModalShell>
+      <PowerModal onReady={fn => { openPower.current = fn }} />
+
       <div style={{ height: 'calc(100vh - 56px)' }}>
         <main style={{ overflow: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
           {/* Non-blocking: AP mode is a valid steady state for a device that
@@ -459,12 +398,14 @@ function AppShell() {
             <div
               className="d-flex align-items-center gap-2 px-3 py-2"
               style={{
-                background: 'rgba(245,158,11,0.12)',
-                borderBottom: '1px solid rgba(245,158,11,0.35)',
+                // Tinted from the status token so a rebranded --eb-warn carries
+                // through to the banner rather than leaving it stranded amber.
+                background: 'color-mix(in srgb, var(--eb-warn) 12%, transparent)',
+                borderBottom: '1px solid color-mix(in srgb, var(--eb-warn) 35%, transparent)',
                 fontSize: '0.85rem', flexShrink: 0,
               }}
             >
-              <i className="fa-solid fa-wifi" style={{ color: '#f59e0b' }} />
+              <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-warn)' }} />
               <span className="flex-grow-1">
                 Access point mode
                 {apSsid && <> — <span style={{ fontFamily: 'monospace' }}>{apSsid}</span></>}
@@ -472,14 +413,11 @@ function AppShell() {
               <button className="btn btn-sm btn-outline-warning py-0" onClick={() => openNetwork.current()}>
                 Configure network
               </button>
-              <button
-                className="btn-close btn-close-white"
-                style={{ fontSize: '0.6rem' }}
-                aria-label="Dismiss"
-                onClick={() => setApNoticeDismissed(true)}
-              />
+              <button className="btn-close btn-close-white" style={{ fontSize: '0.6rem' }}
+                aria-label="Dismiss" onClick={() => setApNoticeDismissed(true)} />
             </div>
           )}
+
           <Routes>
             {/* '/' always shows the application. Edgeberry devices are useful
                 with no network at all, so AP mode must not replace the app with
@@ -487,7 +425,7 @@ function AppShell() {
             <Route path="/" element={<ApplicationPage />} />
             <Route path="/network" element={<div className="p-4"><Network /></div>} />
             <Route path="/cloud" element={<div className="p-4"><Cloud /></div>} />
-            <Route path="*" element={<div className="p-4"><Home /></div>} />
+            <Route path="*" element={<div className="p-4"><ApplicationPage /></div>} />
           </Routes>
         </main>
       </div>
@@ -495,12 +433,10 @@ function AppShell() {
   )
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <AppShell />
     </BrowserRouter>
   )
 }
-
-export default App

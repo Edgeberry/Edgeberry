@@ -1,12 +1,47 @@
+/*
+ *  Edgeberry theme tokens
+ *
+ *  Every colour in the web interface comes from this file. To brand a device
+ *  for your own project, override what you want in brand.css — it loads after
+ *  this file, so anything you redefine there wins:
+ *
+ *      :root {
+ *        --eb-accent:    #ff6600;
+ *        --eb-navbar-bg: #101820;
+ *      }
+ *
+ *  On a device, /etc/edgeberry/theme/brand.css takes precedence over the copy
+ *  shipped in /opt/Edgeberry/share, so branding survives a software update.
+ *
+ *  Overriding --eb-accent alone is usually enough.
+ */
+
 :root {
+  /* Brand colour: buttons, links, section headings, icons in modal headers. */
+  --eb-accent: #0007ff;
+
+  /* Page surface. --eb-fg is text ON --eb-bg; never use it as a background. */
   --eb-bg:     #ffffff;
   --eb-fg:     #1e1e1e;
   --eb-line:   #c0c0c0;
-  --eb-accent: #0007ff;
 
-  --eb-ok:     #007a2e;
+  /*
+   *  Dark chrome: the top bar, its dropdown, modal headers and the terminal.
+   *  Deliberately independent of --eb-bg/--eb-fg so that a light or dark page
+   *  theme does not change the bar. Set both if you rebrand it.
+   */
+  --eb-navbar-bg: #1e1e1e;
+  --eb-navbar-fg: #f5f5f5;
+
+  /*
+   *  Status colours, used for indicators on both the page and the dark bar.
+   *  Replacements should stay legible on both — at least a 3:1 contrast ratio
+   *  against --eb-bg and against --eb-navbar-bg.
+   */
+  --eb-ok:     #2ea043;
   --eb-warn:   #b35c00;
-  --eb-fault:  #d40000;
+  --eb-fault:  #e03131;
+  --eb-idle:   #8b8b8b;
 
   --eb-font:   system-ui, -apple-system, "Segoe UI", sans-serif;
 }

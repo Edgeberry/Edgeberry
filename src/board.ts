@@ -1,26 +1,33 @@
 /*
- *  System
- *  Interaction with system-related features.
+ *  Edgeberry Base Board
+ *  Everything belonging to the Edgeberry HAT: the EEPROM that identifies it,
+ *  the two-colour status LED, the buzzer, and the user button.
+ *
+ *  Split from system.ts because those are two different machines. This file is
+ *  about the board sitting on the header; system.ts is about the Linux host it
+ *  is plugged into. They fail, change and get replaced independently.
+ *
+ *  Nothing here reads application state. The board reports what the user does
+ *  (button events) and renders what it is told to show (LED patterns, beeps);
+ *  deciding *which* pattern is appropriate is somebody else's job.
  */
-import { exec, execSync } from "child_process";
-import { stateManager } from "./main";
-import { readFileSync } from "fs";
-import path from "path";
-import { EventEmitter } from "stream";
 
+import { execSync } from "child_process";
+import { readFileSync } from "fs";
+import { EventEmitter } from "stream";
 /*
  *  Edgeberry Hardware
  *  The Edgeberry is a Raspberry Pi 'hat', with an on-board EEPROM that's flashed
  *  with info and settings. Information about the vendor and the product are found
  *  in the filesystem under the device tree '/proc/device-tree/hat'
  */
-const system_board_rootFolder = '/proc/device-tree/hat'
+const board_rootFolder = '/proc/device-tree/hat'
 
 // Get the board vendor
 // The product vendor is a string
-export function system_board_getVendor(){
+export function board_getVendor(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/vendor').toString().replace(/\0.*$/g,'');
+        const value = readFileSync(board_rootFolder+'/vendor').toString().replace(/\0.*$/g,'');
         return value;
     } catch(err){
         return null;
@@ -29,9 +36,9 @@ export function system_board_getVendor(){
 
 // Get the product name
 // The product name is a string
-export function system_board_getProductName(){
+export function board_getProductName(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/product').toString().replace(/\0.*$/g,'');
+        const value = readFileSync(board_rootFolder+'/product').toString().replace(/\0.*$/g,'');
         return value;
     } catch(err){
         return null;
@@ -40,9 +47,9 @@ export function system_board_getProductName(){
 
 // Get the product ID
 // The hat's product_id is 2-bytes
-export function system_board_getProductId(){
+export function board_getProductId(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/product_id').toString();
+        const value = readFileSync(board_rootFolder+'/product_id').toString();
         return value;
     } catch(err){
         return null;
@@ -53,10 +60,10 @@ export function system_board_getProductId(){
 // The hat's product_ver is 2 bytes. the first byte representing the
 // major version number, the second byte the minor version number (e.g. 0x0104)
 // We'll decode it to a string (e.g. "1.4")
-export function system_board_getProductVersion(){
+export function board_getProductVersion(){
     try{
         // the return value is, for example, "0x0102", we only want everything after the 'x'
-        const value = readFileSync(system_board_rootFolder+'/product_ver').toString().split('x')[1];
+        const value = readFileSync(board_rootFolder+'/product_ver').toString().split('x')[1];
         // convert to buffer of hexadecimal bytes
         const buffer = Buffer.from(value, 'hex');
         // first byte is te major number
@@ -72,163 +79,14 @@ export function system_board_getProductVersion(){
 
 // Get the board's UUID
 // RFC4122 compliant UUID
-export function system_board_getUUID(){
+export function board_getUUID(){
     try{
-        const value = readFileSync(system_board_rootFolder+'/uuid').toString().replace(/\0.*$/g,'');
+        const value = readFileSync(board_rootFolder+'/uuid').toString().replace(/\0.*$/g,'');
         return value;
     } catch(err){
         return null;
     }
 }
-
-/*
- *  Networking
- *  Everything related to the networking interfaces
- */
-
-// Get the SSID of the current WLAN connection
-export async function system_getWirelessSSID(){
-    try{
-        const ssid = execSync(`iwgetid | awk -F '"' '{print $2}' 2>/dev/null` ).toString().split('\n')[0];
-        return ssid;
-    } catch(err){
-        return 'Error: '+err;
-    }
-}
-
-// Get the IP address of the WLAN connection
-export async function system_getWirelessAddress( networkInterface:string ){
-    try{
-        const ipAddress = execSync(`ifconfig ${networkInterface} | awk -F ' *|:' '/inet /{print $3}' 2>/dev/null`).toString().split('\n')[0];
-        return ipAddress;
-    } catch(err){
-        return 'Error: '+err;
-    }
-}
-
-
-/*
- *  Power
- *  Shutdown, reboot, ...
- */
-
-// Reboot the system
-export function system_restart( timeoutMs?:number ){
-    stateManager.updateSystemState('state', 'rebooting');
-    try{
-        if( typeof(timeoutMs) !== 'number' ){
-            // Reboot Now
-            setTimeout(()=>{exec(`shutdown -r now`)},1500);
-        }
-        else{
-            // Reboot after timeout 
-            setTimeout(()=>{exec(`shutdown -r now`)},timeoutMs);
-        }
-        return true;
-    } catch(err){
-        return 'Error: '+err;
-    }
-}
-
-// Shut down the system
-export function system_shutdown( timeoutMs?:number ){
-    stateManager.updateSystemState('state', 'rebooting');
-    try{
-        const delay = typeof timeoutMs === 'number' ? timeoutMs : 1500;
-        setTimeout(()=>{ exec(`shutdown -h now`); }, delay);
-        return true;
-    } catch(err){
-        return 'Error: '+err;
-    }
-}
-
-// Get the Raspberry Pi hardware version
-export async function system_getPlatform(){
-    try{
-        const piVersion = execSync(`cat /proc/device-tree/model 2>/dev/null`).toString().replace(/\0.*$/g,'');
-        return piVersion;
-    } catch(err){
-        try{
-            const system = execSync(`hostnamectl | grep -E 'Hardware Vendor|Hardware Model' | awk '{printf "%s %s", $3, $4}'`).toString();
-            return system;
-        }
-        catch(err){}
-        return 'Error';
-    }
-}
-
-/*
- *  System Application
- *  Basically this app
- */
-
-// Get system application info
-export function system_getApplicationInfo():Promise<string|any>{
-    return new Promise<string|any>((resolve, reject)=>{
-        try{
-                // Resolve relative to this module rather than an absolute
-                // install path: the previous '/opt/Edgeberry/package.json' is
-                // one directory too high — the file lives in the component
-                // directory (/opt/Edgeberry/Core) — so this always threw and
-                // the device reported its version as 'unknown'. Going through
-                // __dirname also keeps `npm run dev` working from src/.
-                var packageJson = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json')).toString());
-            }
-        catch(err){
-            packageJson = {}
-        }
-
-        const data = {
-                            name: packageJson?.name,
-                            version: packageJson?.version,
-                            cpuUsage: 'unknown',
-                            memUsage: 'unknown',    // TODO
-                            status: 'unknown'
-                        }
-        return resolve( data );
-    });
-}
-
-// Update system application
-export function system_updateApplication():Promise<string>{
-    return new Promise<string>((resolve, reject)=>{
-        stateManager.updateSystemState('state','updating');
-        try{
-            const URL = "https://github.com/Edgeberry/Edgeberry/archive/refs/heads/main.tar.gz"
-            const TMPDIR = "/tmp/Edgeberry"
-            const APPNAME = "Edgeberry"
-
-            exec(`
-                        mkdir -p ${TMPDIR}
-                        wget -O ${TMPDIR}/${APPNAME}.tar.gz ${URL}
-                        if [ $? -ne 0 ]; then
-                            echo "Download failed, exit."
-                            exit 1;
-                        fi
-                        tar -zxf ${TMPDIR}/${APPNAME}.tar.gz --directory /opt/${APPNAME} --strip-components 1
-                        if [$? -ne 0 ]; then
-                            echo "Untar failed, exit."
-                            exit 1;
-                        fi
-                        cd /opt/${APPNAME}
-                        npm install --save-dev
-                        npm run build
-                        rm -rf ${TMPDIR}
-                        #pm2 restart $APPNAME
-                        exit 0;
-            `,(err)=>{
-                if(err) return reject('Error: '+err);
-                // Restart system application and resolve
-                stateManager.updateSystemState('state','restarting');
-                setTimeout(()=>{resolve('Application updated, restarting now')});
-                setTimeout(()=>{exec(`pm2 restart ${APPNAME}`)},1000);
-            });
-        } catch(err){
-            return reject('Error: '+err);
-        }
-    });
-}
-
 /*
  *  Hardware
  *  Hardware features connected to the I/O of the Linux system;
@@ -242,7 +100,7 @@ export function system_updateApplication():Promise<string>{
 let primary:boolean=true;
 let blinkInterval:ReturnType<typeof setInterval> | null = null;
 // All in-flight setTimeout handles from blinkTwice/blinkThrice chains.
-// Cleared at the top of system_setStatusLed so a new command never races
+// Cleared at the top of board_setStatusLed so a new command never races
 // against an orphaned write from the previous pattern.
 const pendingBlinkTimeouts: ReturnType<typeof setTimeout>[] = [];
 
@@ -256,7 +114,7 @@ let lastLedDoubleblink: boolean | undefined = undefined;
 let lastLedTripleblink: boolean | undefined = undefined;
 
 // Set Status indication on the LED
-export function system_setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string, doubleblink?:boolean, tripleblink?:boolean ){
+export function board_setStatusLed( color:string, blink?:boolean|number, secondaryColor?:string, doubleblink?:boolean, tripleblink?:boolean ){
     // Idempotency guard: if the requested command is identical to what is
     // already running, do nothing — prevents blink-phase resets under chatty
     // state updates (e.g. application.version changes that don't affect LED).
@@ -350,7 +208,7 @@ function blinkThrice(color:string){
 
 // Set status indication on the buzzer
 // long | short | twice
-export function system_beepBuzzer( status:string ){
+export function board_beepBuzzer( status:string ){
     switch(status){
         // Short beep
         case 'short':   setTimeout(()=>{setBuzzerState('off')},80);
@@ -379,7 +237,7 @@ export function system_beepBuzzer( status:string ){
  *
  *  Single source of truth mapping pattern-name → concrete LED/buzzer behaviour.
  *  Use these in StateManager and direct-method handlers instead of raw positional
- *  system_setStatusLed(...) calls so intent is readable and patterns stay distinct.
+ *  board_setStatusLed(...) calls so intent is readable and patterns stay distinct.
  *
  *  Pattern vocabulary (before → after for changed patterns):
  *   showBooting    : orange slow blink (500 ms)       — was: constant/blink red
@@ -402,38 +260,38 @@ export function system_beepBuzzer( status:string ){
  *   showLink       : green fast blink + beep           — unchanged
  */
 
-export function showBooting():    void { system_setStatusLed('orange', 500); }
-export function showRestarting(): void { system_setStatusLed('orange', 200); }
-export function showUpdating():   void { system_setStatusLed('orange', 70, 'red'); }
-export function showRebooting():  void { system_setStatusLed('orange', 400, 'red'); }
-export function showFatal():      void { system_setStatusLed('red'); }
-export function showNetworkDown():void { system_setStatusLed('red', 500); }
-export function showHubLost():    void { system_setStatusLed('red', 300); }
-export function showApMode():     void { system_setStatusLed('orange', true, undefined, undefined, true); }
-export function showConnecting(): void { system_setStatusLed('orange', 70, 'green'); }
-export function showHealthOk():   void { system_setStatusLed('green', true, 'green', true); }
-export function showHealthWarn(): void { system_setStatusLed('green', true, 'orange', true); }
-export function showCritical():   void { system_setStatusLed('red', 150); }
-export function showEmergency():  void { system_setStatusLed('red', 60); }
-export function showHealthUnknown(): void { system_setStatusLed('green', true, 'red', true); }
-export function showUnprovisioned(): void { system_setStatusLed('orange', 600); }
-export function showProvisioning():  void { system_setStatusLed('orange', 70); }
+export function showBooting():    void { board_setStatusLed('orange', 500); }
+export function showRestarting(): void { board_setStatusLed('orange', 200); }
+export function showUpdating():   void { board_setStatusLed('orange', 70, 'red'); }
+export function showRebooting():  void { board_setStatusLed('orange', 400, 'red'); }
+export function showFatal():      void { board_setStatusLed('red'); }
+export function showNetworkDown():void { board_setStatusLed('red', 500); }
+export function showHubLost():    void { board_setStatusLed('red', 300); }
+export function showApMode():     void { board_setStatusLed('orange', true, undefined, undefined, true); }
+export function showConnecting(): void { board_setStatusLed('orange', 70, 'green'); }
+export function showHealthOk():   void { board_setStatusLed('green', true, 'green', true); }
+export function showHealthWarn(): void { board_setStatusLed('green', true, 'orange', true); }
+export function showCritical():   void { board_setStatusLed('red', 150); }
+export function showEmergency():  void { board_setStatusLed('red', 60); }
+export function showHealthUnknown(): void { board_setStatusLed('green', true, 'red', true); }
+export function showUnprovisioned(): void { board_setStatusLed('orange', 600); }
+export function showProvisioning():  void { board_setStatusLed('orange', 70); }
 
 export function showIdentify(): void {
-    system_setStatusLed('green', 40, 'red');
-    system_beepBuzzer('short');
-    setTimeout(()=>{ system_beepBuzzer('short'); }, 110);
-    setTimeout(()=>{ system_beepBuzzer('short'); }, 220);
+    board_setStatusLed('green', 40, 'red');
+    board_beepBuzzer('short');
+    setTimeout(()=>{ board_beepBuzzer('short'); }, 110);
+    setTimeout(()=>{ board_beepBuzzer('short'); }, 220);
 }
 export function showApError(): void {
-    system_setStatusLed('red', 60);
-    system_beepBuzzer('short');
-    setTimeout(()=>{ system_beepBuzzer('short'); }, 150);
-    setTimeout(()=>{ system_beepBuzzer('short'); }, 300);
+    board_setStatusLed('red', 60);
+    board_beepBuzzer('short');
+    setTimeout(()=>{ board_beepBuzzer('short'); }, 150);
+    setTimeout(()=>{ board_beepBuzzer('short'); }, 300);
 }
 export function showLink(): void {
-    system_beepBuzzer('short');
-    system_setStatusLed('green', 40);
+    board_beepBuzzer('short');
+    board_setStatusLed('green', 40);
 }
 
 /*
@@ -505,7 +363,19 @@ const gpio: GpioBackend = new PinctrlBackend();
 /*
  *  Actual hardware controlling functions
  */
-async function initialize(){
+
+/**
+ * Claim the LED, buzzer and button GPIO lines and start polling the button.
+ *
+ * Called by the composition root, not on import. Importing this module used to
+ * drive GPIO and start a timer as a side effect, which meant nothing here could
+ * be loaded — by a test, a script, or another entry point — without touching
+ * real hardware.
+ *
+ * Safe to call more than once; the pin setup is idempotent and the button
+ * guards against starting a second poll loop.
+ */
+export function board_init():void{
     try{
         // The status LED has 2 colors on seperate IO pins
         // initialize the green LED (gpio26) as digital output (and digital low)
@@ -514,14 +384,12 @@ async function initialize(){
         execSync('pinctrl set 19 op dl >/dev/null 2>&1');
         // initialize the buzzer (gpio5) as digital output (and digital low)
         execSync('pinctrl set 5 op dl >/dev/null 2>&1');
-
     } catch (err){
         console.error('\x1b[31mEdgeberry Hardware indicators not inititialized!\x1b[37m');
     }
-}
 
-// Initialize
-initialize();
+    board_button.startPolling();
+}
 
 // Set the color of the LED
 // ASSUMPTION: gpio26 = green side, gpio19 = red side (inferred from driver truth
@@ -555,12 +423,16 @@ class ButtonEventEmitter extends EventEmitter {
     private pressStart:number = 0;          // stores the time when a button was pressed
     private pollingInterval:number = 500;   // polling interval in miliseconds (ms)
 
-    constructor(){
-        super();
-        this.initialize();
-    }
+    private polling = false;
 
-    private initialize(){
+    /**
+     * Claim the button pin and begin polling it. Separate from the constructor
+     * so that constructing this emitter — which happens on import — does not
+     * itself touch hardware. Idempotent.
+     */
+    public startPolling(){
+        if(this.polling) return;
+        this.polling = true;
         try{
             // We've tried libraries like 'onoff', but that doesn't work for every
             // model because it uses the BCM pin numbers, which differ for each Pi.
@@ -629,13 +501,18 @@ class ButtonEventEmitter extends EventEmitter {
     }
 }
 
-// Initialize button
-export const system_button = new ButtonEventEmitter();
+/**
+ * The user button. Constructing it is inert — call board_init() to start
+ * polling.
+ *
+ * Only the acknowledge beep is wired here, because that is the board talking to
+ * itself: a press lights up its own buzzer, with nothing outside this file
+ * involved. Everything a press *means* — reboot the host, toggle access point
+ * mode — is decided by the composition root, since those cross the boundary
+ * into the Linux system and the application.
+ */
+export const board_button = new ButtonEventEmitter();
 
-system_button.on('click', ()=>{
-    system_beepBuzzer('short');
-});
-
-system_button.on('longpress', ()=>{
-    system_restart();
+board_button.on('click', ()=>{
+    board_beepBuzzer('short');
 });

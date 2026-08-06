@@ -4,16 +4,20 @@
  *  a convenient interface for calling remote actions on the device from Cloud Platform.
  */
 
-import { cloud, stateManager } from "./main";
-import { app_getApplicationInfo, app_restartApplication, app_stopApplication } from "./applicationService";
-import { system_button, system_getApplicationInfo, system_getWirelessAddress, system_getWirelessSSID, system_restart, system_updateApplication } from "./systemService";
+import { StateManager } from "./stateManager";
+import { NetworkManager } from "./networkManager";
+import { DeviceHubService } from "./deviceHub";
+import { app_getApplicationInfo } from "./application";
+import { board_button } from "./board";
+import { system_getApplicationInfo, system_restart, system_updateApplication } from "./system";
 
 
 /*
  *  Connectivity Direct API
  *  All features involving device-to-cloud connectivity
  */
-export function initializeDirectMethodAPI(){
+export function registerDirectMethods( deviceHub:DeviceHubService, stateManager:StateManager, networkManager:NetworkManager ){
+    const cloud = deviceHub.getClient();
     if (!cloud) {
         console.log('Cloud client not initialized, skipping direct method registration');
         return;
@@ -41,7 +45,7 @@ export function initializeDirectMethodAPI(){
                 return res.status(408).send( {message:'too slow'} );
             }, 10*1000);
             // Return success if the button is clicked
-            system_button.on('click',()=>{
+            board_button.on('click',()=>{
                 return res.send( {message:'success'} );
             });
         }
@@ -53,7 +57,9 @@ export function initializeDirectMethodAPI(){
     /* (re)Connect */
     cloud.registerDirectMethod('reconnect',async(req:any, res:any)=>{
         try{
-            await cloud.connect();
+            // Go through the service so the reconnection policy applies, rather
+            // than calling the client directly.
+            await deviceHub.connect();
             res.send({message:'success'});
         }
         catch(err){
@@ -104,14 +110,20 @@ export function initializeDirectMethodAPI(){
             });
     });
 
-    /* Get system network info */
+    /*
+     *  Get system network info
+     *
+     *  Answered from NetworkManager over D-Bus, the same source the web
+     *  interface reads. This used to shell out to iwgetid and ifconfig, which
+     *  was a second implementation that could disagree with the first.
+     */
     cloud.registerDirectMethod('getSystemNetworkInfo', async(req:any, res:any)=>{
         try{
-            const settings = {
-                ssid: await system_getWirelessSSID(),
-                ipAddress: await system_getWirelessAddress('wlan0')
-            }
-            return res.send(settings);
+            const [ssid, ipAddress] = await Promise.all([
+                networkManager.getActiveWifiSsid(),
+                networkManager.getWifiAddress(),
+            ]);
+            return res.send({ ssid, ipAddress });
         }
         catch( err ){
             return res.status(500).send({message:err});
@@ -129,29 +141,24 @@ export function initializeDirectMethodAPI(){
         return res.status(404).send({message:'No application info available'});
     });
 
-    /* Update the system application */
-    cloud.registerDirectMethod('updateApplication', async(req:any, res:any)=>{
-        return res.send({message:'TODO: implementation'});
-    });
+    /*
+     *  Application lifecycle — not implemented
+     *
+     *  Managing the lifecycle of the application a device runs needs a decision
+     *  about what an "application" is here (a systemd unit? a container?) that
+     *  has not been made yet.
+     *
+     *  These stay registered and answer 501 rather than being removed: the
+     *  methods are part of the published cloud contract, and a caller is better
+     *  served by an explicit "not implemented" than by a method that has
+     *  silently disappeared. They previously answered 200 with the message
+     *  'Not implemented', which every reasonable client reads as success.
+     */
+    const notImplemented = (_req:any, res:any) =>
+        res.status(501).send({ message:'Not implemented' });
 
-    /* Restart the application */
-    cloud.registerDirectMethod('restartApplication', async(req:any, res:any)=>{
-        try{
-            const result = await app_restartApplication();
-            return res.send({message:result});
-        } catch( err ){
-            return res.status(500).send({message:err});
-        }
-    });
-
-    /* Stop the application */
-    cloud.registerDirectMethod('stopApplication', async(req:any, res:any)=>{
-        try{
-            const result = await app_stopApplication();
-            return res.send({message:result});
-        } catch( err ){
-            return res.status(500).send({message:err});
-        }
-    });
+    cloud.registerDirectMethod('updateApplication',  notImplemented);
+    cloud.registerDirectMethod('restartApplication', notImplemented);
+    cloud.registerDirectMethod('stopApplication',    notImplemented);
 
 }

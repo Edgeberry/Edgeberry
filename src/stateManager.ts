@@ -4,8 +4,8 @@
  */
 
 import EventEmitter from "events";
-import { system_beepBuzzer, system_setStatusLed,
-         showIdentify, showApError, showLink } from "./systemService";
+import { board_beepBuzzer, board_setStatusLed,
+         showIdentify, showApError, showLink } from "./board";
 
 // Normalise incoming state values to lowercase at ingress so all downstream
 // comparisons are reliable regardless of what casing the caller uses.
@@ -152,9 +152,9 @@ export class StateManager extends EventEmitter{
         if( this.statusBeepInterval !== null && this.statusBeepIntervalMs === intervalMs ) return;
         // Different cadence requested (or first start): replace the existing interval.
         if( this.statusBeepInterval !== null ) clearInterval( this.statusBeepInterval );
-        system_beepBuzzer('short');
+        board_beepBuzzer('short');
         this.statusBeepInterval = setInterval(()=>{
-            system_beepBuzzer('short');
+            board_beepBuzzer('short');
         }, intervalMs);
         this.statusBeepIntervalMs = intervalMs;
     }
@@ -180,74 +180,74 @@ export class StateManager extends EventEmitter{
                 // P0 fix: 'unknown' and 'starting' were previously falling to the
                 // default and showing constant red (the "I died" signal) on every boot.
                 case 'unknown':
-                case 'starting':    system_setStatusLed( 'orange', 500 );
+                case 'starting':    board_setStatusLed( 'orange', 500 );
                                     break;
                 // Preforming system software update
-                case 'updating':    system_setStatusLed( 'orange', 70, 'red' );
+                case 'updating':    board_setStatusLed( 'orange', 70, 'red' );
                                     break;
                 // Restarting the system software
-                case 'restarting':  system_setStatusLed('orange', 200 );
+                case 'restarting':  board_setStatusLed('orange', 200 );
                                     break;
                 // Rebooting the system: recoverable operation — give it a distinct
                 // orange pattern, not constant red (which is reserved for fatal faults).
                 // CHANGE vs before: was constant red (fatal convention, inverted).
-                case 'rebooting':   system_setStatusLed( 'orange', 400, 'red' );
+                case 'rebooting':   board_setStatusLed( 'orange', 400, 'red' );
                                     break;
                 // Internal error / unrecoverable fault — constant red is "I died, game over".
                 // CHANGE vs before: was red blink 600ms (same as hub-disconnected default).
-                default:            system_setStatusLed( 'red' );
+                default:            board_setStatusLed( 'red' );
                                     break;
             }
         }
         // ACCESS POINT MODE for WiFi provisioning
         else if(this.state.connection.wifi === 'ap_mode'){
-            system_setStatusLed( 'orange', true, undefined, undefined, true );
+            board_setStatusLed( 'orange', true, undefined, undefined, true );
         }
         // CLOUD CONNECTION STATUS is next in line, if the system is
         // ok. For most IoT application, a constant connection to the
         // cloud is an essential aspect.
         // Network down: red blink 500ms — slower than hub-loss to be visually distinct.
-        else if(this.state.connection.network !== 'connected') system_setStatusLed('red', 500 );
+        else if(this.state.connection.network !== 'connected') board_setStatusLed('red', 500 );
         else if( this.state.connection.provision === 'disabled' ||
                  this.state.connection.provision === 'provisioned'){
 
             switch(this.state.connection.connection){
                 // Connecting
-                case 'connecting':  system_setStatusLed( 'orange', 70, 'green' );
+                case 'connecting':  board_setStatusLed( 'orange', 70, 'green' );
                                     break;
                 // Connected — blink twice; heartbeat. Switch on health severity.
                 case 'connected':   switch(this.state.application.health){
-                                        case 'ok':      system_setStatusLed( 'green', true, 'green', true);
+                                        case 'ok':      board_setStatusLed( 'green', true, 'green', true);
                                                         break;
-                                        case 'warning': system_setStatusLed( 'green', true, 'orange', true);
+                                        case 'warning': board_setStatusLed( 'green', true, 'orange', true);
                                                         break;
                                         // Critical: fast red flash + short beeps once per second
-                                        case 'critical': system_setStatusLed( 'red', 150 );
+                                        case 'critical': board_setStatusLed( 'red', 150 );
                                                         desiredBeepMs = 1000;
                                                         break;
                                         // Emergency: very fast red flash + rapid short beeps
-                                        case 'emergency': system_setStatusLed( 'red', 60 );
+                                        case 'emergency': board_setStatusLed( 'red', 60 );
                                                         desiredBeepMs = 250;
                                                         break;
                                         // unknown / app not yet reporting health
-                                        default:        system_setStatusLed( 'green', true, 'red', true);
+                                        default:        board_setStatusLed( 'green', true, 'red', true);
                                                         break;
                                     }
                                     break;
                 // Hub disconnected: red blink 300ms — distinct from network-down (500ms).
                 // CHANGE vs before: was 600ms default (same cadence as internal error).
-                default:            system_setStatusLed( 'red', 300 );
+                default:            board_setStatusLed( 'red', 300 );
                                     break;
             }
         }
         else if( this.state.connection.provision === 'provisioning' ){
-            system_setStatusLed( 'orange', 70 );
+            board_setStatusLed( 'orange', 70 );
         }
         else{
             // Explicit fallback: covers 'unknown', 'not provisioned', and any
             // future provision states — must never silently keep the previous light.
             // Orange = transitional/degraded: provisioning hasn't started yet.
-            system_setStatusLed( 'orange', 600 );
+            board_setStatusLed( 'orange', 600 );
         }
 
         // Apply the desired beep pattern (or silence).
@@ -263,7 +263,7 @@ export class StateManager extends EventEmitter{
             case 'identify':    showIdentify();
                                 break;
             // Just a little beep
-            case 'beep':        system_beepBuzzer('short');
+            case 'beep':        board_beepBuzzer('short');
                                 break;
             // Error when trying to exit AP mode without saved WiFi
             case 'ap_error':    showApError();
@@ -272,7 +272,7 @@ export class StateManager extends EventEmitter{
             // device to a user account on the dashboard.
             case 'link':        showLink();
                                 break;
-            default:            system_beepBuzzer('short');
+            default:            board_beepBuzzer('short');
                                 break;
         }
         // return to normal

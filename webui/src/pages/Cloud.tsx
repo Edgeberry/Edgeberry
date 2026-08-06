@@ -1,70 +1,42 @@
 import { useEffect, useState } from 'react'
+import { api, ApiError, type CloudStatus, type CertificateInfo } from '../api'
+import { SectionLabel, Field, InsetPanel } from '../components/ui'
 
-/* ── Types ─────────────────────────────────────────────────── */
+/* Certificates expiring within this window are worth warning about while there
+   is still time to re-provision. */
+const CERT_EXPIRY_WARNING_DAYS = 30
 
-type CertificateInfo = {
-  present:        boolean
-  subject?:       string
-  issuer?:        string
-  notAfter?:      string
-  expired?:       boolean
-  daysRemaining?: number
-}
+/* ── Status ─────────────────────────────────────────────────── */
 
-type CloudStatus = {
-  hostName:        string | null
-  deviceId:        string | null
-  configured:      boolean
-  provisioned:     boolean
-  provisionState:  string
-  connectionState: string
-  networkState:    string
-  certificate:     CertificateInfo
-}
-
-/* ── Helpers ────────────────────────────────────────────────── */
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-uppercase fw-semibold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.1em', color: 'var(--eb-accent)' }}>
-      {children}
-    </div>
-  )
-}
-
-function Field({ label, value, mono = true }: { label: string; value: React.ReactNode; mono?: boolean }) {
-  return (
-    <div className="d-flex gap-3 py-1" style={{ fontSize: '0.85rem' }}>
-      <span className="text-muted" style={{ minWidth: 130, flexShrink: 0 }}>{label}</span>
-      <span style={{ fontFamily: mono ? 'monospace' : undefined, wordBreak: 'break-all' }}>{value}</span>
-    </div>
-  )
-}
-
-/* Connection is the headline: everything else on this page exists to explain
-   why it is not 'connected'. */
+/* The headline. Everything else on this page exists to explain why this is not
+   'Connected', so the note names the specific reason rather than restating it. */
 function StatusBadge({ status }: { status: CloudStatus }) {
-  const { connectionState, provisionState, networkState, provisioned } = status
+  const { connectionState, provisionState, networkState, provisioned, configured } = status
 
   let color = 'var(--eb-line)'
   let text  = 'Unknown'
   let note  = ''
 
-  if (!status.configured) {
+  if (!configured) {
     text = 'Not configured'
     note = 'No Device Hub has been set up on this device yet.'
   } else if (connectionState === 'connected') {
-    color = 'var(--eb-ok)';    text = 'Connected'
+    color = 'var(--eb-ok)'
+    text  = 'Connected'
   } else if (connectionState === 'connecting' || provisionState === 'provisioning') {
-    color = 'var(--eb-warn)';  text = provisionState === 'provisioning' ? 'Provisioning…' : 'Connecting…'
+    color = 'var(--eb-warn)'
+    text  = provisionState === 'provisioning' ? 'Provisioning…' : 'Connecting…'
   } else if (networkState !== 'connected') {
-    color = 'var(--eb-fault)'; text = 'Disconnected'
+    color = 'var(--eb-fault)'
+    text  = 'Disconnected'
     note  = 'The device has no network connection.'
   } else if (!provisioned) {
-    color = 'var(--eb-warn)';  text = 'Not provisioned'
+    color = 'var(--eb-warn)'
+    text  = 'Not provisioned'
     note  = 'The device has not yet received its certificate from the hub.'
   } else {
-    color = 'var(--eb-fault)'; text = 'Disconnected'
+    color = 'var(--eb-fault)'
+    text  = 'Disconnected'
   }
 
   return (
@@ -82,12 +54,15 @@ function CertificatePanel({ cert }: { cert: CertificateInfo }) {
   if (!cert.present)
     return <p className="text-muted" style={{ fontSize: '0.85rem' }}>No device certificate — the device is not provisioned.</p>
 
-  const expiringSoon = cert.daysRemaining !== undefined && cert.daysRemaining >= 0 && cert.daysRemaining < 30
+  const expiringSoon =
+    cert.daysRemaining !== undefined &&
+    cert.daysRemaining >= 0 &&
+    cert.daysRemaining < CERT_EXPIRY_WARNING_DAYS
 
   return (
     <>
-      {cert.subject  && <Field label="Subject"   value={cert.subject} />}
-      {cert.issuer   && <Field label="Issuer"    value={cert.issuer} />}
+      {cert.subject && <Field label="Subject" value={cert.subject} />}
+      {cert.issuer  && <Field label="Issuer"  value={cert.issuer} />}
       {cert.notAfter && (
         <Field
           label="Expires"
@@ -110,26 +85,22 @@ function CertificatePanel({ cert }: { cert: CertificateInfo }) {
   )
 }
 
-/* ── Device Hub configuration ───────────────────────────────── */
+/* ── Configuration ──────────────────────────────────────────── */
 
 function HubConfig({ status, onDone }: { status: CloudStatus; onDone: () => void }) {
   const [host,  setHost]  = useState(status.hostName ?? '')
   const [busy,  setBusy]  = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [ok,    setOk]    = useState(false)
+  const [done,  setDone]  = useState(false)
 
   async function provision() {
-    setBusy(true); setError(null); setOk(false)
+    setBusy(true); setError(null); setDone(false)
     try {
-      const r = await fetch('/api/cloud/provision', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostName: host.trim() }),
-      })
-      const d = await r.json()
-      if (r.ok) { setOk(true); onDone() }
-      else setError(d.error ?? 'Provisioning failed.')
-    } catch {
-      setError('Request failed.')
+      await api.cloud.provision(host.trim())
+      setDone(true)
+      onDone()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Request failed.')
     }
     setBusy(false)
   }
@@ -159,7 +130,7 @@ function HubConfig({ status, onDone }: { status: CloudStatus; onDone: () => void
           This can take up to a minute if the hub is slow to answer.
         </p>
       )}
-      {ok && !busy && (
+      {done && !busy && (
         <p className="text-success mt-2 mb-0" style={{ fontSize: '0.8rem' }}>
           Provisioned. The device is connecting to the hub.
         </p>
@@ -178,19 +149,17 @@ function HubConfig({ status, onDone }: { status: CloudStatus; onDone: () => void
 /* ── Actions ────────────────────────────────────────────────── */
 
 function Actions({ status, onDone }: { status: CloudStatus; onDone: () => void }) {
-  const [busy,    setBusy]    = useState<string | null>(null)
+  const [busy,    setBusy]    = useState<'reconnect' | 'reset' | null>(null)
   const [confirm, setConfirm] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
 
-  async function post(path: string, label: string) {
+  async function run( label:'reconnect' | 'reset', action:() => Promise<unknown> ) {
     setBusy(label); setError(null); setConfirm(false)
     try {
-      const r = await fetch(path, { method: 'POST' })
-      const d = await r.json()
-      if (!r.ok) setError(d.error ?? 'Failed.')
-      else onDone()
-    } catch {
-      setError('Request failed.')
+      await action()
+      onDone()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Request failed.')
     }
     setBusy(null)
   }
@@ -200,7 +169,7 @@ function Actions({ status, onDone }: { status: CloudStatus; onDone: () => void }
       <div className="d-flex gap-2 flex-wrap">
         <button
           className="btn btn-sm btn-outline-secondary"
-          onClick={() => post('/api/cloud/reconnect', 'reconnect')}
+          onClick={() => run('reconnect', api.cloud.reconnect)}
           disabled={busy !== null || !status.configured}
         >
           {busy === 'reconnect' ? 'Reconnecting…' : 'Reconnect'}
@@ -215,19 +184,19 @@ function Actions({ status, onDone }: { status: CloudStatus; onDone: () => void }
       </div>
 
       {confirm && (
-        <div className="mt-3 p-3" style={{ background: 'rgba(0,0,0,0.03)', borderRadius: 8 }}>
+        <InsetPanel>
           <p className="mb-2" style={{ fontSize: '0.85rem' }}>
             This deletes the device certificate. The device will provision again against{' '}
-            <strong style={{ fontFamily: 'monospace' }}>{status.hostName ?? 'the configured hub'}</strong> on the next
-            connection attempt.
+            <strong style={{ fontFamily: 'monospace' }}>{status.hostName ?? 'the configured hub'}</strong>{' '}
+            on the next connection attempt.
           </p>
           <div className="d-flex gap-2">
-            <button className="btn btn-sm btn-danger" onClick={() => post('/api/cloud/reset', 'reset')}>
+            <button className="btn btn-sm btn-danger" onClick={() => run('reset', api.cloud.reset)}>
               {busy === 'reset' ? 'Working…' : 'Forget'}
             </button>
             <button className="btn btn-sm btn-outline-secondary" onClick={() => setConfirm(false)}>Cancel</button>
           </div>
-        </div>
+        </InsetPanel>
       )}
 
       {error && <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.8rem' }}>{error}</p>}
@@ -235,30 +204,31 @@ function Actions({ status, onDone }: { status: CloudStatus; onDone: () => void }
   )
 }
 
-/* ── Main page ──────────────────────────────────────────────── */
+/* ── Page ───────────────────────────────────────────────────── */
+
+const POLL_INTERVAL_MS = 5000
 
 export default function Cloud() {
   const [status, setStatus] = useState<CloudStatus | null>(null)
   const [failed, setFailed] = useState(false)
 
   function load() {
-    fetch('/api/cloud')
-      .then(r => r.json())
-      .then((d: CloudStatus) => { setStatus(d); setFailed(false) })
+    api.cloud.get()
+      .then(data => { setStatus(data); setFailed(false) })
       .catch(() => setFailed(true))
   }
 
-  // Provisioning and reconnection both resolve asynchronously on the device,
-  // so poll rather than relying on the action's own response.
+  // Provisioning and reconnection both settle asynchronously on the device, so
+  // the page polls rather than trusting the response of the action that started
+  // them.
   useEffect(() => {
     load()
-    const id = setInterval(load, 5000)
-    return () => clearInterval(id)
+    const timer = setInterval(load, POLL_INTERVAL_MS)
+    return () => clearInterval(timer)
   }, [])
 
   if (failed && !status)
     return <p className="text-danger" style={{ fontSize: '0.875rem' }}>Could not read cloud status.</p>
-
   if (!status) return null
 
   return (

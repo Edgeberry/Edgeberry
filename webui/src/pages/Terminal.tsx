@@ -4,19 +4,30 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 
+/**
+ * Resolve a theme token to a literal colour.
+ *
+ * xterm renders to a canvas and cannot resolve `var()`, so the tokens have to
+ * be read off the document. The fallback covers the theme stylesheet failing to
+ * load — better a readable terminal than an invisible one.
+ */
+function themeColor( token:string, fallback:string ):string{
+  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim()
+  return value || fallback
+}
+
 export default function TerminalPage({ onRequestClose }: { onRequestClose?: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const background = themeColor('--eb-navbar-bg', '#1e1e1e')
+    const foreground = themeColor('--eb-navbar-fg', '#f5f5f5')
+
     const term = new Terminal({
       cursorBlink: true,
       fontFamily:  'monospace',
       fontSize:    14,
-      theme: {
-        background: '#0d0d0d',
-        foreground: '#e0e0e0',
-        cursor:     '#e0e0e0',
-      },
+      theme: { background, foreground, cursor: foreground },
     })
     const fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
@@ -72,7 +83,7 @@ export default function TerminalPage({ onRequestClose }: { onRequestClose?: () =
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      <div ref={containerRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', background: '#0d0d0d', padding: '4px' }} />
+      <div ref={containerRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', background: 'var(--eb-navbar-bg)', padding: '4px' }} />
     </div>
   )
 }

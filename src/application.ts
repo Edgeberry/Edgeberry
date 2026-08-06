@@ -23,16 +23,5 @@ export function app_setApplicationInfo( applicationInfo:ApplicationInfo ){
     console.log(app_applicationInfo);
 }
 
-// Restart the application
-export function app_restartApplication():Promise<string>{
-    return new Promise<string>((resolve, reject)=>{
-        resolve('Not implemented');
-    });
-}
-
-// Stop the application
-export function app_stopApplication():Promise<string>{
-    return new Promise<string>((resolve, reject)=>{
-        resolve('Not implemented');
-    });
-}
+// Starting, stopping and restarting the application are not implemented. The
+// direct methods that would call them answer 501; see directMethods.ts.

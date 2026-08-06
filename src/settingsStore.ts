@@ -1,5 +1,11 @@
 /*
- *  Settings file
+ *  Settings store
+ *  Persistent device configuration, kept in settings.json next to the
+ *  certificates it references.
+ *
+ *  Paths are relative to the process working directory, which systemd sets to
+ *  the application directory (see config/io.edgeberry.core.service). Running the
+ *  application from anywhere else will not find the settings.
  */
 
 import { readFileSync, writeFileSync } from "fs";
@@ -17,16 +23,26 @@ const connectionRootCAFile = certificatesFolder+'/rootCertificate.pem';
 
 export var settings:any = {};
 
-// attempt to read the settings from the file
-try{
-    console.log('\x1b[90mReading settings from settings file...\x1b[37m');
-    //console.log(''+execSync('pwd'));
-    settings = JSON.parse(readFileSync(settingsFilePath).toString());
-    console.log('\x1b[32mSettings read from settings file \x1b[37m');
-    //console.log(settings);
-} catch(err){
-    console.error('\x1b[31mCould not read settings file! \x1b[37m');
-    // ToDo: create settings file?
+/**
+ * Read settings.json into memory.
+ *
+ * Called by the composition root rather than on import: reading a file from the
+ * working directory as a side effect of `import` makes this module impossible
+ * to load anywhere else, and hides a failure that matters at a point where
+ * nobody is looking for it.
+ *
+ * A missing or unreadable file is not fatal — an unprovisioned device has no
+ * settings yet, and `edgeberry --setup` writes the first one.
+ */
+export function settings_load():void{
+    try{
+        console.log('\x1b[90mReading settings from settings file...\x1b[37m');
+        settings = JSON.parse(readFileSync(settingsFilePath).toString());
+        console.log('\x1b[32mSettings read from settings file \x1b[37m');
+    } catch(err){
+        console.error('\x1b[31mCould not read settings file! \x1b[37m');
+        settings = {};
+    }
 }
 
 // Store connection parameters
@@ -72,7 +88,14 @@ export function settings_deleteConnectionParameters(){
     saveSettings();
 }
 
-// Store provisioning parameters
+/*
+ *  Store provisioning parameters.
+ *
+ *  CAUTION: certificate, privateKey and rootCertificate must be passed as PEM
+ *  *contents*. Anything not supplied as a string has its file truncated to
+ *  empty — so passing the stored `...File` paths back in erases the very
+ *  certificates this is meant to save.
+ */
 export function settings_storeProvisioningParameters( params:any ){
     var parameters = JSON.parse(JSON.stringify(params));    // hard copy the parameters, otherwise this is by reference
     settings.provisioning = parameters;

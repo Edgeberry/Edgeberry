@@ -1,8 +1,12 @@
 /*
  *  Terminal Service
- *  Spawns a PTY (bash) per WebSocket connection and relays data bidirectionally.
- *  WebSocket path: /ws/terminal
- *  Upgrade is handled by attaching to the shared HTTP server after start().
+ *  Backs the Terminal panel in the web interface, and nothing else. Spawns a
+ *  PTY (bash) per WebSocket connection on /ws/terminal and relays data both
+ *  ways. Two message types in each direction: 'data' and, inbound, 'resize'.
+ *
+ *  This attaches to the HTTP server the web interface is already served from
+ *  rather than binding a port of its own, so it can only be started after
+ *  WebServer.start() has created that server.
  */
 
 import { WebSocketServer, WebSocket } from 'ws';
@@ -12,6 +16,11 @@ import { Server } from 'http';
 export function startTerminalService( httpServer: Server ):void{
     const wss = new WebSocketServer({ noServer: true });
 
+    // 'upgrade' handlers are additive: every registered handler sees every
+    // upgrade request. This one destroys sockets on paths it does not own, so a
+    // second WebSocket endpoint added elsewhere would have its handshake killed
+    // here. Give this branch a path check that lets other paths pass before
+    // adding one.
     httpServer.on('upgrade', (req, socket, head)=>{
         if(req.url !== '/ws/terminal'){
             socket.destroy();

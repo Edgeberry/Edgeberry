@@ -29,6 +29,7 @@ const NM_DEVICE_IFACE        = 'org.freedesktop.NetworkManager.Device';
 const NM_WIRELESS_IFACE      = 'org.freedesktop.NetworkManager.Device.Wireless';
 const NM_AP_IFACE            = 'org.freedesktop.NetworkManager.AccessPoint';
 const NM_ACTIVE_CONN_IFACE   = 'org.freedesktop.NetworkManager.Connection.Active';
+const NM_IP4CONFIG_IFACE     = 'org.freedesktop.NetworkManager.IP4Config';
 const DBUS_PROPS_IFACE       = 'org.freedesktop.DBus.Properties';
 
 // NetworkManager device type for WiFi
@@ -42,6 +43,19 @@ const NM_ACTIVE_STATE_DEACTIVATED = 4;
 // https://networkmanager.dev/docs/api/latest/nm-dbus-types.html#NMDeviceState
 const NM_DEVICE_STATE_DISCONNECTED = 30;
 const NM_DEVICE_STATE_ACTIVATED    = 100;
+
+/**
+ * NetworkManager's assessment of internet reachability (NMConnectivityState).
+ * Only 'full' means traffic actually reaches the internet.
+ */
+export type Connectivity = 'unknown' | 'none' | 'portal' | 'limited' | 'full';
+
+const NM_CONNECTIVITY: Record<number, Connectivity> = {
+    1: 'none',
+    2: 'portal',
+    3: 'limited',
+    4: 'full',
+};
 
 export type AccessPointInfo = {
     ssid: string;
@@ -262,6 +276,32 @@ export class NetworkManager extends EventEmitter {
             if(!wifiSection) return null;
             const ssidEntry = wifiSection[1].find((e:any)=> e[0] === 'ssid');
             return ssidEntry ? Buffer.from(this.unwrapVariant(ssidEntry[1])).toString('utf-8') : null;
+        } catch(_e){ return null; }
+    }
+
+    /**
+     * The IPv4 address of the WiFi interface, or null when it has none.
+     *
+     * Read from NetworkManager rather than by parsing `ifconfig`: net-tools is
+     * not installed by default on current Raspberry Pi OS, and the interface is
+     * not reliably named wlan0.
+     */
+    public async getWifiAddress():Promise<string|null>{
+        try{
+            const devicePath = await this.getWifiDevicePath();
+            const ip4ConfigPath = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'Ip4Config');
+            if(!ip4ConfigPath || ip4ConfigPath === '/') return null;
+
+            // AddressData is an array of dictionaries, primary address first.
+            // dbus-native hands each dictionary back as an array of
+            // [key, variant] pairs rather than as an object.
+            const addressData = await this.getProperty(ip4ConfigPath, NM_IP4CONFIG_IFACE, 'AddressData');
+            if(!Array.isArray(addressData) || addressData.length === 0) return null;
+
+            const entry = addressData[0];
+            if(!Array.isArray(entry)) return null;
+            const address = entry.find((pair:any)=> Array.isArray(pair) && pair[0] === 'address');
+            return address ? String(this.unwrapVariant(address[1])) : null;
         } catch(_e){ return null; }
     }
 
@@ -728,6 +768,48 @@ export class NetworkManager extends EventEmitter {
             console.log('\x1b[32mNetworkManager: WiFi state monitoring active\x1b[37m');
         } catch(err) {
             console.error('\x1b[31mNetworkManager: Failed to subscribe to WiFi state: ' + err + '\x1b[37m');
+        }
+    }
+
+    /*
+     *  Internet connectivity
+     *
+     *  Distinct from the WiFi state above: the radio can be associated with an
+     *  access point that has no route to the internet, or that intercepts
+     *  traffic behind a portal. NetworkManager probes for this itself and
+     *  reports the result, so we ask rather than guess.
+     */
+
+    /**
+     * Watch NetworkManager's connectivity assessment.
+     *
+     * The callback fires once with the current value and again on every change.
+     * It receives the raw assessment rather than a boolean, so callers can tell
+     * "captive portal" apart from "no network at all" if they ever need to —
+     * today they only care whether it is 'full'.
+     */
+    public async subscribeToConnectivity(
+        callback: (connectivity: Connectivity) => void
+    ): Promise<void> {
+        try {
+            const nmIface = await this.getInterface(NM_PATH, NM_IFACE);
+
+            const report = () => {
+                try {
+                    nmIface.CheckConnectivity((err: any, value: number) => {
+                        if (err) return;
+                        const connectivity = NM_CONNECTIVITY[value] ?? 'unknown';
+                        console.log('Connectivity state: ' + connectivity);
+                        callback(connectivity);
+                    });
+                } catch(_e) {}
+            };
+
+            report();
+            nmIface.on('StateChanged', report);
+            console.log('\x1b[32mNetworkManager: connectivity monitoring active\x1b[37m');
+        } catch(err) {
+            console.error('\x1b[31mNetworkManager: Failed to subscribe to connectivity: ' + err + '\x1b[37m');
         }
     }
 }
