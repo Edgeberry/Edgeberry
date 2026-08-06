@@ -8,8 +8,9 @@ import { hostname } from 'os';
 import { StateManager } from '../stateManager';
 import { NetworkManager } from '../networkManager';
 import { settings } from '../settingsStore';
-import { board_getUUID } from '../board';
-import { system_restart, system_shutdown } from '../system';
+import { board_getUUID, board_getVendor, board_getProductName,
+         board_getProductId, board_getProductVersion } from '../board';
+import { system_restart, system_shutdown, system_getInfo } from '../system';
 
 export type SystemApiDeps = {
     stateManager: StateManager;
@@ -42,6 +43,29 @@ export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
         };
 
         res.json(state);
+    });
+
+    /*
+     *  Everything the device knows about itself.
+     *
+     *  Deliberately not part of /api/state: this is opened by hand and read
+     *  once, where /state is polled every 10 seconds by every open browser.
+     *  The two halves come from two different machines — the Linux host and
+     *  the Edgeberry board on its header — and are kept apart here for the
+     *  same reason system.ts and board.ts are separate.
+     */
+    router.get('/system/info', (_req, res) => {
+        res.json({
+            system: system_getInfo(),
+            board: {
+                vendor:  board_getVendor(),
+                product: board_getProductName(),
+                // Two bytes, conventionally written as the hex the EEPROM holds.
+                id:      board_getProductId()?.replace(/\0.*$/g,'').trim() ?? null,
+                version: board_getProductVersion(),
+                uuid:    board_getUUID(),
+            },
+        });
     });
 
     // Power actions answer before acting: the reboot is scheduled a moment

@@ -9,6 +9,7 @@
  */
 import { exec, execSync } from "child_process";
 import { readFileSync } from "fs";
+import os from "os";
 import path from "path";
 import type { SystemState } from "./stateManager";
 
@@ -70,6 +71,133 @@ export function system_shutdown( timeoutMs?:number ){
     } catch(err){
         return 'Error: '+err;
     }
+}
+
+/*
+ *  System information
+ *
+ *  What the device name in the top bar opens: the machine this software runs
+ *  on, its operating system, and how much of it is in use.
+ *
+ *  Everything that cannot change while the process runs — model, serial, CPU,
+ *  OS release — is read once and kept, so opening the panel repeatedly costs
+ *  nothing but the three live figures. Nothing here throws: an unreadable
+ *  source becomes null and the web interface leaves that row out, because a
+ *  missing serial number is not a reason to fail the whole panel.
+ */
+
+export type SystemInfo = {
+    hostname:     string;
+    /** e.g. 'Raspberry Pi 5 Model B Rev 1.0' */
+    model:        string|null;
+    /** Machine serial, not the Edgeberry board's UUID. */
+    serial:       string|null;
+    /** e.g. 'Debian GNU/Linux 12 (bookworm)' */
+    osName:       string|null;
+    kernel:       string;
+    architecture: string;
+    /** e.g. 'Cortex-A76' */
+    cpu:          string|null;
+    cpuCores:     number;
+    memoryTotal:  number;           // bytes
+    memoryFree:   number;           // bytes
+    diskTotal:    number|null;      // bytes, root filesystem
+    diskFree:     number|null;      // bytes, root filesystem
+    uptime:       number;           // seconds
+    /** Version of this application. */
+    version:      string|null;
+};
+
+/** Read a devicetree/sysfs string, which is NUL-terminated. */
+function readDeviceTreeString( file:string ):string|null{
+    try{
+        return readFileSync(file).toString().replace(/\0.*$/g,'').trim() || null;
+    } catch(err){
+        return null;
+    }
+}
+
+/** PRETTY_NAME out of /etc/os-release — the name the distribution calls itself. */
+function readOsName():string|null{
+    try{
+        const line = readFileSync('/etc/os-release').toString()
+                        .split('\n')
+                        .find( line => line.startsWith('PRETTY_NAME=') );
+        if( !line ) return null;
+        return line.slice('PRETTY_NAME='.length).replace(/^"|"$/g,'') || null;
+    } catch(err){
+        return null;
+    }
+}
+
+/** The board serial the SoC reports. Absent on hardware that has no such field. */
+function readSerial():string|null{
+    try{
+        const line = readFileSync('/proc/cpuinfo').toString()
+                        .split('\n')
+                        .find( line => line.startsWith('Serial') );
+        return line ? (line.split(':')[1]?.trim() || null) : null;
+    } catch(err){
+        return null;
+    }
+}
+
+/** The version in this application's own package.json. */
+function readOwnVersion():string|null{
+    try{
+        const packageJson = JSON.parse(readFileSync(path.join(__dirname,'..','package.json')).toString());
+        return packageJson?.version ?? null;
+    } catch(err){
+        return null;
+    }
+}
+
+/** Size and free space of the root filesystem, in bytes. */
+function readRootFilesystem():{ total:number|null; free:number|null }{
+    try{
+        // --output keeps the columns predictable; plain `df` output shifts with
+        // the filesystem name length.
+        const line = execSync('df -B1 --output=size,avail / 2>/dev/null').toString().split('\n')[1] ?? '';
+        const [ size, avail ] = line.trim().split(/\s+/).map(Number);
+        if( !Number.isFinite(size) || !Number.isFinite(avail) ) return { total: null, free: null };
+        return { total: size, free: avail };
+    } catch(err){
+        return { total: null, free: null };
+    }
+}
+
+// Read once: these describe the machine, and the machine does not change
+// underneath a running process.
+let staticInfo: Pick<SystemInfo,'model'|'serial'|'osName'|'kernel'|'architecture'|'cpu'|'cpuCores'|'version'> | null = null;
+
+export function system_getInfo():SystemInfo{
+    if( !staticInfo ){
+        const cpus = os.cpus();
+        staticInfo = {
+            model:        readDeviceTreeString('/proc/device-tree/model'),
+            serial:       readSerial(),
+            osName:       readOsName(),
+            kernel:       os.release(),
+            // os.machine() is the uname string ('aarch64'), which is what the
+            // rest of the system reports; os.arch() is Node's own naming.
+            architecture: os.machine(),
+            cpu:          cpus[0]?.model ?? null,
+            cpuCores:     cpus.length,
+            version:      readOwnVersion(),
+        };
+    }
+
+    const disk = readRootFilesystem();
+
+    return {
+        ...staticInfo,
+        hostname:    os.hostname(),
+        memoryTotal: os.totalmem(),
+        memoryFree:  os.freemem(),
+        diskTotal:   disk.total,
+        diskFree:    disk.free,
+        uptime:      os.uptime(),
+    };
 }
 
 // Get the Raspberry Pi hardware version

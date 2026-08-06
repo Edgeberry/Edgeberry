@@ -41,6 +41,33 @@ export type DeviceState = {
   }
 }
 
+/** Anything absent on this hardware comes back null and is left off the panel. */
+export type SystemInfo = {
+  system: {
+    hostname:     string
+    model:        string | null
+    serial:       string | null
+    osName:       string | null
+    kernel:       string
+    architecture: string
+    cpu:          string | null
+    cpuCores:     number
+    memoryTotal:  number
+    memoryFree:   number
+    diskTotal:    number | null
+    diskFree:     number | null
+    uptime:       number
+    version:      string | null
+  }
+  board: {
+    vendor:  string | null
+    product: string | null
+    id:      string | null
+    version: string | null
+    uuid:    string | null
+  }
+}
+
 export type AccessPoint  = { ssid: string; strength: number; frequency: number; secured: boolean }
 export type SavedNetwork = { ssid: string; autoconnect: boolean }
 export type WifiData     = { available: AccessPoint[]; saved: SavedNetwork[]; active: string | null }
@@ -129,6 +156,7 @@ export const api = {
   getState:      () => request<DeviceState>('/api/state'),
 
   system: {
+    getInfo:  () => request<SystemInfo>('/api/system/info'),
     reboot:   () => post<{ ok: true }>('/api/system/reboot'),
     shutdown: () => post<{ ok: true }>('/api/system/shutdown'),
     identify: () => post<{ ok: true }>('/api/system/identify'),

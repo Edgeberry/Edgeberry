@@ -7,6 +7,7 @@ import Network from './pages/Network'
 import Cloud from './pages/Cloud'
 import TerminalPage from './pages/Terminal'
 import ApplicationPage from './pages/Application'
+import SystemInfoMenu from './components/SystemInfo'
 
 /* How often the navbar refreshes device state. /api/state is deliberately cheap
    for this reason — see the note on that route. */
@@ -172,12 +173,7 @@ function NavBar(props: NavBarProps) {
           <img src="/theme/logo/logo.svg" alt="Edgeberry" height="28" />
         </NavLink>
 
-        <span
-          className="d-none d-sm-block fw-semibold text-truncate"
-          style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem', maxWidth: 240, textAlign: 'center' }}
-        >
-          {props.hostname}
-        </span>
+        <SystemInfoMenu hostname={props.hostname} />
 
         <div className="d-flex align-items-center gap-1" style={{ justifySelf: 'end' }}>
           <button className="btn btn-sm d-flex align-items-center" style={iconButtonStyle}
