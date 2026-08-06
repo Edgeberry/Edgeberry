@@ -172,10 +172,20 @@ if [ $? -eq 0 ]; then mark_step_completed 10; else mark_step_failed 10; echo -e 
 
 # Step 11: Install/configure nginx as reverse proxy
 mark_step_busy 11
-"${SSH_BASE[@]}" ${USER}@${HOST} "
+# 'apt-get update' before the install, matching install.sh: without it apt
+# resolves against whatever index is already on disk, and on a device that has
+# been idle a while those entries point at package versions the mirrors have
+# since replaced, so the install fails with a 404. That failure aborts the
+# deploy here — after the files are already in place but before the service is
+# restarted — leaving the device running stale code with no nginx at all.
+# The step output is captured rather than discarded so the reason is visible.
+NGINX_OUTPUT=$("${SSH_BASE[@]}" ${USER}@${HOST} "
   set -e
   NGINX_APPDIR=\"$APPDIR/config/nginx\"
-  if ! command -v nginx > /dev/null 2>&1; then sudo apt-get install -y nginx > /dev/null 2>&1; fi
+  if ! command -v nginx > /dev/null 2>&1; then
+    sudo apt-get update > /dev/null 2>&1
+    sudo apt-get install -y nginx > /dev/null
+  fi
   sudo mkdir -p \"\${NGINX_APPDIR}/routes.d\"
   sudo install -m 644 \"\${NGINX_APPDIR}/edgeberry.conf\" /etc/nginx/conf.d/edgeberry.conf
   sudo install -m 644 \"\${NGINX_APPDIR}/edgeberry\" /etc/nginx/sites-available/edgeberry
@@ -189,8 +199,8 @@ mark_step_busy 11
     sudo nginx -t
     exit 1
   fi
-" >/dev/null 2>&1
-if [ $? -eq 0 ]; then mark_step_completed 11; else mark_step_failed 11; echo -e "\e[0;33mFailed to install/configure nginx\e[0m"; exit 1; fi
+" 2>&1)
+if [ $? -eq 0 ]; then mark_step_completed 11; else mark_step_failed 11; echo -e "\e[0;33mFailed to install/configure nginx\e[0m"; echo "$NGINX_OUTPUT" | tail -20; exit 1; fi
 
 # Step 12: Install captive portal DNS redirect for AP mode
 mark_step_busy 12
