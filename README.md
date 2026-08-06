@@ -18,8 +18,6 @@ The installer sets up the service, the web interface and the `edgeberry` CLI. It
 
 ## First run: getting on WiFi
 
-No monitor or keyboard required.
-
 With no WiFi network configured, the device brings up its own open network named **`EDGB-XXXXXX`**. Join it from a phone or laptop and the setup page opens by itself. If it doesn't, browse to **http://10.42.0.1**.
 
 Pick a network, enter the password, and the device joins it and shuts its own network down.
