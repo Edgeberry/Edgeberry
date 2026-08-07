@@ -146,7 +146,13 @@ if [ $? -eq 0 ]; then mark_step_completed 6; else mark_step_failed 6; echo -e "\
 
 # Step 7: Copy temp -> appdir
 mark_step_busy 7
-"${SSH_BASE[@]}" ${USER}@${HOST} "sudo rsync -a --delete --exclude 'settings.json' --exclude 'certificates/' --exclude 'share/' \"$REMOTE_TEMP/\" \"$APPDIR/\" && if [ -d \"$REMOTE_TEMP/share\" ]; then sudo rsync -a --delete \"$REMOTE_TEMP/share/\" \"$SHAREDIR/\"; fi && sudo rm -rf \"$APPDIR/share\" \"$REMOTE_TEMP\"" >/dev/null 2>&1
+# config/nginx/routes.d/ is excluded from --delete because it does not belong to
+# this repository: it is where *other* applications drop their nginx routes (the
+# Freya installer puts node-red.conf there), which is exactly what the site file
+# tells them to do. Nothing here ships those files, so without the exclude every
+# deploy silently deletes every application's routing and leaves their paths
+# falling through to the Device Service's catch-all.
+"${SSH_BASE[@]}" ${USER}@${HOST} "sudo rsync -a --delete --exclude 'settings.json' --exclude 'certificates/' --exclude 'share/' --exclude 'config/nginx/routes.d/' \"$REMOTE_TEMP/\" \"$APPDIR/\" && if [ -d \"$REMOTE_TEMP/share\" ]; then sudo rsync -a --delete \"$REMOTE_TEMP/share/\" \"$SHAREDIR/\"; fi && sudo rm -rf \"$APPDIR/share\" \"$REMOTE_TEMP\"" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 7; else mark_step_failed 7; echo -e "\e[0;33mFailed to copy files into app directory\e[0m"; exit 1; fi
 
 # Step 8: Install dependencies (remote, prod only)

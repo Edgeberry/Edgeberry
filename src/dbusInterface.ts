@@ -18,7 +18,7 @@
 
 import { StateManager } from './stateManager';
 import { DeviceHubService } from './deviceHub';
-import { app_setApplicationInfo, ApplicationInfo } from './application';
+import { app_setApplicationInfo, app_setApplicationStatus, ApplicationInfo, ApplicationStatus } from './application';
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
@@ -84,7 +84,11 @@ export function startDbusInterface( deps:DbusDeps ):void{
         },
         SetApplicationStatus:(arg:string)=>{
             try{
-                const status = JSON.parse(arg.toString());
+                const status = JSON.parse(arg.toString()) as ApplicationStatus;
+                // Keep the whole status: the severity alone says something is
+                // wrong, the message says what. Only the severity goes to the
+                // StateManager, which drives the LED and buzzer.
+                app_setApplicationStatus(status);
                 stateManager.updateApplicationState('health', status.level );
                 return 'ok';
             }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BrowserRouter, NavLink, Routes, Route } from 'react-router-dom'
 import { Modal } from 'bootstrap'
-import { api, type ConnectionState, type ProvisionState, type WifiState } from './api'
+import { api, type AppHealth, type ConnectionState, type ProvisionState, type WifiState } from './api'
 import Network from './pages/Network'
 import Cloud from './pages/Cloud'
 import TerminalPage from './pages/Terminal'
@@ -32,6 +32,37 @@ function CloudIcon({ provision, connection, hubHost }: {
   if (connection === 'disconnected')
     return <i className="fa-solid fa-cloud" style={{ color: 'var(--eb-fault)' }} title={`Disconnected from ${hub}`} />
   return <i className="fa-solid fa-cloud" style={{ color: 'var(--eb-idle)' }} title="Cloud status unknown" />
+}
+
+function ApplicationIcon({ health, name, version, message }: {
+  health: AppHealth; name: string | null; version: string | null; message: string | null
+}) {
+  // The application names and versions itself through the SDK. Until it has
+  // reported, there is nothing to name it after.
+  const app = name ? (version ? `${name} ${version}` : name) : 'Application'
+
+  // The message is the application's own account of why it is in this state,
+  // which is the reason surfacing status here is worth anything at all. Prefer
+  // it over our generic wording whenever the application supplied one.
+  const title = (fallback: string) => (message ? `${app} — ${message}` : `${app} — ${fallback}`)
+
+  if (health === 'ok')
+    return <i className="fa-solid fa-cube" style={{ color: 'var(--eb-ok)' }} title={title('running normally')} />
+  if (health === 'warning')
+    return <i className="fa-solid fa-cube" style={{ color: 'var(--eb-warn)' }} title={title('warning')} />
+  // error, critical and emergency all mean "attention now" and share the fault
+  // colour; the tooltip carries the severity that the hue cannot.
+  if (health === 'error')
+    return <i className="fa-solid fa-cube" style={{ color: 'var(--eb-fault)' }} title={title('error')} />
+  if (health === 'critical')
+    return <i className="fa-solid fa-cube" style={{ color: 'var(--eb-fault)' }} title={title('critical')} />
+  if (health === 'emergency')
+    return <i className="fa-solid fa-cube" style={{ color: 'var(--eb-fault)' }} title={title('emergency')} />
+
+  // Nothing reported yet. Deliberately distinct from an application that has
+  // reported it is fine — a silent application is not a healthy one.
+  return <i className="fa-solid fa-cube" style={{ color: 'var(--eb-idle)' }}
+    title={name ? `${app} — status unknown` : 'No application reporting'} />
 }
 
 function NetworkIcon({ wifi, network, ssid, apSsid }: {
@@ -161,6 +192,10 @@ type NavBarProps = {
   connectionState: ConnectionState
   hubHost:         string | null
   hostname:        string
+  appHealth:       AppHealth
+  appName:         string | null
+  appVersion:      string | null
+  appMessage:      string | null
 }
 
 function NavBar(props: NavBarProps) {
@@ -186,6 +221,13 @@ function NavBar(props: NavBarProps) {
         </div>
 
         <div className="d-flex align-items-center gap-1" style={{ gridColumn: 3, justifySelf: 'end' }}>
+          {/* The application is what the device is for, so it leads the row.
+              '/' is the application view, so this links there rather than
+              opening a modal like the two device-level icons beside it. */}
+          <NavLink className="btn btn-sm d-flex align-items-center" style={iconButtonStyle} to="/">
+            <ApplicationIcon health={props.appHealth} name={props.appName}
+              version={props.appVersion} message={props.appMessage} />
+          </NavLink>
           <button className="btn btn-sm d-flex align-items-center" style={iconButtonStyle}
             onClick={props.onOpenNetwork} title="Network">
             <NetworkIcon wifi={props.wifiState} network={props.networkState} ssid={props.activeSsid} apSsid={props.apSsid} />
@@ -329,6 +371,10 @@ function AppShell() {
   const [connectionState, setConnectionState] = useState<ConnectionState>('unknown')
   const [hubHost,         setHubHost]         = useState<string | null>(null)
   const [hostname,        setHostname]        = useState<string>('')
+  const [appHealth,       setAppHealth]       = useState<AppHealth>('unknown')
+  const [appName,         setAppName]         = useState<string | null>(null)
+  const [appVersion,      setAppVersion]      = useState<string | null>(null)
+  const [appMessage,      setAppMessage]      = useState<string | null>(null)
   const [apNoticeDismissed, setApNoticeDismissed] = useState(false)
 
   useEffect(() => { if (hostname) document.title = hostname }, [hostname])
@@ -348,6 +394,10 @@ function AppShell() {
           setHubHost(state.connection.hubHost ?? null)
           setHostname(state.system.hostname ?? '')
           setApSsid(state.system.apSsid ?? null)
+          setAppHealth(state.application?.health ?? 'unknown')
+          setAppName(state.application?.name ?? null)
+          setAppVersion(state.application?.version ?? null)
+          setAppMessage(state.application?.message ?? null)
         })
         .catch(() => {})
 
@@ -376,6 +426,10 @@ function AppShell() {
         connectionState={connectionState}
         hubHost={hubHost}
         hostname={hostname}
+        appHealth={appHealth}
+        appName={appName}
+        appVersion={appVersion}
+        appMessage={appMessage}
       />
 
       <ModalShell title="Cloud Connection" icon="fa-cloud" onReady={fn => { openCloud.current = fn }}>

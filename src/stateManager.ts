@@ -26,11 +26,17 @@ export type WifiState     = 'unknown' | 'ap_mode' | 'connected' | 'disconnected'
 // Lifecycle state of the application process (Running | Restarting | Stopping | Stopped)
 export type AppLifecycleState = 'unknown' | 'running' | 'restarting' | 'stopping' | 'stopped';
 // Health/severity reported by the application over IPC.
-// NOTE: This is a separate concern from the lifecycle state above. The
-// indicator switch reads this field. Currently no IPC path sets it — callers
-// must call updateApplicationState('health', ...) when the application reports
-// its health. Flagged for human review: confirm which model is correct.
-export type AppHealthState = 'unknown' | 'ok' | 'warning' | 'critical' | 'emergency';
+// This is a separate concern from the lifecycle state above. The indicator
+// switch reads this field; it is set from the D-Bus SetApplicationStatus
+// method (see dbusInterface.ts), which is what the published SDKs call.
+//
+// 'error' sits between 'warning' and 'critical' and is part of the documented
+// SDK contract. The indicator switch has no case for it and falls through to
+// its default — which is the "application is not reporting" branch, so an
+// application reporting 'error' currently looks like one that has said
+// nothing. Deliberately left as-is here: changing it changes LED and buzzer
+// behaviour on the hardware.
+export type AppHealthState = 'unknown' | 'ok' | 'warning' | 'error' | 'critical' | 'emergency';
 
 export type deviceState = {
     system:{

@@ -11,6 +11,7 @@ import { settings } from '../settingsStore';
 import { board_getUUID, board_getVendor, board_getProductName,
          board_getProductId, board_getProductVersion } from '../board';
 import { system_restart, system_shutdown, system_getInfo } from '../system';
+import { app_getApplicationInfo, app_getApplicationStatus } from '../application';
 
 export type SystemApiDeps = {
     stateManager: StateManager;
@@ -40,6 +41,29 @@ export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
         state.connection = {
             ...state.connection,
             hubHost: settings?.connection?.hostName ?? settings?.provisioning?.hostName ?? null,
+        };
+
+        /*
+         *  What the application reports about itself, from the two D-Bus calls
+         *  the SDKs make: SetApplicationInfo (name/version/description) and
+         *  SetApplicationStatus (level/message).
+         *
+         *  Both live outside the StateManager — info because it is metadata
+         *  rather than state, the message because the StateManager lowercases
+         *  everything it stores. Grafted on here so the navbar gets them from
+         *  the route it already polls, rather than opening a second request.
+         *
+         *  'version' was declared on the application state but never written by
+         *  anything; the application's own reported version is what it was for.
+         */
+        const appInfo   = app_getApplicationInfo();
+        const appStatus = app_getApplicationStatus();
+        state.application = {
+            ...state.application,
+            name:        appInfo?.name ?? null,
+            description: appInfo?.description ?? null,
+            version:     appInfo?.version ?? null,
+            message:     appStatus?.message ?? null,
         };
 
         res.json(state);

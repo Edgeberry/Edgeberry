@@ -13,6 +13,9 @@
 export type WifiState       = 'ap_mode' | 'connected' | 'disconnected' | 'unknown'
 export type ProvisionState  = 'disabled' | 'provisioned' | 'not provisioned' | 'provisioning' | 'unknown'
 export type ConnectionState = 'connected' | 'disconnected' | 'connecting' | 'unknown'
+/** Severity an application reports over the SDK. The device does not validate
+ *  the level it is given, so treat anything outside this set as unknown. */
+export type AppHealth       = 'ok' | 'warning' | 'error' | 'critical' | 'emergency' | 'unknown'
 
 export type DeviceState = {
   system: {
@@ -33,11 +36,16 @@ export type DeviceState = {
     wifi:       WifiState
     hubHost:    string | null
   }
+  /** name/description/version come from SetApplicationInfo, health/message from
+   *  SetApplicationStatus. Null when the application has not reported yet. */
   application: {
-    state:      string
-    health:     string
-    connection: string
-    version:    string
+    state:       string
+    health:      AppHealth
+    connection:  string
+    name:        string | null
+    description: string | null
+    version:     string | null
+    message:     string | null
   }
 }
 
