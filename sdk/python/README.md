@@ -7,8 +7,11 @@ The **Edgeberry Python SDK** is a software library to facilitate communication b
 <br clear="right"/>
 
 ## Usage
-Install the package using `pip`
+The SDK talks to D-Bus through `pydbus` and `PyGObject`. Install those from the
+system package manager rather than letting `pip` build them — PyGObject compiles
+against the gobject-introspection headers and rarely builds cleanly on a device.
 ```shell
+sudo apt install -y python3-pydbus python3-gi
 pip install edgeberry
 ```
 After installation, the `edgeberry` library can be used as follows
@@ -19,10 +22,33 @@ from edgeberry import Edgeberry
 # Create the Edgeberry object
 edgeberry = Edgeberry()
 
-# Available methods
+# Application
 edgeberry.set_application_info("name", "version", "description")    # Called when the program (re)starts
 edgeberry.set_status("level", "message")                            # Level can be ok|warning|error|critical|emergency
+edgeberry.send_message({"temperature": 21.5})                       # Telemetry to the Device Hub
+
+# Device
+edgeberry.identify()                                                # Blink the LED and beep
+state = edgeberry.get_state()                                       # Device state as a dictionary
+
+# Signals. Each subscription returns a function that removes the handler again.
+unsubscribe = edgeberry.on_state(lambda state: print(state))
+edgeberry.on_cloud_message(lambda payload: print(payload))          # Cloud-to-device messages
+edgeberry.on_button_event(lambda event: print(event["event"]))      # click | pressrelease | apToggle | longpress | verylongpress
+unsubscribe()
 ```
+
+The application info you set is remembered. When the Edgeberry Device Software
+restarts it loses what applications told it, so the SDK sends the info again as
+soon as the service is back — an application only has to call
+`set_application_info()` once.
+
+### Main loop
+Signals arrive on a GLib main loop. The SDK runs one on a background daemon
+thread so plain scripts receive signals without being restructured, which means
+handlers are called on that thread. If your application already runs its own
+main loop, construct with `Edgeberry(start_loop=False)` and let yours do the
+dispatching. Call `edgeberry.close()` to stop the SDK's loop.
 
 ## License & Collaboration
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Python SDK is licensed under the **[MIT License](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
