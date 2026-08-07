@@ -95,6 +95,13 @@ export class Edgeberry extends EventEmitter {
   private bus: dbus.MessageBus | null = null;
   private iface: dbus.ClientInterface | null = null;
   private ifacePromise: Promise<dbus.ClientInterface> | null = null;
+  /**
+   * The last application info that was set. The Core keeps application info in
+   * memory only, so it forgets it when the service restarts; remembering it
+   * here is what lets us tell the new instance again.
+   */
+  private lastInfo: ApplicationInfo | null = null;
+  private watchingRestart = false;
 
   constructor(options: EdgeberryOptions = {}) {
     super();
@@ -114,6 +121,9 @@ export class Edgeberry extends EventEmitter {
    * @returns the raw response string from the Core service (`'ok'` on success).
    */
   async setApplicationInfo(info: ApplicationInfo): Promise<string> {
+    // Remembered before the call, so info set while the Core is down is still
+    // replayed once it comes up.
+    this.lastInfo = info;
     const iface = await this.getInterface();
     return iface.SetApplicationInfo(JSON.stringify(info));
   }
@@ -205,6 +215,41 @@ export class Edgeberry extends EventEmitter {
     this.bus = null;
     this.iface = null;
     this.ifacePromise = null;
+    this.lastInfo = null;
+    this.watchingRestart = false;
+  }
+
+  /**
+   * Re-send the remembered application info whenever the Core service claims
+   * its bus name again, which is what a restart looks like from here.
+   */
+  private async watchForRestart(bus: dbus.MessageBus): Promise<void> {
+    if (this.watchingRestart) return;
+    try {
+      const proxy = await bus.getProxyObject('org.freedesktop.DBus', '/org/freedesktop/DBus');
+      proxy
+        .getInterface('org.freedesktop.DBus')
+        .on('NameOwnerChanged', (name: string, _oldOwner: string, newOwner: string) => {
+          // An empty newOwner is the name being released — the Core going away.
+          // Only its arrival is interesting.
+          if (name !== EDGEBERRY_SERVICE || !newOwner) return;
+          this.resendApplicationInfo();
+        });
+      this.watchingRestart = true;
+    } catch {
+      /* Without the watcher everything else still works; info just is not replayed. */
+    }
+  }
+
+  private resendApplicationInfo(): void {
+    const info = this.lastInfo;
+    if (!info) return;
+    // The Core owns the name a moment before it has finished exporting the
+    // interface, so give it that moment rather than racing it. A failure here
+    // is not the caller's problem — they never asked for this call.
+    setTimeout(() => {
+      this.iface?.SetApplicationInfo(JSON.stringify(info)).catch(() => {});
+    }, 500);
   }
 
   /**
@@ -240,6 +285,7 @@ export class Edgeberry extends EventEmitter {
       const proxy = await this.bus.getProxyObject(EDGEBERRY_SERVICE, EDGEBERRY_OBJECT_PATH);
       const iface = proxy.getInterface(EDGEBERRY_INTERFACE);
       this.iface = iface;
+      await this.watchForRestart(this.bus);
       return iface;
     })();
     this.ifacePromise.catch(() => {
