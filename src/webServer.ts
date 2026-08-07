@@ -106,6 +106,19 @@ export class WebServer {
         const webUiDir = path.join(__dirname, '..', 'public', 'webui');
         this.app.use(express.static(webUiDir));
         this.app.use((_req:Request, res:Response)=>{
+            /*
+             *  Mark the response as the single-page-app fallback rather than a
+             *  resource that exists.
+             *
+             *  nginx sends every unclaimed path here, so a path that no
+             *  application has registered a route for — /dashboard with no
+             *  routes.d entry, say — answers 200 with this page. The web
+             *  interface frames that path, so without a way to tell the
+             *  fallback apart from a real application it frames itself, and a
+             *  missing application looks like the interface repeating inside
+             *  itself instead of like an error.
+             */
+            res.set('X-Edgeberry-Fallback', '1');
             res.sendFile(path.join(webUiDir, 'index.html'));
         });
     }
