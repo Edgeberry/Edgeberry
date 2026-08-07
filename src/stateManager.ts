@@ -231,9 +231,12 @@ export class StateManager extends EventEmitter{
                                         case 'critical': board_setStatusLed( 'red', 150 );
                                                         desiredBeepMs = 1000;
                                                         break;
-                                        // Emergency: very fast red flash + rapid short beeps
+                                        // Emergency: very fast red flash + rapid short beeps.
+                                        // A 'short' beep is 80ms of sound, so at this
+                                        // cadence there is only 45ms of silence between
+                                        // beeps — deliberately urgent, close to a warble.
                                         case 'emergency': board_setStatusLed( 'red', 60 );
-                                                        desiredBeepMs = 250;
+                                                        desiredBeepMs = 125;
                                                         break;
                                         // unknown / app not yet reporting health
                                         default:        board_setStatusLed( 'green', true, 'red', true);
