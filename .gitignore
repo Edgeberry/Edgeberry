@@ -6,3 +6,6 @@ certificates/
 webui/node_modules/
 webui/dist/
 public/webui/
+# Python bytecode
+__pycache__/
+*.pyc
