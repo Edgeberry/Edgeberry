@@ -7,7 +7,26 @@
  */
 
 import { EventEmitter } from 'events';
-import * as dbus from 'dbus-next';
+
+// Same D-Bus library as the Edgeberry Device Software and the hardware drivers,
+// so a device that runs an application alongside them installs one copy rather
+// than two. It ships no TypeScript definitions, hence the require and the `any`
+// typed handles below.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const dbus = require('dbus-native');
+
+/**
+ * Promisify a dbus-native method call. Every method on the Edgeberry interface
+ * takes its arguments followed by a node-style callback.
+ */
+function callMethod<T>(iface: any, name: string, args: unknown[] = []): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    iface[name](...args, (err: unknown, result: T) => {
+      if (err) return reject(err instanceof Error ? err : new Error(String(err)));
+      resolve(result);
+    });
+  });
+}
 
 /** D-Bus service, object path and interface names owned by the Edgeberry Core. */
 export const EDGEBERRY_SERVICE = 'io.edgeberry.Core';
@@ -92,9 +111,9 @@ export interface EdgeberryOptions {
  */
 export class Edgeberry extends EventEmitter {
   private readonly busKind: 'system' | 'session';
-  private bus: dbus.MessageBus | null = null;
-  private iface: dbus.ClientInterface | null = null;
-  private ifacePromise: Promise<dbus.ClientInterface> | null = null;
+  private bus: any = null;
+  private iface: any = null;
+  private ifacePromise: Promise<any> | null = null;
   /**
    * The last application info that was set. The Core keeps application info in
    * memory only, so it forgets it when the service restarts; remembering it
@@ -113,7 +132,7 @@ export class Edgeberry extends EventEmitter {
    */
   async identify(): Promise<void> {
     const iface = await this.getInterface();
-    await iface.Identify();
+    await callMethod<void>(iface, 'Identify');
   }
 
   /**
@@ -125,7 +144,7 @@ export class Edgeberry extends EventEmitter {
     // replayed once it comes up.
     this.lastInfo = info;
     const iface = await this.getInterface();
-    return iface.SetApplicationInfo(JSON.stringify(info));
+    return callMethod<string>(iface, 'SetApplicationInfo', [JSON.stringify(info)]);
   }
 
   /**
@@ -144,7 +163,7 @@ export class Edgeberry extends EventEmitter {
         ? { level: statusOrLevel, message }
         : statusOrLevel;
     const iface = await this.getInterface();
-    return iface.SetApplicationStatus(JSON.stringify(payload));
+    return callMethod<string>(iface, 'SetApplicationStatus', [JSON.stringify(payload)]);
   }
 
   /**
@@ -155,7 +174,7 @@ export class Edgeberry extends EventEmitter {
    */
   async sendMessage(data: unknown): Promise<string> {
     const iface = await this.getInterface();
-    return iface.SendMessage(JSON.stringify(data));
+    return callMethod<string>(iface, 'SendMessage', [JSON.stringify(data)]);
   }
 
   /**
@@ -196,7 +215,7 @@ export class Edgeberry extends EventEmitter {
    */
   async getState(): Promise<DeviceState> {
     const iface = await this.getInterface();
-    const raw: string = await iface.GetState();
+    const raw = await callMethod<string>(iface, 'GetState');
     if (!raw) throw new Error('Edgeberry: GetState returned an empty response');
     return JSON.parse(raw) as DeviceState;
   }
@@ -207,7 +226,7 @@ export class Edgeberry extends EventEmitter {
   close(): void {
     if (this.bus) {
       try {
-        this.bus.disconnect();
+        this.bus.connection.end();
       } catch {
         /* ignore */
       }
@@ -223,18 +242,20 @@ export class Edgeberry extends EventEmitter {
    * Re-send the remembered application info whenever the Core service claims
    * its bus name again, which is what a restart looks like from here.
    */
-  private async watchForRestart(bus: dbus.MessageBus): Promise<void> {
+  private async watchForRestart(): Promise<void> {
     if (this.watchingRestart) return;
     try {
-      const proxy = await bus.getProxyObject('org.freedesktop.DBus', '/org/freedesktop/DBus');
-      proxy
-        .getInterface('org.freedesktop.DBus')
-        .on('NameOwnerChanged', (name: string, _oldOwner: string, newOwner: string) => {
-          // An empty newOwner is the name being released — the Core going away.
-          // Only its arrival is interesting.
-          if (name !== EDGEBERRY_SERVICE || !newOwner) return;
-          this.resendApplicationInfo();
-        });
+      const dbusIface = await this.getServiceInterface(
+        'org.freedesktop.DBus',
+        '/org/freedesktop/DBus',
+        'org.freedesktop.DBus',
+      );
+      dbusIface.on('NameOwnerChanged', (name: string, _oldOwner: string, newOwner: string) => {
+        // An empty newOwner is the name being released — the Core going away.
+        // Only its arrival is interesting.
+        if (name !== EDGEBERRY_SERVICE || !newOwner) return;
+        this.resendApplicationInfo();
+      });
       this.watchingRestart = true;
     } catch {
       /* Without the watcher everything else still works; info just is not replayed. */
@@ -248,7 +269,8 @@ export class Edgeberry extends EventEmitter {
     // interface, so give it that moment rather than racing it. A failure here
     // is not the caller's problem — they never asked for this call.
     setTimeout(() => {
-      this.iface?.SetApplicationInfo(JSON.stringify(info)).catch(() => {});
+      if (!this.iface) return;
+      callMethod<string>(this.iface, 'SetApplicationInfo', [JSON.stringify(info)]).catch(() => {});
     }, 500);
   }
 
@@ -276,16 +298,34 @@ export class Edgeberry extends EventEmitter {
     };
   }
 
+  /**
+   * Resolve a D-Bus interface proxy. dbus-native introspects the object and
+   * hands the interface back through a callback.
+   */
+  private getServiceInterface(service: string, objectPath: string, interfaceName: string): Promise<any> {
+    return new Promise<any>((resolve, reject) => {
+      this.bus
+        .getService(service)
+        .getInterface(objectPath, interfaceName, (err: unknown, iface: any) => {
+          if (err) return reject(err instanceof Error ? err : new Error(String(err)));
+          resolve(iface);
+        });
+    });
+  }
+
   /** Lazily connect to D-Bus and resolve the Edgeberry Core interface proxy. */
-  private getInterface(): Promise<dbus.ClientInterface> {
+  private getInterface(): Promise<any> {
     if (this.iface) return Promise.resolve(this.iface);
     if (this.ifacePromise) return this.ifacePromise;
     this.ifacePromise = (async () => {
       this.bus = this.busKind === 'system' ? dbus.systemBus() : dbus.sessionBus();
-      const proxy = await this.bus.getProxyObject(EDGEBERRY_SERVICE, EDGEBERRY_OBJECT_PATH);
-      const iface = proxy.getInterface(EDGEBERRY_INTERFACE);
+      const iface = await this.getServiceInterface(
+        EDGEBERRY_SERVICE,
+        EDGEBERRY_OBJECT_PATH,
+        EDGEBERRY_INTERFACE,
+      );
       this.iface = iface;
-      await this.watchForRestart(this.bus);
+      await this.watchForRestart();
       return iface;
     })();
     this.ifacePromise.catch(() => {
