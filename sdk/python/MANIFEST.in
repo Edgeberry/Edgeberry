@@ -1,2 +1,7 @@
 # Include all Python files in the edgeberry directory
 recursive-include edgeberry *.py
+
+# Ship the things someone reads before writing their first application
+include README.md
+include LICENSE.txt
+include example.py

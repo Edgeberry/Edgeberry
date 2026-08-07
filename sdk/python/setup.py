@@ -9,15 +9,18 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/Edgeberry/Edgeberry-device-software/tree/main/sdk/python",
+    license="MIT",
     packages=find_packages(),
     install_requires=[
-        "pydbus",   # List dependencies here
+        "pydbus",
         "PyGObject"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
+        # D-Bus and the Edgeberry Device Software are Linux-only.
+        "Operating System :: POSIX :: Linux",
+        "Topic :: Software Development :: Embedded Systems",
     ],
     python_requires='>=3.6',
 )

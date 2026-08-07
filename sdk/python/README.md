@@ -7,11 +7,8 @@ The **Edgeberry Python SDK** is a software library to facilitate communication b
 <br clear="right"/>
 
 ## Usage
-The SDK talks to D-Bus through `pydbus` and `PyGObject`. Install those from the
-system package manager rather than letting `pip` build them — PyGObject compiles
-against the gobject-introspection headers and rarely builds cleanly on a device.
+Install the package using `pip`
 ```shell
-sudo apt install -y python3-pydbus python3-gi
 pip install edgeberry
 ```
 After installation, the `edgeberry` library can be used as follows
