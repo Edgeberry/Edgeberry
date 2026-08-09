@@ -114,6 +114,33 @@ pip install edgeberry
 
 See [sdk/python](sdk/python) for the API reference and examples.
 
+### Node.js
+
+```sh
+npm install @edgeberry/device-sdk
+```
+
+```js
+import { Edgeberry } from '@edgeberry/device-sdk';
+
+const device = new Edgeberry();
+
+// Cloud to device: react to messages from the hub
+await device.onCloudMessage((message) => {
+  console.log('From the hub:', message);
+});
+
+// Device to cloud: send telemetry, and notice when it doesn't arrive
+setInterval(async () => {
+  const result = await device.sendMessage({ temperature: 22.5 });
+  if (result !== 'ok') console.warn('Not sent:', result);   // err:not_connected
+}, 5000);
+
+await device.setApplicationStatus({ level: 'ok', message: 'Running' });
+```
+
+The example is ESM, so it needs `"type": "module"` in your `package.json` or an `.mjs` file. See [sdk/node](sdk/node) for the API reference, TypeScript types and a fuller example.
+
 ### Node-RED
 
 Install [Node-RED](https://nodered.org/docs/getting-started/raspberrypi) and the [Edgeberry node](https://flows.nodered.org/node/@edgeberry/device-node-red-contrib). Its dashboard then shows up on the **Application** page of the web interface.
