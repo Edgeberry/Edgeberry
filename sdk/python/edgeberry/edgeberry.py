@@ -56,27 +56,32 @@ class Edgeberry:
     """
 
     # Set application info
-    def set_application_info(self, name, version, description):
+    #
+    # `routes` declares the views this application offers, which the device
+    # interface builds its application menu from:
+    #
+    #     routes=[{"label": "Dashboard", "path": "/dashboard", "default": True},
+    #             {"label": "Editor",    "path": "/editor", "target": "tab"}]
+    #
+    # 'target' is 'iframe' (shown inside the interface) unless given as 'tab',
+    # and the device settles on one default whether or not one is marked.
+    def set_application_info(self, name, version, description, routes=None):
         try:
-            # Create dictionary
             application_info = {
                 "name": name,
                 "version": version,
                 "description": description
             }
+            if routes is not None:
+                application_info["routes"] = routes
 
             # Remembered before the call, so info set while the Core is down is
             # still replayed once it comes up.
             self._last_info = application_info
 
-            # Convert dictionary to JSON string
-            application_info_json = json.dumps(application_info)
-
-            # Call the 'SetApplicationInfo' method on the Edgeberry Core service object
-            return self.edgeberry_core_service.SetApplicationInfo(application_info_json)
+            return self.edgeberry_core_service.SetApplicationInfo(json.dumps(application_info))
 
         except Exception as e:
-            # Print the error message
             print(f"Edgeberry: error setting application info: {e}")
             return None
 

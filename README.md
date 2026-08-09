@@ -184,6 +184,30 @@ sudo dbus-send --system --type=method_call --print-reply \
 
 Drop an nginx `location` block into `/opt/Edgeberry/Core/config/nginx/routes.d/`. It is matched ahead of the device software's own catch-all, so you can serve your application alongside the device UI on port 80.
 
+To put those pages in the web interface's application menu, declare them alongside your application info:
+
+```js
+await device.setApplicationInfo({
+  name: 'my-app',
+  version: '1.2.0',
+  routes: [
+    { label: 'Dashboard', path: '/dashboard', default: true },
+    { label: 'Editor',    path: '/editor', target: 'tab' },
+  ],
+});
+```
+
+| Field | |
+|-------|--|
+| `label` | Menu text |
+| `path` | A path on this device, or an absolute `http(s)` URL if your application listens on its own port |
+| `target` | `iframe` (default) shows the view inside the interface; `tab` opens a browser tab |
+| `default` | Which view opens when the application is selected. If you mark none, the first framed view wins |
+
+Declare nothing and the interface frames `/dashboard`, as it always has. With one view the application icon opens it directly; with several it becomes a menu.
+
+The device validates what you declare: entries without a usable label and path are dropped, and only paths and `http(s)` URLs are accepted — these end up as an iframe `src` and a link `href`.
+
 ### Branding
 
 Every colour in the web interface comes from CSS custom properties, so you can restyle it for your own project without touching the code. Create `/etc/edgeberry/theme/brand.css`:

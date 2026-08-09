@@ -33,11 +33,33 @@ export const EDGEBERRY_SERVICE = 'io.edgeberry.Core';
 export const EDGEBERRY_OBJECT_PATH = '/io/edgeberry/Core';
 export const EDGEBERRY_INTERFACE = 'io.edgeberry.Core';
 
+/**
+ * A view the application offers, shown in the device interface's application
+ * menu. Node-RED, for instance, declares its dashboard and its editor.
+ *
+ * The device validates these and settles the optional fields: `target` defaults
+ * to framing the view inside the interface, and exactly one route ends up the
+ * default — the application's choice if it marked one, otherwise the first
+ * framable view it listed.
+ */
+export interface ApplicationRoute {
+  /** Menu label, e.g. 'Dashboard'. */
+  label: string;
+  /** A path on this device ('/dashboard'), or an absolute http(s) URL. */
+  path: string;
+  /** Opens when the application view is entered without naming a view. */
+  default?: boolean;
+  /** 'iframe' (the default) shows it inside the interface; 'tab' opens a browser tab. */
+  target?: 'iframe' | 'tab';
+}
+
 /** Application metadata reported to the Device Hub. */
 export interface ApplicationInfo {
   name: string;
   version: string;
   description?: string;
+  /** Views this application offers; see {@link ApplicationRoute}. */
+  routes?: ApplicationRoute[];
 }
 
 /** Application health/status level reported to the Device Hub. */

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BrowserRouter, NavLink, Routes, Route } from 'react-router-dom'
 import { Modal } from 'bootstrap'
-import { api, type AppHealth, type ConnectionState, type ProvisionState, type WifiState } from './api'
+import { api, type AppHealth, type ApplicationRoute, type ConnectionState, type ProvisionState, type WifiState } from './api'
 import Network from './pages/Network'
 import Cloud from './pages/Cloud'
 import TerminalPage from './pages/Terminal'
@@ -102,7 +102,19 @@ function NetworkIcon({ wifi, network, ssid, apSsid }: {
 
 /* ── Navigation ─────────────────────────────────────────────── */
 
-function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; onOpenPower: () => void }) {
+/**
+ * A dropdown anchored under its trigger and rendered into document.body.
+ *
+ * The portal is what makes it usable: the navbar establishes a stacking context
+ * that would otherwise clip the menu. Shared by the device menu and the
+ * application menu so the two cannot drift apart in placement or dismissal.
+ */
+function PortalMenu({ trigger, title, buttonStyle, children }: {
+  trigger:      React.ReactNode
+  title:        string
+  buttonStyle?: React.CSSProperties
+  children:     (close: () => void) => React.ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const [pos, setPos] = useState({ top: 0, right: 0 })
@@ -124,10 +136,6 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
     return () => document.removeEventListener('mousedown', close)
   }, [open])
 
-  const itemStyle = { color: 'var(--eb-navbar-fg)' }
-
-  // Rendered into document.body: the navbar establishes a stacking context that
-  // would otherwise clip the menu.
   const menu = open ? createPortal(
     <ul
       style={{
@@ -139,26 +147,7 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
       }}
       onMouseDown={e => e.stopPropagation()}
     >
-      <li>
-        <button className="dropdown-item d-flex align-items-center gap-2" style={itemStyle}
-          onClick={() => { setOpen(false); onOpenTerminal() }}>
-          <i className="fa-solid fa-terminal fa-fw" />Terminal
-        </button>
-      </li>
-      <li><hr className="dropdown-divider" /></li>
-      <li>
-        <button className="dropdown-item d-flex align-items-center gap-2" style={itemStyle}
-          onClick={() => { setOpen(false); api.system.identify().catch(() => {}) }}>
-          <i className="fa-solid fa-location-dot fa-fw" />Identify
-        </button>
-      </li>
-      <li><hr className="dropdown-divider" /></li>
-      <li>
-        <button className="dropdown-item d-flex align-items-center gap-2" style={itemStyle}
-          onClick={() => { setOpen(false); onOpenPower() }}>
-          <i className="fa-solid fa-power-off fa-fw" />Power
-        </button>
-      </li>
+      {children(() => setOpen(false))}
     </ul>,
     document.body
   ) : null
@@ -167,15 +156,107 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
     <>
       <button
         ref={btnRef}
-        className="btn btn-sm"
-        style={{ color: 'var(--eb-navbar-fg)', lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.5rem' }}
+        className="btn btn-sm d-flex align-items-center"
+        style={{ color: 'var(--eb-navbar-fg)', lineHeight: 1, background: 'none', border: 'none',
+                 padding: '0.25rem 0.5rem', ...buttonStyle }}
         onClick={toggle}
-        title="Menu"
+        title={title}
       >
-        <i className="fa-solid fa-ellipsis-vertical" />
+        {trigger}
       </button>
       {menu}
     </>
+  )
+}
+
+const menuItemStyle = { color: 'var(--eb-navbar-fg)' }
+
+/** Where the application view lives for a given declared route. */
+function viewPath( route:ApplicationRoute ):string {
+  return `/?view=${encodeURIComponent(route.slug)}`
+}
+
+/**
+ * The application's own menu.
+ *
+ * An application declares the views it offers through SetApplicationInfo — for
+ * Node-RED that is typically a dashboard and an editor — and this is where they
+ * surface. With one view there is nothing to choose between, so the icon
+ * addresses it directly rather than making someone open a menu to reach the
+ * only item in it.
+ */
+function ApplicationMenu({ routes, icon }: { routes: ApplicationRoute[]; icon: React.ReactNode }) {
+  const triggerStyle = { lineHeight: 1, background: 'none', border: 'none', padding: '0.25rem 0.4rem' }
+
+  // Nothing declared: '/' frames /dashboard, the behaviour that predates routes.
+  if (routes.length === 0)
+    return (
+      <NavLink className="btn btn-sm d-flex align-items-center" style={triggerStyle} to="/">{icon}</NavLink>
+    )
+
+  if (routes.length === 1) {
+    const [only] = routes
+    if (only.target !== 'tab')
+      return (
+        <NavLink className="btn btn-sm d-flex align-items-center" style={triggerStyle} to={viewPath(only)}>{icon}</NavLink>
+      )
+    return (
+      <a className="btn btn-sm d-flex align-items-center" style={triggerStyle} title={only.label}
+        href={only.path} target="_blank" rel="noopener noreferrer">{icon}</a>
+    )
+  }
+
+  return (
+    <PortalMenu title="Application" trigger={icon} buttonStyle={{ padding: '0.25rem 0.4rem' }}>
+      {close => routes.map(route => (
+        <li key={route.slug}>
+          {route.target === 'tab' ? (
+            /* noreferrer alongside noopener: the location is the application's
+               to choose and may well be off this device. */
+            <a className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+              href={route.path} target="_blank" rel="noopener noreferrer" onClick={close}>
+              <i className="fa-solid fa-arrow-up-right-from-square fa-fw" />{route.label}
+            </a>
+          ) : (
+            <NavLink className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+              to={viewPath(route)} onClick={close}>
+              <i className="fa-solid fa-window-maximize fa-fw" />{route.label}
+            </NavLink>
+          )}
+        </li>
+      ))}
+    </PortalMenu>
+  )
+}
+
+function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; onOpenPower: () => void }) {
+  return (
+    <PortalMenu title="Menu" trigger={<i className="fa-solid fa-ellipsis-vertical" />}>
+      {close => (
+        <>
+          <li>
+            <button className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+              onClick={() => { close(); onOpenTerminal() }}>
+              <i className="fa-solid fa-terminal fa-fw" />Terminal
+            </button>
+          </li>
+          <li><hr className="dropdown-divider" /></li>
+          <li>
+            <button className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+              onClick={() => { close(); api.system.identify().catch(() => {}) }}>
+              <i className="fa-solid fa-location-dot fa-fw" />Identify
+            </button>
+          </li>
+          <li><hr className="dropdown-divider" /></li>
+          <li>
+            <button className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+              onClick={() => { close(); onOpenPower() }}>
+              <i className="fa-solid fa-power-off fa-fw" />Power
+            </button>
+          </li>
+        </>
+      )}
+    </PortalMenu>
   )
 }
 
@@ -196,6 +277,7 @@ type NavBarProps = {
   appName:         string | null
   appVersion:      string | null
   appMessage:      string | null
+  appRoutes:       ApplicationRoute[]
 }
 
 function NavBar(props: NavBarProps) {
@@ -222,12 +304,13 @@ function NavBar(props: NavBarProps) {
 
         <div className="d-flex align-items-center gap-1" style={{ gridColumn: 3, justifySelf: 'end' }}>
           {/* The application is what the device is for, so it leads the row.
-              '/' is the application view, so this links there rather than
-              opening a modal like the two device-level icons beside it. */}
-          <NavLink className="btn btn-sm d-flex align-items-center" style={iconButtonStyle} to="/">
-            <ApplicationIcon health={props.appHealth} name={props.appName}
-              version={props.appVersion} message={props.appMessage} />
-          </NavLink>
+              It addresses the application's own views rather than opening a
+              modal like the two device-level icons beside it. */}
+          <ApplicationMenu
+            routes={props.appRoutes}
+            icon={<ApplicationIcon health={props.appHealth} name={props.appName}
+              version={props.appVersion} message={props.appMessage} />}
+          />
           <button className="btn btn-sm d-flex align-items-center" style={iconButtonStyle}
             onClick={props.onOpenNetwork} title="Network">
             <NetworkIcon wifi={props.wifiState} network={props.networkState} ssid={props.activeSsid} apSsid={props.apSsid} />
@@ -375,6 +458,7 @@ function AppShell() {
   const [appName,         setAppName]         = useState<string | null>(null)
   const [appVersion,      setAppVersion]      = useState<string | null>(null)
   const [appMessage,      setAppMessage]      = useState<string | null>(null)
+  const [appRoutes,       setAppRoutes]       = useState<ApplicationRoute[]>([])
   const [apNoticeDismissed, setApNoticeDismissed] = useState(false)
 
   useEffect(() => { if (hostname) document.title = hostname }, [hostname])
@@ -398,6 +482,7 @@ function AppShell() {
           setAppName(state.application?.name ?? null)
           setAppVersion(state.application?.version ?? null)
           setAppMessage(state.application?.message ?? null)
+          setAppRoutes(state.application?.routes ?? [])
         })
         .catch(() => {})
 
@@ -430,6 +515,7 @@ function AppShell() {
         appName={appName}
         appVersion={appVersion}
         appMessage={appMessage}
+        appRoutes={appRoutes}
       />
 
       <ModalShell title="Cloud Connection" icon="fa-cloud" onReady={fn => { openCloud.current = fn }}>

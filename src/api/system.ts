@@ -64,6 +64,10 @@ export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
             description: appInfo?.description ?? null,
             version:     appInfo?.version ?? null,
             message:     appStatus?.message ?? null,
+            // The views the application offers, already validated and settled by
+            // application.ts. Empty for an application that declares none, which
+            // is what the interface falls back to /dashboard on.
+            routes:      appInfo?.routes ?? [],
         };
 
         res.json(state);

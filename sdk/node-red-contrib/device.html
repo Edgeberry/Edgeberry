@@ -35,6 +35,25 @@ msg.payload = { temperature: 22.5, humidity: 45 };</pre>
   <h3>Set Application Info</h3>
   <pre>msg.topic   = "info";
 msg.payload = { name: "MyApp", version: "1.0", description: "desc" };</pre>
+  <p>
+    Add <code>routes</code> to put your pages in the device interface's
+    application menu. <code>path</code> is a path on this device or an absolute
+    http(s) URL; <code>target</code> is <code>"iframe"</code> (the default,
+    shown inside the interface) or <code>"tab"</code>; <code>default</code>
+    marks the view that opens when the application is selected.
+  </p>
+  <pre>msg.payload = {
+  name: "MyApp", version: "1.0",
+  routes: [
+    { label: "Dashboard", path: "/dashboard", default: true },
+    { label: "Editor",    path: "/editor", target: "tab" }
+  ]
+};</pre>
+  <p>
+    Declare a view as <code>"tab"</code> if the page refuses to be framed —
+    an editor served with <code>X-Frame-Options</code> or a
+    <code>frame-ancestors</code> policy renders as a blank panel otherwise.
+  </p>
 
   <h3>Set Application Status</h3>
   <pre>msg.topic   = "status";

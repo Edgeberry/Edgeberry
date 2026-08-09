@@ -18,7 +18,7 @@
 
 import { StateManager } from './stateManager';
 import { DeviceHubService } from './deviceHub';
-import { app_setApplicationInfo, app_setApplicationStatus, ApplicationInfo, ApplicationStatus } from './application';
+import { app_setApplicationInfo, app_setApplicationStatus, ApplicationInfoInput, ApplicationStatus } from './application';
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
@@ -75,7 +75,7 @@ export function startDbusInterface( deps:DbusDeps ):void{
         },
         SetApplicationInfo:(arg:string)=>{
             try{
-                app_setApplicationInfo(JSON.parse(arg.toString()) as ApplicationInfo);
+                app_setApplicationInfo(JSON.parse(arg.toString()) as ApplicationInfoInput);
                 return 'ok';
             }
             catch(err){

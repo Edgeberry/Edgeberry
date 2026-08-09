@@ -6,6 +6,7 @@ export {
 } from './edgeberry';
 export type {
   ApplicationInfo,
+  ApplicationRoute,
   ApplicationStatus,
   ApplicationStatusLevel,
   CloudMessageHandler,

@@ -36,8 +36,8 @@ export type DeviceState = {
     wifi:       WifiState
     hubHost:    string | null
   }
-  /** name/description/version come from SetApplicationInfo, health/message from
-   *  SetApplicationStatus. Null when the application has not reported yet. */
+  /** name/description/version/routes come from SetApplicationInfo, health/message
+   *  from SetApplicationStatus. Null when the application has not reported yet. */
   application: {
     state:       string
     health:      AppHealth
@@ -46,7 +46,26 @@ export type DeviceState = {
     description: string | null
     version:     string | null
     message:     string | null
+    routes:      ApplicationRoute[]
   }
+}
+
+/**
+ * A view the application offers, declared through SetApplicationInfo and shown
+ * in the application menu.
+ *
+ * The device validates and settles these before serving them, so every field is
+ * present and exactly one route is the default — see application.ts.
+ */
+export type ApplicationRoute = {
+  label:   string
+  /** A path on this device, or an absolute http(s) URL. */
+  path:    string
+  /** 'iframe' shows the view inside this interface; 'tab' opens a browser tab. */
+  target:  'iframe' | 'tab'
+  default: boolean
+  /** What `?view=` names this route by. */
+  slug:    string
 }
 
 /** Anything absent on this hardware comes back null and is left off the panel. */
