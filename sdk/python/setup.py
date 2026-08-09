@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="edgeberry",
-    version="3.8.0",
+    version="3.8.1",
     author="Sanne 'SpuQ' Santens",
     author_email="sanne.santens@gmail.com",
     description="Python SDK for interfacing applications with Edgeberry Device Software",
