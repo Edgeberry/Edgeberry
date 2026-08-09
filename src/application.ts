@@ -111,34 +111,52 @@ export function app_setApplicationStatus( applicationStatus:ApplicationStatus ){
  */
 
 /**
- * Accept a location the web interface can safely open, or null.
+ * Accept a location the web interface can safely open, or an explanation.
  *
- * Two forms are allowed: a path on this device, and an absolute http(s) URL for
- * an application listening on its own port. Every other scheme is refused —
+ * Two forms are allowed: a path inside the application, and an absolute http(s)
+ * URL for something served elsewhere. Every other scheme is refused —
  * `javascript:` above all, since these values become an iframe `src` and a link
  * `href`.
+ *
+ * A path here is the application's *own* path. It is reached from outside under
+ * the pass-through prefix, so nothing an application declares can collide with
+ * the device's own routing and there is no reserved list to enforce: '/api'
+ * means the application's /api, not the device's.
  */
-function normalizePath( value:unknown ):string|null{
-    if(typeof value !== 'string') return null;
+function normalizePath( value:unknown ):{ path:string } | { error:string }{
+    if(typeof value !== 'string' || !value.trim()) return { error:'no path' };
     const path = value.trim();
-    if(!path) return null;
 
     if(path.startsWith('/')){
         // '//host/…' is protocol-relative, not a path: the browser reads it as
         // another origin and leaves the device entirely.
-        return path.startsWith('//') ? null : path;
+        if(path.startsWith('//'))
+            return { error:`'${path}' is not a path` };
+        // '..' would climb back out of the prefix the application is mounted under.
+        if(path.split('/').includes('..'))
+            return { error:`'${path}' must not contain '..'` };
+        if(/\s|[{};]/.test(path))
+            return { error:`'${path}' contains characters that are not valid in a URL path` };
+
+        // A trailing slash makes a different location than the same path
+        // without one; settle on one form so two spellings cannot both be
+        // declared and show up as two menu items for one page. The application
+        // root stays '/'.
+        return { path: path.replace(/\/+$/, '') || '/' };
     }
 
     try{
         const url = new URL(path);
-        return (url.protocol === 'http:' || url.protocol === 'https:') ? url.toString() : null;
+        if(url.protocol !== 'http:' && url.protocol !== 'https:')
+            return { error:`'${path}' is not an http(s) URL` };
+        return { path: url.toString() };
     } catch(_err){
-        return null;
+        return { error:`'${path}' is neither a path on this device nor an http(s) URL` };
     }
 }
 
 /** Reduce a label to something addressable in a URL. */
-function slugify( label:string ):string{
+export function slugify( label:string ):string{
     return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
@@ -160,6 +178,7 @@ function normalizeRoutes( value:unknown ):ApplicationRoute[]{
 
     const routes:ApplicationRoute[] = [];
     const taken  = new Set<string>();
+    const claimed = new Set<string>();
 
     const reject = ( index:number, reason:string ) =>
         console.log('\x1b[33mApplication route '+index+' ignored: '+reason+'\x1b[37m');
@@ -175,17 +194,27 @@ function normalizeRoutes( value:unknown ):ApplicationRoute[]{
         }
 
         const label = typeof entry.label === 'string' ? entry.label.trim().slice(0, MAX_LABEL_LENGTH) : '';
-        const path  = normalizePath(entry.path);
         if(!label){
             reject(index, 'no label');
             continue;
         }
-        if(!path){
-            // The rejected value is quoted back: 'editor' failing where
-            // '/editor' would have worked is otherwise invisible.
-            reject(index, `'${String(entry.path)}' is not a path on this device or an http(s) URL`);
+
+        // The reason is quoted back: 'editor' failing where '/editor' would have
+        // worked is otherwise invisible to whoever wrote it.
+        const resolved = normalizePath(entry.path);
+        if('error' in resolved){
+            reject(index, resolved.error);
             continue;
         }
+        const path = resolved.path;
+
+        // Two routes on one path would generate two nginx locations for it,
+        // which nginx refuses to load — taking every route down, not just this one.
+        if(claimed.has(path)){
+            reject(index, `'${path}' is claimed twice`);
+            continue;
+        }
+        claimed.add(path);
 
         // Labels are the application's to choose and need not be unique; the
         // slug the interface addresses a view by does.
@@ -197,10 +226,19 @@ function normalizeRoutes( value:unknown ):ApplicationRoute[]{
         routes.push({
             label,
             path,
-            // Framing is the default because a view that stays inside the
-            // interface keeps the device's navigation and status in front of
-            // whoever is using it.
-            target:  entry.target === 'tab' ? 'tab' : 'iframe',
+            /*
+             *  Framing is the default for a page on this device: it keeps the
+             *  device's navigation and status in front of whoever is using it.
+             *
+             *  Somewhere else on the internet defaults to a tab instead. Most
+             *  sites refuse to be framed, and an iframe that silently renders
+             *  nothing is a worse answer than a link. An explicit 'iframe' still
+             *  wins, for the ones that allow it.
+             */
+            target:  entry.target === 'iframe' ? 'iframe'
+                   : entry.target === 'tab'    ? 'tab'
+                   : path.startsWith('/')      ? 'iframe'
+                   :                             'tab',
             default: entry.default === true,
             slug,
         });

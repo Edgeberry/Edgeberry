@@ -10,6 +10,8 @@ import { DeviceHubService } from "./deviceHub";
 import { app_getApplicationInfo } from "./application";
 import { board_button } from "./board";
 import { system_getApplicationInfo, system_restart, system_updateApplication } from "./system";
+import { registry_getManifest, registry_lifecycle } from "./applicationRegistry";
+import { LifecycleAction } from "./applicationManifest";
 
 
 /*
@@ -142,23 +144,43 @@ export function registerDirectMethods( deviceHub:DeviceHubService, stateManager:
     });
 
     /*
-     *  Application lifecycle — not implemented
+     *  Application lifecycle
      *
-     *  Managing the lifecycle of the application a device runs needs a decision
-     *  about what an "application" is here (a systemd unit? a container?) that
-     *  has not been made yet.
-     *
-     *  These stay registered and answer 501 rather than being removed: the
-     *  methods are part of the published cloud contract, and a caller is better
-     *  served by an explicit "not implemented" than by a method that has
-     *  silently disappeared. They previously answered 200 with the message
-     *  'Not implemented', which every reasonable client reads as success.
+     *  An application says how it can be managed in its manifest — a systemd
+     *  unit and the actions it honours. Until one is registered, or for an
+     *  action it did not declare, these answer 501: what a device can do to its
+     *  application is the application's to state, not ours to assume.
      */
-    const notImplemented = (_req:any, res:any) =>
-        res.status(501).send({ message:'Not implemented' });
+    const lifecycle = ( action:LifecycleAction ) => (_req:any, res:any) => {
+        const manifest = registry_getManifest();
+        if(!manifest)
+            return res.status(501).send({ message:'No application is registered on this device' });
+        if(!manifest.service?.supports.includes(action))
+            return res.status(501).send({ message:`${manifest.name} does not support '${action}'` });
 
-    cloud.registerDirectMethod('updateApplication',  notImplemented);
-    cloud.registerDirectMethod('restartApplication', notImplemented);
-    cloud.registerDirectMethod('stopApplication',    notImplemented);
+        try{
+            // Answer before acting, like the reboot route does: restarting the
+            // application can take the connection this reply travels over with
+            // it, and a caller that never hears back cannot tell a working
+            // restart from a broken device.
+            res.send({ message:`${action} requested for ${manifest.name}` });
+            registry_lifecycle(action);
+        }
+        catch(err:any){
+            console.error('\x1b[31mLifecycle '+action+' failed: '+err.message+'\x1b[37m');
+        }
+    };
+
+    cloud.registerDirectMethod('restartApplication', lifecycle('restart'));
+    cloud.registerDirectMethod('stopApplication',    lifecycle('stop'));
+    cloud.registerDirectMethod('startApplication',   lifecycle('start'));
+    cloud.registerDirectMethod('reloadApplication',  lifecycle('reload'));
+
+    /*
+     *  Updating an application is still not implemented: where a new version
+     *  comes from is a packaging question the manifest does not answer.
+     */
+    cloud.registerDirectMethod('updateApplication', (_req:any, res:any) =>
+        res.status(501).send({ message:'Not implemented' }));
 
 }

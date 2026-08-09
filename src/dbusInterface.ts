@@ -18,7 +18,8 @@
 
 import { StateManager } from './stateManager';
 import { DeviceHubService } from './deviceHub';
-import { app_setApplicationInfo, app_setApplicationStatus, ApplicationInfoInput, ApplicationStatus } from './application';
+import { app_getApplicationInfo, app_setApplicationInfo, app_setApplicationStatus, ApplicationInfoInput, ApplicationStatus } from './application';
+import { registry_applyRoutes, registry_getApplication, registry_register, registry_unregister } from './applicationRegistry';
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
@@ -76,6 +77,10 @@ export function startDbusInterface( deps:DbusDeps ):void{
         SetApplicationInfo:(arg:string)=>{
             try{
                 app_setApplicationInfo(JSON.parse(arg.toString()) as ApplicationInfoInput);
+                // The routes an application declares are what nginx proxies to
+                // the port its manifest registered, so a declaration is also a
+                // routing change. No-ops when nothing about them changed.
+                registry_applyRoutes(app_getApplicationInfo()?.routes ?? []);
                 return 'ok';
             }
             catch(err){
@@ -121,6 +126,44 @@ export function startDbusInterface( deps:DbusDeps ):void{
                 return '';
             }
         },
+
+        /*
+         *  Application registration.
+         *
+         *  The CLI calls these rather than editing settings.json, so the Core
+         *  stays the only writer — see applicationRegistry.ts. Errors come back
+         *  as text because whoever ran `edgeberry --register-application` is the
+         *  one who has to act on them.
+         */
+        RegisterApplication:(arg:string)=>{
+            try{
+                const application = registry_register(arg.toString().trim());
+                return 'ok:'+application.manifest.name;
+            }
+            catch(err:any){
+                console.error('\x1b[31mRegisterApplication failed:', err.message, '\x1b[37m');
+                return 'err:'+err.message;
+            }
+        },
+        UnregisterApplication:()=>{
+            try{
+                registry_unregister();
+                return 'ok';
+            }
+            catch(err:any){
+                console.error('\x1b[31mUnregisterApplication failed:', err.message, '\x1b[37m');
+                return 'err:'+err.message;
+            }
+        },
+        GetApplication:()=>{
+            try{
+                return JSON.stringify(registry_getApplication());
+            }
+            catch(err){
+                console.error('GetApplication error:', err);
+                return 'null';
+            }
+        },
     };
 
     // exportInterface mutates serviceObject; it does not return anything.
@@ -132,6 +175,9 @@ export function startDbusInterface( deps:DbusDeps ):void{
             SetApplicationStatus:['s','s'],
             SendMessage:['s','s'],
             GetState:['','s'],
+            RegisterApplication:['s','s'],
+            UnregisterApplication:['','s'],
+            GetApplication:['','s'],
         },
         signals: {
             CloudMessage: ['s'],   // cloud-to-device message

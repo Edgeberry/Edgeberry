@@ -12,6 +12,7 @@ import { board_getUUID, board_getVendor, board_getProductName,
          board_getProductId, board_getProductVersion } from '../board';
 import { system_restart, system_shutdown, system_getInfo } from '../system';
 import { app_getApplicationInfo, app_getApplicationStatus } from '../application';
+import { registry_baseUrl, registry_publicUrl } from '../applicationRegistry';
 
 export type SystemApiDeps = {
     stateManager: StateManager;
@@ -64,10 +65,20 @@ export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
             description: appInfo?.description ?? null,
             version:     appInfo?.version ?? null,
             message:     appStatus?.message ?? null,
-            // The views the application offers, already validated and settled by
-            // application.ts. Empty for an application that declares none, which
-            // is what the interface falls back to /dashboard on.
-            routes:      appInfo?.routes ?? [],
+            /*
+             *  The views the application offers, already validated and settled
+             *  by application.ts.
+             *
+             *  Each carries the URL the interface should actually open, which is
+             *  not the path the application declared: an application names its
+             *  own paths, and they are reached from outside under the
+             *  pass-through prefix. Resolving it here keeps that mapping in one
+             *  place rather than in every consumer of this route.
+             */
+            // Where the application is reachable as a whole. Null when none is
+            // registered, which is what the interface's own fallback is for.
+            base:        registry_baseUrl(),
+            routes:      (appInfo?.routes ?? []).map(route => ({ ...route, url: registry_publicUrl(route) })),
         };
 
         res.json(state);

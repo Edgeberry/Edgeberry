@@ -31,6 +31,26 @@ if [ $# -eq 0 ]
     exit -1;
 fi
 
+##
+#  Call a Core method that answers 'ok...' or 'err:<reason>', and turn that
+#  into output and an exit status a packager's install script can act on.
+##
+dbus_application_call() {
+  local method="$1"; shift
+  local reply
+  reply=$(dbus-send --system --print-reply=literal --dest=io.edgeberry.Core \
+          /io/edgeberry/Core "io.edgeberry.Core.$method" "$@" 2>&1) || {
+    echo "Could not reach the Edgeberry service. Is it running?"
+    exit 1
+  }
+  reply=$(echo "$reply" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  case "$reply" in
+    ok*)  echo "${reply#ok:}"; [ "$reply" = "ok" ] && echo "Done."; exit 0 ;;
+    err:*) echo "${reply#err:}" >&2; exit 1 ;;
+    *)    echo "$reply"; exit 1 ;;
+  esac
+}
+
 case $1 in
 
   "--help")
@@ -52,6 +72,10 @@ case $1 in
       --hardware-id &&Get this device's hardware UUID
       --hardware-version &&Get the device's base board version
       --identify  &&Physically identify this device with indicators
+                  &&
+      --register-application <dir> &&Register the application in <dir> (reads its edgeberry.json)
+      --unregister-application &&Forget the registered application and its routes
+      --application &&Show the registered application
 EOF
     echo ""
     ;;
@@ -113,6 +137,48 @@ EOF
       echo "null"
       exit -1;
     fi
+    ;;
+
+  ##
+  #  Application registration
+  #
+  #  These go through the Core over D-Bus rather than editing settings.json
+  #  here. The Core writes that file from memory in one piece, so an edit made
+  #  behind its back is erased by its next save — and only later, which is the
+  #  worst way to lose a registration. The Core is the only writer.
+  ##
+  "--register-application")
+    if [ -z "$2" ]; then
+      echo "Usage: edgeberry --register-application <application directory>"
+      echo "The directory must contain an edgeberry.json manifest."
+      exit 1
+    fi
+    # Relative paths are resolved here: the Core has a different working
+    # directory and would resolve them somewhere the caller did not mean.
+    APPLICATION_DIR=$(cd "$2" 2>/dev/null && pwd)
+    if [ -z "$APPLICATION_DIR" ]; then
+      echo "No such directory: $2"
+      exit 1
+    fi
+    dbus_application_call RegisterApplication "string:$APPLICATION_DIR"
+    ;;
+
+  "--unregister-application")
+    dbus_application_call UnregisterApplication
+    ;;
+
+  "--application")
+    RESULT=$(dbus-send --system --print-reply=literal --dest=io.edgeberry.Core \
+             /io/edgeberry/Core io.edgeberry.Core.GetApplication 2>&1) || {
+      echo "Could not reach the Edgeberry service. Is it running?"
+      exit 1
+    }
+    RESULT=$(echo "$RESULT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    if [ -z "$RESULT" ] || [ "$RESULT" = "null" ]; then
+      echo "No application is registered."
+      exit 1
+    fi
+    echo "$RESULT" | jq . 2>/dev/null || echo "$RESULT"
     ;;
 
   *)

@@ -132,6 +132,35 @@ export function settings_storeProvisioningParameters( params:any ){
     saveSettings();
 }
 
+/*
+ *  The registered application.
+ *
+ *  The manifest is not copied here — it stays in the application's own
+ *  directory, so an application that updates carries its own description with it
+ *  rather than leaving a stale copy behind. Only the path is kept, plus the
+ *  routes the application last declared, so its paths keep being served across a
+ *  restart instead of going dark until it re-declares them.
+ *
+ *  One device runs one application, so registering replaces whatever was
+ *  registered before rather than accumulating.
+ */
+export function settings_storeApplication( applicationPath:string, routes:unknown[] = [] ){
+    settings.application = { path: applicationPath, routes };
+    saveSettings();
+}
+
+export function settings_deleteApplication(){
+    delete settings.application;
+    saveSettings();
+}
+
+/** The registered application, or null when none is registered. */
+export function settings_getApplication():{ path:string, routes:any[] }|null{
+    const stored = settings?.application;
+    if(!stored || typeof stored.path !== 'string' || !stored.path) return null;
+    return { path: stored.path, routes: Array.isArray(stored.routes) ? stored.routes : [] };
+}
+
 function saveSettings(){
     writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2) );
 }

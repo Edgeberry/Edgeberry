@@ -36,22 +36,25 @@ msg.payload = { temperature: 22.5, humidity: 45 };</pre>
   <pre>msg.topic   = "info";
 msg.payload = { name: "MyApp", version: "1.0", description: "desc" };</pre>
   <p>
-    Add <code>routes</code> to put your pages in the device interface's
-    application menu. <code>path</code> is a path on this device or an absolute
-    http(s) URL; <code>target</code> is <code>"iframe"</code> (the default,
-    shown inside the interface) or <code>"tab"</code>; <code>default</code>
-    marks the view that opens when the application is selected.
+    Add <code>routes</code> to put entries in the device interface's application
+    menu. A <code>path</code> is this application's own path, which the device
+    serves under its application prefix; an absolute http(s) URL points off the
+    device and is linked unchanged. <code>default</code> marks the view that
+    opens when the application is selected.
   </p>
   <pre>msg.payload = {
   name: "MyApp", version: "1.0",
   routes: [
-    { label: "Dashboard", path: "/dashboard", default: true },
-    { label: "Editor",    path: "/editor", target: "tab" }
+    { label: "Dashboard",  path: "/dashboard", default: true },
+    { label: "Editor",     path: "/editor", target: "tab" },
+    { label: "Repository", path: "https://github.com/you/yourapp" }
   ]
 };</pre>
   <p>
-    Declare a view as <code>"tab"</code> if the page refuses to be framed —
-    an editor served with <code>X-Frame-Options</code> or a
+    <code>target</code> is <code>"iframe"</code> (shown inside the interface) or
+    <code>"tab"</code>, defaulting to <code>"iframe"</code> for a path and
+    <code>"tab"</code> for a URL. Use <code>"tab"</code> for anything that
+    refuses to be framed — a page served with <code>X-Frame-Options</code> or a
     <code>frame-ancestors</code> policy renders as a blank panel otherwise.
   </p>
 

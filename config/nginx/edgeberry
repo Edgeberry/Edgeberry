@@ -1,7 +1,8 @@
 # Edgeberry platform site.
 #
-# Owned by Edgeberry Core. Do not edit to add application routes —
-# drop a .conf into /opt/Edgeberry/Core/config/nginx/routes.d/ instead.
+# Owned by Edgeberry Core. Application routes are not added here, and not
+# written by hand into routes.d/ either: they are generated from the registered
+# application's manifest. See `edgeberry --register-application`.
 #
 # Port map:
 #   :80    this server, the only publicly bound listener
@@ -39,9 +40,9 @@ server {
         root /opt/Edgeberry/share;
     }
 
-    # Application routes. Longest-prefix match means files here take
-    # precedence over the catch-all below regardless of include order.
-    # An empty directory is not an error.
+    # Application routes, generated from the registered application's manifest.
+    # Longest-prefix match means files here take precedence over the catch-all
+    # below regardless of include order. An empty directory is not an error.
     include /opt/Edgeberry/Core/config/nginx/routes.d/*.conf;
 
     # Catch-all: root and every unclaimed path go to the Device Service.

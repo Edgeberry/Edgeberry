@@ -41,6 +41,7 @@ import { buildApiRouter } from './api';
 import { registerDirectMethods } from './directMethods';
 import { startTerminalService } from './terminal';
 import { settings_load } from './settingsStore';
+import { registry_load } from './applicationRegistry';
 import {
     startDbusInterface,
     emitCloudMessage,
@@ -132,6 +133,12 @@ startDbusInterface({ stateManager, deviceHub });
 
 async function start():Promise<void>{
     board_init();
+
+    // Re-read the registered application's manifest and make routes.d/ match it.
+    // Done before the web interface comes up so the application's paths are
+    // already routed by the time anything can ask for them, and so a routes.d/
+    // lost to a deploy is rebuilt rather than silently staying gone.
+    registry_load();
 
     // Identity and platform, best-effort: a device without the Edgeberry HAT
     // still runs, it just cannot report which board it is.

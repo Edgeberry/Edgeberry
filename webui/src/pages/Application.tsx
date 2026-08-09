@@ -6,8 +6,10 @@ import { api, type ApplicationRoute } from '../api'
    recovers on its own once one appears rather than needing a reload. */
 const RETRY_INTERVAL_MS = 10000
 
-/* Where an application ends up when it has declared no views of its own. */
-const DEFAULT_PATH = '/dashboard'
+/* Where an application that has neither registered nor declared anything is
+   looked for. Predates registration, and kept so a device whose application
+   still installs its own nginx route keeps working. */
+const LEGACY_PATH = '/dashboard'
 
 type Probe = 'checking' | 'present' | 'absent'
 
@@ -15,8 +17,9 @@ type Probe = 'checking' | 'present' | 'absent'
  *  The application view.
  *
  *  An application declares the views it offers through SetApplicationInfo, and
- *  `?view=<slug>` names which of them to frame. Without a declaration the device
- *  falls back to /dashboard, which is where applications lived before they could
+ *  `?view=<slug>` names which of them to frame. An application that declares
+ *  none falls back to wherever it is registered, and one that has not registered
+ *  either falls back to /dashboard — where applications lived before they could
  *  say anything about themselves.
  *
  *  The target is probed before being framed. nginx sends every unclaimed path to
@@ -32,6 +35,8 @@ export default function ApplicationPage() {
 
   const [routes, setRoutes] = useState<ApplicationRoute[] | null>(null)
   const [appName, setAppName] = useState<string | null>(null)
+  /* Where the registered application lives, for when it declared no views. */
+  const [base, setBase] = useState<string | null>(null)
   /* The result is kept with the target it was measured against, so switching
      views reads as 'checking' on its own rather than needing an effect to
      reset it as the target changes. */
@@ -41,6 +46,7 @@ export default function ApplicationPage() {
     api.getState()
       .then(state => {
         setAppName(state.application?.name ?? null)
+        setBase(state.application?.base ?? null)
         setRoutes(state.application?.routes ?? [])
       })
       // An unreachable device is not a missing application: fall back to the
@@ -63,11 +69,12 @@ export default function ApplicationPage() {
 
   /* Nothing to frame in two cases: the state has not arrived yet, and every
      declared view opens in a tab. Neither is a missing application, so neither
-     falls back to probing /dashboard. */
+     falls through to the fallbacks below. */
   const target = routes === null ? null
-    : selected                   ? selected.path
+    : selected                   ? selected.url
     : routes.length              ? null
-    : DEFAULT_PATH
+    : base                       ? base
+    : LEGACY_PATH
 
   /* Only same-origin paths can be probed. An application declaring an absolute
      URL is on another origin, where the fetch is opaque or blocked outright —
@@ -141,8 +148,8 @@ export default function ApplicationPage() {
             ? <>This device reports an application named <strong>{appName}</strong>, but nothing is
                answering at <code>{target}</code>.</>
             : <>Nothing is answering at <code>{target}</code> on this device.</>}
-          {' '}An application registers that path by adding a route to{' '}
-          <code>/opt/Edgeberry/Core/config/nginx/routes.d/</code>.
+          {' '}An application is reached here once it is registered with{' '}
+          <code>edgeberry --register-application</code> and its own web server is up.
         </div>
         <button className="btn btn-sm btn-outline-secondary" onClick={() => { setProbed(null); check() }}>
           Retry

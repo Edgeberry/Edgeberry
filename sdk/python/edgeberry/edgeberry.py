@@ -61,10 +61,16 @@ class Edgeberry:
     # interface builds its application menu from:
     #
     #     routes=[{"label": "Dashboard", "path": "/dashboard", "default": True},
-    #             {"label": "Editor",    "path": "/editor", "target": "tab"}]
+    #             {"label": "Editor",    "path": "/editor", "target": "tab"},
+    #             {"label": "Repository", "path": "https://github.com/..."}]
     #
-    # 'target' is 'iframe' (shown inside the interface) unless given as 'tab',
-    # and the device settles on one default whether or not one is marked.
+    # A 'path' is this application's own path; the device serves it under its
+    # application prefix. An absolute http(s) URL points off the device and is
+    # linked unchanged.
+    #
+    # 'target' is 'iframe' (shown inside the interface) or 'tab', defaulting to
+    # 'iframe' for a path and 'tab' for a URL. The device settles on one default
+    # route whether or not one is marked.
     def set_application_info(self, name, version, description, routes=None):
         try:
             application_info = {

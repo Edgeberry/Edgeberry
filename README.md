@@ -106,6 +106,85 @@ Covers setup, version, service control (`--start`, `--stop`, `--restart`, `--ena
 
 Your application runs as its own process and talks to the device software over D-Bus.
 
+### Registering your application
+
+Describe your application in an `edgeberry.json` inside its own directory, and register it once — from your installer:
+
+```sh
+sudo edgeberry --register-application /opt/MyApp
+```
+
+```json
+{
+  "name": "MyApp",
+  "version": "1.2.0",
+  "description": "What it does",
+
+  "ui":      { "port": 1880 },
+  "service": { "unit": "myapp.service", "supports": ["restart", "stop", "reload"] }
+}
+```
+
+The manifest carries what is settled when you install: the port your web server listens on, and the systemd unit Edgeberry may act on. That gets you two things.
+
+**Lifecycle** — the Device Hub can restart, stop, start and reload your application, limited to the actions you list in `supports`.
+
+**Routing** — everything under `/application/` is proxied to your port, with the prefix stripped:
+
+```
+http://<device>/application/editor   ->   http://127.0.0.1:1880/editor
+```
+
+nginx knows nothing about the paths behind it, so you can add, move or remove pages freely and nothing on the device is regenerated.
+
+> [!IMPORTANT]
+> Because the prefix is stripped, your pages must use **relative URLs** — or read the `X-Forwarded-Prefix: /application` header and prepend it. An absolute `/editor/style.css` in your HTML leaves the prefix behind, lands on the device's catch-all, and 404s. This is the usual requirement for anything served under a sub-path. Node-RED, for example, needs `httpAdminRoot` and its `ui-base` path set accordingly.
+
+Only the path is stored. The manifest stays with your application and is re-read on every start, so shipping a new version updates what the device knows about you without re-registering.
+
+### Declaring your pages
+
+Routing does not need declaring — the pass-through already covers it. What you declare is your **menu**: which pages the interface should offer, and how. Do it over D-Bus, whenever it changes:
+
+```js
+await device.setApplicationInfo({
+  name: 'MyApp',
+  version: '1.2.0',
+  routes: [
+    { label: 'Dashboard', path: '/dashboard', default: true },
+    { label: 'Editor',    path: '/editor', target: 'tab' },
+  ],
+});
+```
+
+| Field | |
+|-------|--|
+| `label` | Menu text |
+| `path` | The path **inside your application**, as your own web server sees it — the device serves it at `/application` + this. Or an absolute `http(s)` URL for somewhere off the device entirely, linked as-is |
+| `target` | `iframe` shows the page inside the interface; `tab` opens a browser tab. Defaults to `iframe` for your own pages and `tab` for an absolute URL. Use `tab` for anything that refuses to be framed, such as most editors |
+| `default` | Which page opens when the application is selected. Mark none and the first framed page wins |
+
+Menu items need not be pages you serve. An absolute URL — your documentation, your repository, a hosted dashboard — is just as valid, and opens in a tab unless you say otherwise:
+
+```js
+{ label: 'Repository', path: 'https://github.com/Freya-Vivariums', target: 'tab' }
+```
+
+Paths are yours to choose — `/api` here means *your* `/api`, since everything sits under the prefix. Your last declaration is remembered, so the menu survives a device restart rather than emptying until you declare again.
+
+Bad routes are dropped individually and the reason is logged. `SetApplicationInfo` answers `ok` either way, so `journalctl -u io.edgeberry.core` is where to look if a menu item never appears:
+
+| | |
+|---|---|
+| `..` in a path | Refused — it would climb out of your prefix |
+| Two routes on one path | Refused; `/x` and `/x/` count as the same |
+| `service.unit` | Must be a unit systemd already knows |
+| Generated config | `nginx -t` must pass before anything is reloaded |
+
+If your application previously installed its own `.conf` into `routes.d/`, registering replaces it — the old file is kept alongside as `.conf.replaced`.
+
+`edgeberry --application` shows what is registered, `edgeberry --unregister-application` withdraws it and its routes.
+
 ### Python
 
 ```sh
@@ -157,7 +236,7 @@ If there is no SDK for your language, use `io.edgeberry.Core` on the system bus 
 | Method | Argument | Purpose |
 |--------|----------|---------|
 | `SendMessage` | `{"temperature":22.5}` — any JSON | Send telemetry to the cloud. Returns `ok`, `err:not_connected` or `err:invalid_data` |
-| `SetApplicationInfo` | `{"name":…,"version":…,"description":…}` | Identify your application |
+| `SetApplicationInfo` | `{"name":…,"version":…,"description":…,"routes":[…]}` | Identify your application and populate its menu — see [Declaring your pages](#declaring-your-pages) |
 | `SetApplicationStatus` | `{"level":"ok\|warning\|error\|critical\|emergency","message":…}` | Report health; drives the status LED |
 | `GetState` | — | Current device state as JSON |
 | `Identify` | — | Blink and beep to physically locate the device |
@@ -179,34 +258,6 @@ sudo dbus-send --system --type=method_call --print-reply \
 ```
 
 `sudo` is required — the D-Bus policy restricts this interface to root.
-
-### Adding your own web routes
-
-Drop an nginx `location` block into `/opt/Edgeberry/Core/config/nginx/routes.d/`. It is matched ahead of the device software's own catch-all, so you can serve your application alongside the device UI on port 80.
-
-To put those pages in the web interface's application menu, declare them alongside your application info:
-
-```js
-await device.setApplicationInfo({
-  name: 'my-app',
-  version: '1.2.0',
-  routes: [
-    { label: 'Dashboard', path: '/dashboard', default: true },
-    { label: 'Editor',    path: '/editor', target: 'tab' },
-  ],
-});
-```
-
-| Field | |
-|-------|--|
-| `label` | Menu text |
-| `path` | A path on this device, or an absolute `http(s)` URL if your application listens on its own port |
-| `target` | `iframe` (default) shows the view inside the interface; `tab` opens a browser tab |
-| `default` | Which view opens when the application is selected. If you mark none, the first framed view wins |
-
-Declare nothing and the interface frames `/dashboard`, as it always has. With one view the application icon opens it directly; with several it becomes a menu.
-
-The device validates what you declare: entries without a usable label and path are dropped, and only paths and `http(s)` URLs are accepted — these end up as an iframe `src` and a link `href`.
 
 ### Branding
 

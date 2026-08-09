@@ -46,6 +46,8 @@ export type DeviceState = {
     description: string | null
     version:     string | null
     message:     string | null
+    /** Where the registered application is reachable as a whole; null when none. */
+    base:        string | null
     routes:      ApplicationRoute[]
   }
 }
@@ -59,8 +61,11 @@ export type DeviceState = {
  */
 export type ApplicationRoute = {
   label:   string
-  /** A path on this device, or an absolute http(s) URL. */
+  /** The path *inside the application*, as it declared it. */
   path:    string
+  /** Where to actually open it: `path` under the pass-through prefix, or an
+   *  absolute URL unchanged. Use this, not `path`. */
+  url:     string
   /** 'iframe' shows the view inside this interface; 'tab' opens a browser tab. */
   target:  'iframe' | 'tab'
   default: boolean

@@ -202,7 +202,7 @@ function ApplicationMenu({ routes, icon }: { routes: ApplicationRoute[]; icon: R
       )
     return (
       <a className="btn btn-sm d-flex align-items-center" style={triggerStyle} title={only.label}
-        href={only.path} target="_blank" rel="noopener noreferrer">{icon}</a>
+        href={only.url} target="_blank" rel="noopener noreferrer">{icon}</a>
     )
   }
 
@@ -214,7 +214,7 @@ function ApplicationMenu({ routes, icon }: { routes: ApplicationRoute[]; icon: R
             /* noreferrer alongside noopener: the location is the application's
                to choose and may well be off this device. */
             <a className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
-              href={route.path} target="_blank" rel="noopener noreferrer" onClick={close}>
+              href={route.url} target="_blank" rel="noopener noreferrer" onClick={close}>
               <i className="fa-solid fa-arrow-up-right-from-square fa-fw" />{route.label}
             </a>
           ) : (
