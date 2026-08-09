@@ -48,6 +48,25 @@ You need the hostname of your Edgeberry Device Hub. Enter it on the **Cloud** pa
 
 The device generates a private key, requests a certificate through fleet provisioning, and stores the result. From then on it connects on its own at boot, and reconnects after an outage with exponential backoff so a fleet coming back at once doesn't overwhelm the hub.
 
+## Using the bridge
+
+The device software is the only thing that speaks MQTT. Your application uses the local D-Bus API; certificates, topics and reconnection stay on this side of the bridge.
+
+**Device to cloud** — your application pushes:
+
+| What | Call | Arrives at the hub as |
+|------|------|-----------------------|
+| Telemetry | `SendMessage` | A telemetry message, timestamped and tagged with the device ID |
+| Health | `SetApplicationStatus` | Application status — also drives the status LED and buzzer |
+| Identity | `SetApplicationInfo` | Application name, version and description |
+| Device state | *automatic* | The device shadow, updated on every change — network, connection, system and application state. Your application does nothing for this. |
+
+**Cloud to device** — the hub sends a message, your application receives it as a `CloudMessage` signal. Messages are one-way: nothing is sent back automatically, so if you want to answer one, send telemetry with your own correlation ID.
+
+Remote management — rebooting, identifying, reporting network details — is handled by the device software on its own, without involving your application.
+
+**Across an outage** the two directions behave differently. The device keeps a persistent session, so cloud-to-device messages sent while it was away are delivered once it returns. Telemetry is not buffered: `SendMessage` returns `err:not_connected` and the data is gone. If it must survive a disconnection, your application has to hold onto it — check the return value rather than assuming delivery.
+
 ## Physical controls
 
 Button:
@@ -110,9 +129,9 @@ If there is no SDK for your language, use `io.edgeberry.Core` on the system bus 
 
 | Method | Argument | Purpose |
 |--------|----------|---------|
-| `SendMessage` | `{"temperature":22.5}` — any JSON | Send telemetry to the cloud |
+| `SendMessage` | `{"temperature":22.5}` — any JSON | Send telemetry to the cloud. Returns `ok`, `err:not_connected` or `err:invalid_data` |
 | `SetApplicationInfo` | `{"name":…,"version":…,"description":…}` | Identify your application |
-| `SetApplicationStatus` | `{"status":"ok\|warning\|critical\|emergency","message":…}` | Report health; drives the status LED |
+| `SetApplicationStatus` | `{"level":"ok\|warning\|error\|critical\|emergency","message":…}` | Report health; drives the status LED |
 | `GetState` | — | Current device state as JSON |
 | `Identify` | — | Blink and beep to physically locate the device |
 
