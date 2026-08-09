@@ -120,12 +120,13 @@ sudo edgeberry --register-application /opt/MyApp
   "version": "1.2.0",
   "description": "What it does",
 
-  "ui":      { "port": 1880 },
-  "service": { "unit": "myapp.service", "supports": ["restart", "stop", "reload"] }
+  "ui":       { "port": 1880 },
+  "service":  { "unit": "myapp.service", "supports": ["restart", "stop", "reload"] },
+  "branding": { "logo": "assets/logo.png", "mark": "assets/favicon.ico" }
 }
 ```
 
-The manifest carries what is settled when you install: the port your web server listens on, and the systemd unit Edgeberry may act on. That gets you two things.
+The manifest carries what is settled when you install: the port your web server listens on, the systemd unit Edgeberry may act on, and the artwork the interface should wear. That gets you three things.
 
 **Lifecycle** — the Device Hub can restart, stop, start and reload your application, limited to the actions you list in `supports`.
 
@@ -139,6 +140,31 @@ nginx knows nothing about the paths behind it, so you can add, move or remove pa
 
 > [!IMPORTANT]
 > Because the prefix is stripped, your pages must use **relative URLs** — or read the `X-Forwarded-Prefix: /application` header and prepend it. An absolute `/editor/style.css` in your HTML leaves the prefix behind, lands on the device's catch-all, and 404s. This is the usual requirement for anything served under a sub-path. Node-RED, for example, needs `httpAdminRoot` and its `ui-base` path set accordingly.
+
+**Branding** — this is how the whole device is branded. `logo` replaces the Edgeberry logo in the navigation bar, `mark` becomes the browser tab icon, and `colors` restyles the interface:
+
+```json
+"branding": {
+  "logo":   "assets/logo.png",
+  "mark":   "assets/favicon.ico",
+  "colors": { "fg": "#E1E2E4", "bg": "#292B2D", "primary": "#A2CA6F" }
+}
+```
+
+`logo` and `mark` are paths relative to your application's directory; a path pointing outside it is refused, since the device serves whatever it names. `.svg`, `.png`, `.ico`, `.jpg`, `.webp` and `.gif` are accepted.
+
+`colors` takes four:
+
+| | |
+|---|---|
+| `fg` | Text |
+| `bg` | Page surface |
+| `primary` | Your brand colour. Replaces Edgeberry's blue everywhere it appears — buttons, links, headings, icons |
+| `secondary` | A second accent. Follows `primary` unless you set it |
+
+Setting `primary` alone already makes the interface yours. Hex may be written with or without the leading `#`; an unknown colour name is an error rather than a silent no-op.
+
+Everything here is optional, and anything you leave out keeps the device's own. Colours apply as soon as the interface polls, without a restart.
 
 Only the path is stored. The manifest stays with your application and is re-read on every start, so shipping a new version updates what the device knows about you without re-registering.
 
@@ -258,19 +284,6 @@ sudo dbus-send --system --type=method_call --print-reply \
 ```
 
 `sudo` is required — the D-Bus policy restricts this interface to root.
-
-### Branding
-
-Every colour in the web interface comes from CSS custom properties, so you can restyle it for your own project without touching the code. Create `/etc/edgeberry/theme/brand.css`:
-
-```css
-:root {
-  --eb-accent:    #ff6600;
-  --eb-navbar-bg: #101820;
-}
-```
-
-That path takes precedence over the shipped theme, so your branding survives a software update. Overriding `--eb-accent` alone is usually enough; see [share/theme/tokens.css](share/theme/tokens.css) for the full set.
 
 ## License & Collaboration
 

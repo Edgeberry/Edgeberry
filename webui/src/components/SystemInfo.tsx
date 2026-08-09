@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import edgeberryLogo from '../assets/logo.svg'
 import { createPortal } from 'react-dom'
 import { api, type SystemInfo } from '../api'
 
@@ -67,7 +68,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
     <div style={{ borderTop: `1px solid ${RULE_COLOR}`, padding: '0.5rem 0.9rem' }}>
       <div
         className="text-uppercase fw-semibold mb-1"
-        style={{ fontSize: '0.65rem', letterSpacing: '0.09em', color: 'var(--eb-accent)' }}
+        style={{ fontSize: '0.65rem', letterSpacing: '0.09em', color: 'var(--eb-primary)' }}
       >
         {title}
       </div>
@@ -88,7 +89,7 @@ function Panel({ info }: { info: SystemInfo }) {
     <div style={{ fontSize: '0.78rem', color: 'var(--eb-navbar-fg)' }}>
       {/* Identity block: the same three lines GNOME puts under its logo. */}
       <div className="text-center" style={{ padding: '1rem 0.9rem 0.85rem' }}>
-        <img src="/theme/logo/logo.svg" alt="" height="26" className="mb-2" style={{ opacity: 0.9 }} />
+        <img src={edgeberryLogo} alt="" height="26" className="mb-2" style={{ opacity: 0.9 }} />
         <div className="fw-semibold text-truncate" style={{ fontSize: '0.95rem' }}>{system.hostname}</div>
         {system.model && (
           <div className="text-truncate" style={{ color: LABEL_COLOR, fontSize: '0.75rem' }}>{system.model}</div>

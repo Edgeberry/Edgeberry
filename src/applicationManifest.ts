@@ -21,7 +21,7 @@ import path from 'path';
 import { ApplicationRoute, slugify } from './application';
 
 /** Filename an application publishes inside its own directory. */
-export const MANIFEST_FILENAME = 'edgeberry.json';
+const MANIFEST_FILENAME = 'edgeberry.json';
 
 /*
  *  Paths, relative to the working directory that systemd sets to the
@@ -30,13 +30,65 @@ export const MANIFEST_FILENAME = 'edgeberry.json';
 const ROUTES_DIR = 'config/nginx/routes.d';
 
 /** Lifecycle actions an application can declare that Edgeberry may perform. */
-export const LIFECYCLE_ACTIONS = ['start', 'stop', 'restart', 'reload'] as const;
+const LIFECYCLE_ACTIONS = ['start', 'stop', 'restart', 'reload'] as const;
 export type LifecycleAction = typeof LIFECYCLE_ACTIONS[number];
+
+/**
+ * Artwork the application supplies to brand the device interface.
+ *
+ * Declared in the manifest as paths relative to the application's own
+ * directory, and kept here resolved to absolute paths — validated once at
+ * registration so serving them later is just reading a file.
+ *
+ * The two shapes match what the device already ships for itself: a wide logo
+ * for the navigation bar, and a square mark for the browser tab.
+ */
+type ApplicationBranding = {
+    logo?:   string,
+    mark?:   string,
+    /** Theme token overrides, keyed by the part after '--eb-'. */
+    colors?: Record<string, string>,
+}
+
+/**
+ * Theme colours an application may set, named without the '--eb-' prefix.
+ *
+ * Four, deliberately: a foreground, a background and two brand accents are
+ * enough to make the interface belong to the application. 'primary' takes over
+ * everywhere Edgeberry's own blue appears — buttons, links, headings, icons.
+ * 'secondary' follows the primary unless it is set.
+ *
+ * Restricted to a list rather than accepting any name, so a typo is reported
+ * instead of silently defining a variable nothing reads.
+ */
+const BRANDING_COLORS = ['fg', 'bg', 'primary', 'secondary'];
+
+/**
+ * Colour values are written into a style attribute, so they are held to a
+ * conservative shape: hex, rgb()/hsl(), or a CSS colour keyword. Anything with
+ * the punctuation needed to escape the declaration is refused.
+ */
+const COLOR_PATTERN = /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^(rgb|rgba|hsl|hsla)\([0-9a-zA-Z%.,\/\s-]+\)$/;
+
+/**
+ * Accept 'A2CA6F' as '#A2CA6F'.
+ *
+ * Writing a hex colour without the hash is a common enough slip that refusing
+ * it is unhelpful. Only strings containing a digit are treated this way, so a
+ * CSS keyword — which is all letters — is never mistaken for hex.
+ */
+function normalizeColor( value:string ):string{
+    const trimmed = value.trim();
+    return /^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$|^[0-9a-fA-F]{8}$/.test(trimmed) && /[0-9]/.test(trimmed)
+        ? '#'+trimmed
+        : trimmed;
+}
 
 export type ApplicationManifest = {
     name:         string,
     version?:     string,
     description?: string,
+    branding?:    ApplicationBranding,
     ui?: {
         /**
          * Loopback port the application's own web server listens on.
@@ -93,10 +145,62 @@ export function readManifest( applicationPath:string ):ApplicationManifest{
     if(typeof raw.version === 'string')     manifest.version     = raw.version;
     if(typeof raw.description === 'string') manifest.description = raw.description;
 
-    if(raw.ui !== undefined)      manifest.ui      = readUi(raw.ui, file);
-    if(raw.service !== undefined) manifest.service = readService(raw.service, file);
+    if(raw.ui !== undefined)       manifest.ui       = readUi(raw.ui, file);
+    if(raw.service !== undefined)  manifest.service  = readService(raw.service, file);
+    if(raw.branding !== undefined) manifest.branding = readBranding(raw.branding, file, applicationPath);
 
     return manifest;
+}
+
+/** Image types the interface can render for a logo or a mark. */
+const BRANDING_EXTENSIONS = ['.svg', '.png', '.ico', '.jpg', '.jpeg', '.webp', '.gif'];
+
+function readBranding( branding:any, file:string, applicationPath:string ):ApplicationBranding{
+    if(!branding || typeof branding !== 'object') throw new Error(`${file}: 'branding' must be an object`);
+
+    const resolved:ApplicationBranding = {};
+
+    for(const kind of ['logo', 'mark'] as const){
+        const declared = branding[kind];
+        if(declared === undefined || declared === null) continue;
+        if(typeof declared !== 'string' || !declared.trim())
+            throw new Error(`${file}: 'branding.${kind}' must be a path`);
+
+        // Resolved against the application's own directory and required to stay
+        // inside it. The device serves whatever this names, so it must not be a
+        // way to read an arbitrary file off the disk through the web interface.
+        const target = path.resolve(applicationPath, declared.trim());
+        if(target !== applicationPath && !target.startsWith(applicationPath + path.sep))
+            throw new Error(`${file}: 'branding.${kind}' points outside ${applicationPath}`);
+
+        if(!BRANDING_EXTENSIONS.includes(path.extname(target).toLowerCase()))
+            throw new Error(`${file}: 'branding.${kind}' must be one of ${BRANDING_EXTENSIONS.join(', ')}`);
+        if(!existsSync(target))
+            throw new Error(`${file}: 'branding.${kind}' does not exist (${target})`);
+
+        resolved[kind] = target;
+    }
+
+    if(branding.colors !== undefined){
+        if(!branding.colors || typeof branding.colors !== 'object' || Array.isArray(branding.colors))
+            throw new Error(`${file}: 'branding.colors' must be an object`);
+
+        const colors:Record<string,string> = {};
+        for(const [token, value] of Object.entries(branding.colors)){
+            if(!BRANDING_COLORS.includes(token))
+                throw new Error(`${file}: 'branding.colors.${token}' is not a theme token `+
+                                `(expected one of ${BRANDING_COLORS.join(', ')})`);
+            if(typeof value !== 'string')
+                throw new Error(`${file}: 'branding.colors.${token}' is not a colour: ${JSON.stringify(value)}`);
+            const color = normalizeColor(value);
+            if(!COLOR_PATTERN.test(color))
+                throw new Error(`${file}: 'branding.colors.${token}' is not a colour: ${JSON.stringify(value)}`);
+            colors[token] = color;
+        }
+        if(Object.keys(colors).length) resolved.colors = colors;
+    }
+
+    return resolved;
 }
 
 function readUi( ui:any, file:string ):ApplicationManifest['ui']{
@@ -158,7 +262,7 @@ export const APPLICATION_PREFIX = '/application';
  * X-Forwarded-Prefix: an absolute '/editor/style.css' in its HTML leaves the
  * prefix behind and lands on the device's catch-all.
  */
-export function renderNginxConf( manifest:ApplicationManifest ):string{
+function renderNginxConf( manifest:ApplicationManifest ):string{
     const proxyParams = path.join(process.cwd(), 'config/nginx/proxy_params');
     const header =
         `${GENERATED_MARKER} for '${manifest.name}'.\n` +
@@ -179,6 +283,15 @@ export function renderNginxConf( manifest:ApplicationManifest ):string{
         `    include ${proxyParams};\n` +
         `    # For applications that can mount themselves under a prefix.\n` +
         `    proxy_set_header X-Forwarded-Prefix ${APPLICATION_PREFIX};\n` +
+        `\n` +
+        `    # An application knows nothing of the prefix, so anything it hands\n` +
+        `    # back as a root-relative path escapes it. Redirects and cookie\n` +
+        `    # paths are the two that do: '/editor/' would land on the device's\n` +
+        `    # catch-all, and a cookie scoped to '/editor' would never be sent.\n` +
+        `    # Rewritten here so the application needs no knowledge of the mount.\n` +
+        `    proxy_redirect    http://127.0.0.1:${manifest.ui.port}/ ${APPLICATION_PREFIX}/;\n` +
+        `    proxy_redirect    /                                    ${APPLICATION_PREFIX}/;\n` +
+        `    proxy_cookie_path ~^/(.*)$                             ${APPLICATION_PREFIX}/$1;\n` +
         `}\n`;
 }
 
@@ -215,7 +328,12 @@ export function syncNginxRoutes( application:RegisteredApplication|null, adopt =
         if(wanted && file === wanted.file) continue;
 
         const isOurs = readFileSync(file, 'utf8').startsWith(GENERATED_MARKER);
-        if(!isOurs && !adopt){
+        // Adoption only applies when this registration actually claims routing.
+        // An application that registers for branding or lifecycle alone has said
+        // nothing about paths, so taking away the routes it installed by hand
+        // would leave it unreachable for no reason.
+        const claiming = adopt && Boolean(application?.manifest.ui);
+        if(!isOurs && !claiming){
             console.log('\x1b[90mLeaving unmanaged nginx route '+entry+
                         ' in place (no application registered for it)\x1b[37m');
             continue;

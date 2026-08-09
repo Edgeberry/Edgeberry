@@ -8,6 +8,7 @@ import Cloud from './pages/Cloud'
 import TerminalPage from './pages/Terminal'
 import ApplicationPage from './pages/Application'
 import SystemInfoMenu from './components/SystemInfo'
+import edgeberryLogo from './assets/logo.svg'
 
 /* How often the navbar refreshes device state. /api/state is deliberately cheap
    for this reason — see the note on that route. */
@@ -278,6 +279,7 @@ type NavBarProps = {
   appVersion:      string | null
   appMessage:      string | null
   appRoutes:       ApplicationRoute[]
+  appLogo:         string | null
 }
 
 function NavBar(props: NavBarProps) {
@@ -291,8 +293,12 @@ function NavBar(props: NavBarProps) {
           icons into the middle column, where justifySelf:'end' aligned them to
           the end of a centred column instead of the right edge of the bar. */}
       <div className="container-fluid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
+        {/* The application's logo displaces Edgeberry's when it supplies one:
+            the device is the platform, but the product is the application. */}
         <NavLink className="navbar-brand mb-0" to="/" style={{ gridColumn: 1, justifySelf: 'start' }}>
-          <img src="/theme/logo/logo.svg" alt="Edgeberry" height="28" />
+          <img src={props.appLogo ?? edgeberryLogo}
+               alt={props.appLogo ? (props.appName ?? 'Application') : 'Edgeberry'}
+               height="28" style={{ maxHeight: 28, width: 'auto' }} />
         </NavLink>
 
         {/* The wrapper stays in the grid even when its contents do not, holding
@@ -376,7 +382,7 @@ function ModalShell({ title, icon, onReady, bodyClassName, background, children 
         <div className="modal-content" style={{ background: background ?? 'var(--eb-bg)', border: 'none' }}>
           <div className="modal-header" style={{ background: 'var(--eb-navbar-bg)', border: 'none', padding: '0.5rem 1rem' }}>
             <span className="modal-title fw-semibold" style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem' }}>
-              <i className={`fa-solid ${icon} me-2`} style={{ color: 'var(--eb-accent)' }} />{title}
+              <i className={`fa-solid ${icon} me-2`} style={{ color: 'var(--eb-primary)' }} />{title}
             </span>
             <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" />
           </div>
@@ -416,7 +422,7 @@ function PowerModal({ onReady }: { onReady: (show: () => void) => void }) {
         <div className="modal-content" style={{ background: 'var(--eb-bg)', border: '1px solid var(--eb-line)' }}>
           <div className="modal-header" style={{ background: 'var(--eb-navbar-bg)', border: 'none', padding: '0.5rem 1rem' }}>
             <span className="modal-title fw-semibold" style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem' }}>
-              <i className="fa-solid fa-power-off me-2" style={{ color: 'var(--eb-accent)' }} />Power
+              <i className="fa-solid fa-power-off me-2" style={{ color: 'var(--eb-primary)' }} />Power
             </span>
             <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" />
           </div>
@@ -459,9 +465,66 @@ function AppShell() {
   const [appVersion,      setAppVersion]      = useState<string | null>(null)
   const [appMessage,      setAppMessage]      = useState<string | null>(null)
   const [appRoutes,       setAppRoutes]       = useState<ApplicationRoute[]>([])
+  const [appLogo,         setAppLogo]         = useState<string | null>(null)
+  const [appMark,         setAppMark]         = useState<string | null>(null)
+  const [appColors,       setAppColors]       = useState<Record<string, string> | null>(null)
   const [apNoticeDismissed, setApNoticeDismissed] = useState(false)
 
   useEffect(() => { if (hostname) document.title = hostname }, [hostname])
+
+  /*
+   *  Paint the application's colours over the bundled defaults.
+   *
+   *  Set on the document element, where they outrank the :root rule the theme
+   *  stylesheet defines, so only the tokens an application actually names are
+   *  displaced. Removing one puts the default back without a reload.
+   */
+  useEffect(() => {
+    const root = document.documentElement
+    const colors = appColors ?? {}
+
+    /*
+     *  The top bar is its own surface, dark by default and independent of the
+     *  page so that Edgeberry's own light theme still gets dark chrome. Once an
+     *  application states a background, though, that independence reads as a
+     *  mismatch — a bar at #1e1e1e against a page at #292B2D looks like a
+     *  mistake rather than a choice. So a declared background carries the bar
+     *  with it, and only the default is independent.
+     *
+     *  Derived here rather than in the stylesheet because these are read back
+     *  with getComputedStyle (the terminal takes its colours that way), and a
+     *  custom property holding color-mix() would come back as the unresolved
+     *  expression rather than a colour.
+     */
+    const derived: Record<string, string> = { ...colors }
+    if (colors.bg) derived['navbar-bg'] = colors.bg
+    if (colors.fg) derived['navbar-fg'] = colors.fg
+
+    const applied = Object.entries(derived)
+    for (const [token, value] of applied) root.style.setProperty(`--eb-${token}`, value)
+    return () => { for (const [token] of applied) root.style.removeProperty(`--eb-${token}`) }
+  }, [appColors])
+
+  /*
+   *  Let the application's mark stand in as the browser tab icon.
+   *
+   *  The shipped link carries type="image/svg+xml"; an application's mark is
+   *  just as likely to be a .ico or .png, and a browser given the wrong type
+   *  declines to render it. Dropping the attribute lets it sniff instead.
+   */
+  useEffect(() => {
+    if (!appMark) return
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    if (!link) return
+    const previousHref = link.getAttribute('href')
+    const previousType = link.getAttribute('type')
+    link.setAttribute('href', appMark)
+    link.removeAttribute('type')
+    return () => {
+      if (previousHref !== null) link.setAttribute('href', previousHref)
+      if (previousType !== null) link.setAttribute('type', previousType)
+    }
+  }, [appMark])
 
   // Re-arm the notice when AP mode ends, so the next entry announces itself
   // again rather than staying silently dismissed from a previous session.
@@ -483,6 +546,9 @@ function AppShell() {
           setAppVersion(state.application?.version ?? null)
           setAppMessage(state.application?.message ?? null)
           setAppRoutes(state.application?.routes ?? [])
+          setAppLogo(state.application?.branding?.logo ?? null)
+          setAppMark(state.application?.branding?.mark ?? null)
+          setAppColors(state.application?.branding?.colors ?? null)
         })
         .catch(() => {})
 
@@ -516,6 +582,7 @@ function AppShell() {
         appVersion={appVersion}
         appMessage={appMessage}
         appRoutes={appRoutes}
+        appLogo={appLogo}
       />
 
       <ModalShell title="Cloud Connection" icon="fa-cloud" onReady={fn => { openCloud.current = fn }}>

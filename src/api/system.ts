@@ -12,7 +12,7 @@ import { board_getUUID, board_getVendor, board_getProductName,
          board_getProductId, board_getProductVersion } from '../board';
 import { system_restart, system_shutdown, system_getInfo } from '../system';
 import { app_getApplicationInfo, app_getApplicationStatus } from '../application';
-import { registry_baseUrl, registry_publicUrl } from '../applicationRegistry';
+import { registry_baseUrl, registry_brandingColors, registry_brandingPath, registry_publicUrl } from '../applicationRegistry';
 
 export type SystemApiDeps = {
     stateManager: StateManager;
@@ -78,6 +78,17 @@ export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
             // Where the application is reachable as a whole. Null when none is
             // registered, which is what the interface's own fallback is for.
             base:        registry_baseUrl(),
+            /*
+             *  Where to fetch the application's own artwork, or null to leave
+             *  the device's own branding in place. URLs rather than paths: the
+             *  files live in the application's directory, which the browser has
+             *  no way to reach except through the routes below.
+             */
+            branding: {
+                logo: registry_brandingPath('logo') ? '/api/application/logo' : null,
+                mark: registry_brandingPath('mark') ? '/api/application/mark' : null,
+                colors: registry_brandingColors(),
+            },
             routes:      (appInfo?.routes ?? []).map(route => ({ ...route, url: registry_publicUrl(route) })),
         };
 
@@ -106,6 +117,30 @@ export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
             },
         });
     });
+
+    /*
+     *  The registered application's artwork.
+     *
+     *  Served by the device rather than proxied, because these are read at
+     *  install time from the application's directory and are not part of
+     *  whatever it serves on its own port — an application need not run at all
+     *  for the interface to carry its branding.
+     *
+     *  sendFile handles content type, ETag and Last-Modified, so an updated
+     *  logo is picked up without the URL having to change.
+     */
+    const sendBranding = ( kind:'logo'|'mark' ) => (_req:any, res:any) => {
+        const file = registry_brandingPath(kind);
+        if(!file) return res.status(404).json({ error: `No application ${kind}` });
+        res.sendFile(file, (err:any) => {
+            // The manifest was checked at registration, so getting here means
+            // the application removed the file afterwards.
+            if(err && !res.headersSent) res.status(404).json({ error: `Application ${kind} is unavailable` });
+        });
+    };
+
+    router.get('/application/logo', sendBranding('logo'));
+    router.get('/application/mark', sendBranding('mark'));
 
     // Power actions answer before acting: the reboot is scheduled a moment
     // later so the response reaches the caller before the device goes down.

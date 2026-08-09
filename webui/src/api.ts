@@ -48,6 +48,14 @@ export type DeviceState = {
     message:     string | null
     /** Where the registered application is reachable as a whole; null when none. */
     base:        string | null
+    /** Artwork the application supplied; null where it supplied none, in which
+     *  case the device's own branding stands. */
+    branding:    {
+      logo:   string | null
+      mark:   string | null
+      /** Theme token overrides keyed without the '--eb-' prefix. */
+      colors: Record<string, string> | null
+    }
     routes:      ApplicationRoute[]
   }
 }

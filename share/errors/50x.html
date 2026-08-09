@@ -4,10 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Error - Edgeberry Device</title>
-<link rel="stylesheet" href="/theme/tokens.css">
-<link rel="stylesheet" href="/theme/brand.css">
-<link rel="icon" href="/theme/logo/symbol.svg" type="image/svg+xml">
 <style>
+/* Inlined rather than linked: this page is served when something has already
+   gone wrong, so it must not depend on a second request succeeding. */
+:root{
+  --eb-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --eb-bg:   #ffffff;
+  --eb-fg:   #1e1e1e;
+}
 *{
   margin:0;
   padding:0;
@@ -28,8 +32,6 @@ body{
   max-width:460px;
   text-align:center;
 }
-.logo{
-  max-width:100%;height:auto;margin-bottom:24px;}
 h1{
   font-size:22px;
   font-weight:700;
@@ -44,7 +46,6 @@ p{
 </head>
 <body>
 <div class="card">
-  <img class="logo" src="/theme/logo/logo.svg" alt="logo">
   <h1>Server Error</h1>
   <p>Something went wrong. Please try again later.</p>
 </div>

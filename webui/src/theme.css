@@ -1,0 +1,73 @@
+/*
+ *  Edgeberry theme tokens
+ *
+ *  Every colour in the web interface comes from this file. It is bundled with
+ *  the interface rather than fetched at runtime — there is no /theme/ route and
+ *  no override file on disk any more.
+ *
+ *  To brand a device, the registered application declares `branding.colors` in
+ *  its manifest and the interface applies those over these defaults at runtime.
+ *  A device with no application registered wears what is here.
+ */
+
+:root {
+  /*
+   *  Brand colours: buttons, links, section headings, icons in modal headers.
+   *
+   *  --eb-secondary follows the primary unless a device sets it, so an
+   *  application that names only a primary still looks deliberate.
+   */
+  --eb-primary:   #0007ff;
+  --eb-secondary: var(--eb-primary);
+
+  /* Page surface. --eb-fg is text ON --eb-bg; never use it as a background. */
+  --eb-bg:     #ffffff;
+  --eb-fg:     #1e1e1e;
+  --eb-line:   #c0c0c0;
+
+  /*
+   *  Dark chrome: the top bar, its dropdown, modal headers and the terminal.
+   *  Deliberately independent of --eb-bg/--eb-fg so that a light or dark page
+   *  theme does not change the bar. Set both if you rebrand it.
+   */
+  --eb-navbar-bg: #1e1e1e;
+  --eb-navbar-fg: #f5f5f5;
+
+  /*
+   *  Status colours, used for indicators on both the page and the dark bar.
+   *  Replacements should stay legible on both — at least a 3:1 contrast ratio
+   *  against --eb-bg and against --eb-navbar-bg.
+   */
+  --eb-ok:     #2ea043;
+  --eb-warn:   #b35c00;
+  --eb-fault:  #e03131;
+  --eb-idle:   #8b8b8b;
+
+  --eb-font:   system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/*
+ *  Bootstrap draws from its own variables, which default to its light palette
+ *  regardless of ours. Point the ones carrying text, surfaces and borders at
+ *  our tokens, so a device branded dark restyles Bootstrap's components too.
+ *
+ *  Without this, anything Bootstrap colours itself keeps dark text — modals and
+ *  dropdowns most visibly, where it lands on a dark surface and disappears.
+ *  These reference the tokens rather than copying them, so the runtime override
+ *  an application's branding applies carries through here as well.
+ */
+:root {
+  --bs-body-color:      var(--eb-fg);
+  --bs-body-bg:         var(--eb-bg);
+  --bs-emphasis-color:  var(--eb-fg);
+  --bs-heading-color:   var(--eb-fg);
+  --bs-border-color:    var(--eb-line);
+
+  /* Muted text: a fraction of the foreground rather than a fixed grey, so it
+     stays legible whichever way round the theme runs. */
+  --bs-secondary-color: color-mix(in srgb, var(--eb-fg) 70%, transparent);
+  --bs-tertiary-bg:     color-mix(in srgb, var(--eb-fg) 8%, var(--eb-bg));
+
+  --bs-link-color:       var(--eb-primary);
+  --bs-link-hover-color: var(--eb-primary);
+}

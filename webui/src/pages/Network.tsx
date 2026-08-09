@@ -41,7 +41,7 @@ function TransitionOverlay({ t, onClose }: { t: Transition; onClose: () => void 
           className="d-flex align-items-center gap-2 px-3 py-2"
           style={{ background: 'var(--eb-navbar-bg)', borderRadius: '8px 8px 0 0' }}
         >
-          <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-accent)' }} />
+          <i className="fa-solid fa-wifi" style={{ color: 'var(--eb-primary)' }} />
           <span className="fw-semibold" style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem' }}>
             {toAp ? 'Access Point mode activated' : 'Leaving Access Point mode'}
           </span>

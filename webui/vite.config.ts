@@ -12,7 +12,6 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api':   'http://localhost:1208',
-      '/theme': 'http://localhost:80',
       '/ws':    { target: 'ws://localhost:1208', ws: true },
     },
   },

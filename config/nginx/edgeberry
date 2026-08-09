@@ -22,14 +22,6 @@ server {
     error_page 404             /errors/404.html;
     error_page 500 502 503 504  /errors/50x.html;
 
-    location /theme/ {
-        root /etc/edgeberry;
-        try_files $uri @theme_shipped;
-    }
-    location @theme_shipped {
-        root /opt/Edgeberry/share;
-    }
-
     location /errors/ {
         internal;
         root /etc/edgeberry;

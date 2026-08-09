@@ -135,6 +135,16 @@ export function registry_applyRoutes( routes:ApplicationRoute[] ):void{
  * directly. So is a path on a device with no registered application, which has
  * no pass-through and is served wherever the application put itself.
  */
+/** Absolute path to a branding asset the application supplied, or null. */
+export function registry_brandingPath( kind:'logo'|'mark' ):string|null{
+    return current?.manifest.branding?.[kind] ?? null;
+}
+
+/** Theme token overrides the application declared, or null. */
+export function registry_brandingColors():Record<string,string>|null{
+    return current?.manifest.branding?.colors ?? null;
+}
+
 export function registry_baseUrl():string|null{
     return current?.manifest.ui ? APPLICATION_PREFIX+'/' : null;
 }
