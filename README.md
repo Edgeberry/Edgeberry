@@ -126,7 +126,11 @@ sudo edgeberry --register-application /opt/MyApp
 }
 ```
 
-The manifest carries what is settled when you install: the port your web server listens on, the systemd unit Edgeberry may act on, and the artwork the interface should wear. That gets you three things.
+The manifest carries what is settled when you install: the port your web server listens on, the systemd unit Edgeberry may act on, and the artwork the interface should wear.
+
+Only the path is stored. The manifest stays inside your application and is re-read on every start, so shipping a new version updates what the device knows about you without re-registering. Registration needs the device software running, refuses everything if any part of the manifest is invalid, and exits non-zero with the reason on stderr — so an installer can branch on it.
+
+Three things follow from it.
 
 **Lifecycle** — the Device Hub can restart, stop, start and reload your application, limited to the actions you list in `supports`.
 
@@ -138,8 +142,10 @@ http://<device>/application/editor   ->   http://127.0.0.1:1880/editor
 
 nginx knows nothing about the paths behind it, so you can add, move or remove pages freely and nothing on the device is regenerated.
 
+Most applications need no changes at all: their pages already reference assets relatively, and relative URLs resolve against whatever prefix they are served under. Redirects and cookie paths that come back root-relative are rewritten to the prefix for you, so your application never learns it is mounted.
+
 > [!IMPORTANT]
-> Because the prefix is stripped, your pages must use **relative URLs** — or read the `X-Forwarded-Prefix: /application` header and prepend it. An absolute `/editor/style.css` in your HTML leaves the prefix behind, lands on the device's catch-all, and 404s. This is the usual requirement for anything served under a sub-path. Node-RED, for example, needs `httpAdminRoot` and its `ui-base` path set accordingly.
+> The one thing that does escape is an **absolute** URL written into your own markup. `/editor/style.css` leaves the prefix behind, lands on the device's catch-all and 404s. Keep those relative, or read the `X-Forwarded-Prefix: /application` header and prepend it yourself.
 
 **Branding** — this is how the whole device is branded. `logo` replaces the Edgeberry logo in the navigation bar, `mark` becomes the browser tab icon, and `colors` restyles the interface:
 
@@ -165,8 +171,6 @@ nginx knows nothing about the paths behind it, so you can add, move or remove pa
 Setting `primary` alone already makes the interface yours. Hex may be written with or without the leading `#`; an unknown colour name is an error rather than a silent no-op.
 
 Everything here is optional, and anything you leave out keeps the device's own. Colours apply as soon as the interface polls, without a restart.
-
-Only the path is stored. The manifest stays with your application and is re-read on every start, so shipping a new version updates what the device knows about you without re-registering.
 
 ### Declaring your pages
 
@@ -198,13 +202,22 @@ Menu items need not be pages you serve. An absolute URL — your documentation, 
 
 Paths are yours to choose — `/api` here means *your* `/api`, since everything sits under the prefix. Your last declaration is remembered, so the menu survives a device restart rather than emptying until you declare again.
 
-Bad routes are dropped individually and the reason is logged. `SetApplicationInfo` answers `ok` either way, so `journalctl -u io.edgeberry.core` is where to look if a menu item never appears:
+Routes are checked one at a time. A bad one is dropped and the reason logged, while the rest stand — but `SetApplicationInfo` still answers `ok`, so `journalctl -u io.edgeberry.core` is where to look when a menu item never appears:
 
 | | |
 |---|---|
-| `..` in a path | Refused — it would climb out of your prefix |
-| Two routes on one path | Refused; `/x` and `/x/` count as the same |
+| `..` in a path | Dropped — it would climb out of your prefix |
+| Two routes on one path | Dropped; `/x` and `/x/` count as the same |
+| More than 10 routes | The rest are dropped |
+
+The manifest is the opposite: it is all-or-nothing, checked when you register, and a failure leaves the previous registration and routing exactly as they were.
+
+| | |
+|---|---|
+| `ui.port` | Must be a port number |
 | `service.unit` | Must be a unit systemd already knows |
+| `branding.*` paths | Must exist, and stay inside your application's directory |
+| `branding.colors` | Names must be one of the four; values must be colours |
 | Generated config | `nginx -t` must pass before anything is reloaded |
 
 If your application previously installed its own `.conf` into `routes.d/`, registering replaces it — the old file is kept alongside as `.conf.replaced`.
