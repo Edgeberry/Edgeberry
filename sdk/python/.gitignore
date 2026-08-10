@@ -1,0 +1,4 @@
+# Build artefacts from 'python -m build'. Regenerated on every publish, and
+# what lands on PyPI is the upload, not anything kept here.
+dist/
+*.egg-info/
