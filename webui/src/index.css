@@ -3,6 +3,91 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* Navbar modals: a fixed tall window rather than the full viewport, so the
+   device page stays visible behind them. Below Bootstrap's sm breakpoint the
+   dialog is full-screen (modal-fullscreen-sm-down) and the content fills it. */
+.eb-modal-content {
+  height: 85vh;
+}
+
+@media (max-width: 575.98px) {
+  .eb-modal-content {
+    height: 100%;
+  }
+}
+
+/* Snappier chrome. Bootstrap's defaults (.3s modal slide, .35s collapse) feel
+   sluggish on a device panel you open and close constantly. Kept behind a
+   no-preference query so Bootstrap's reduced-motion rules still win. */
+@media (prefers-reduced-motion: no-preference) {
+  .modal.fade .modal-dialog {
+    transition: transform 0.12s ease-out;
+  }
+
+  .fade {
+    transition: opacity 0.08s linear;
+  }
+
+  .collapsing {
+    transition: height 0.15s ease;
+  }
+}
+
+/*
+ *  Navbar dropdowns.
+ *
+ *  The menu is portalled to <body> as a plain <ul>, so it never carries
+ *  Bootstrap's .dropdown-menu class — but its children are .dropdown-item.
+ *  Every one of those rules is written against --bs-dropdown-* variables that
+ *  Bootstrap only declares ON .dropdown-menu, so with no such ancestor the
+ *  items resolved to no padding, no hover and an invisible divider. Declaring
+ *  the variables here restores Bootstrap's own rules, tuned for dark chrome.
+ */
+.eb-menu {
+  --bs-dropdown-item-padding-y: 0.5rem;
+  --bs-dropdown-item-padding-x: 1rem;
+
+  --bs-dropdown-link-color: var(--eb-navbar-fg);
+  --bs-dropdown-link-hover-color: var(--eb-navbar-fg);
+  --bs-dropdown-link-hover-bg: rgba(255, 255, 255, 0.1);
+}
+
+/*
+ *  The application menu's items are NavLinks, which stamp .active on a route
+ *  match — and since they address views by query string (/?view=slug) while
+ *  NavLink matches on pathname alone, they count as active on essentially every
+ *  path. Bootstrap's .active rule also outranks its :hover (same specificity,
+ *  declared later), so left alone those items sit permanently highlighted and
+ *  ignore the pointer. Flatten the state so every item in the menu, generated
+ *  or not, looks and behaves identically.
+ */
+.eb-menu .dropdown-item.active,
+.eb-menu .dropdown-item:active {
+  color: var(--bs-dropdown-link-color);
+  background-color: transparent;
+}
+
+.eb-menu .dropdown-item.active:hover,
+.eb-menu .dropdown-item.active:focus {
+  background-color: var(--bs-dropdown-link-hover-bg);
+}
+
+/* Slightly under the label's size: at 1em the glyphs read as heavier than the
+   text beside them. fa-fw keeps the column aligned as they scale. */
+.eb-menu .dropdown-item i {
+  font-size: 0.875em;
+}
+
+.eb-menu .dropdown-item {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .eb-menu .dropdown-item {
+    transition: background-color 0.1s ease;
+  }
+}
+
 body {
   font-family: var(--eb-font);
   background-color: var(--eb-bg);

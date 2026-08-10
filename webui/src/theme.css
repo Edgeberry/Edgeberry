@@ -43,7 +43,10 @@
   --eb-fault:  #e03131;
   --eb-idle:   #8b8b8b;
 
-  --eb-font:   system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Lato is bundled with the interface (see main.tsx), so every device renders
+     the same rather than deferring to whatever system-ui resolves to. The rest
+     of the stack only covers the moment before the woff2 lands. */
+  --eb-font:   "Lato", -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /*
@@ -57,6 +60,8 @@
  *  an application's branding applies carries through here as well.
  */
 :root {
+  --bs-body-font-family: var(--eb-font);
+
   --bs-body-color:      var(--eb-fg);
   --bs-body-bg:         var(--eb-bg);
   --bs-emphasis-color:  var(--eb-fg);

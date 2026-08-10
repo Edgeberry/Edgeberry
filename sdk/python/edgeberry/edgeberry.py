@@ -60,9 +60,11 @@ class Edgeberry:
     # `routes` declares the views this application offers, which the device
     # interface builds its application menu from:
     #
-    #     routes=[{"label": "Dashboard", "path": "/dashboard", "default": True},
+    #     routes=[{"label": "Dashboard", "path": "/dashboard", "default": True,
+    #              "icon": "gauge"},
     #             {"label": "Editor",    "path": "/editor", "target": "tab"},
-    #             {"label": "Repository", "path": "https://github.com/..."}]
+    #             {"label": "Repository", "path": "https://github.com/...",
+    #              "icon": "brands github"}]
     #
     # A 'path' is this application's own path; the device serves it under its
     # application prefix. An absolute http(s) URL points off the device and is
@@ -71,6 +73,12 @@ class Edgeberry:
     # 'target' is 'iframe' (shown inside the interface) or 'tab', defaulting to
     # 'iframe' for a path and 'tab' for a URL. The device settles on one default
     # route whether or not one is marked.
+    #
+    # 'icon' names a Font Awesome icon from the free set the device bundles. The
+    # name alone is the solid style; name a style first ('brands github',
+    # 'regular star') for the others, with the 'fa-' prefixes optional. Left out,
+    # the item shows whether it opens in the interface or in a tab. An unusable
+    # value is dropped with a logged reason and the route still works.
     def set_application_info(self, name, version, description, routes=None):
         try:
             application_info = {

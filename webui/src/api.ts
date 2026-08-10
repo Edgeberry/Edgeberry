@@ -79,6 +79,9 @@ export type ApplicationRoute = {
   default: boolean
   /** What `?view=` names this route by. */
   slug:    string
+  /** Font Awesome classes the application chose, already validated and
+   *  canonical ('fa-solid fa-gauge'). Absent when it declared none. */
+  icon?:   string
 }
 
 /** Anything absent on this hardware comes back null and is left off the panel. */

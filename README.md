@@ -181,8 +181,8 @@ await device.setApplicationInfo({
   name: 'MyApp',
   version: '1.2.0',
   routes: [
-    { label: 'Dashboard', path: '/dashboard', default: true },
-    { label: 'Editor',    path: '/editor', target: 'tab' },
+    { label: 'Dashboard', path: '/dashboard', default: true, icon: 'gauge' },
+    { label: 'Editor',    path: '/editor', target: 'tab', icon: 'pen-to-square' },
   ],
 });
 ```
@@ -193,11 +193,24 @@ await device.setApplicationInfo({
 | `path` | The path **inside your application**, as your own web server sees it — the device serves it at `/application` + this. Or an absolute `http(s)` URL for somewhere off the device entirely, linked as-is |
 | `target` | `iframe` shows the page inside the interface; `tab` opens a browser tab. Defaults to `iframe` for your own pages and `tab` for an absolute URL. Use `tab` for anything that refuses to be framed, such as most editors |
 | `default` | Which page opens when the application is selected. Mark none and the first framed page wins |
+| `icon` | [Font Awesome](https://fontawesome.com/search?ic=free) icon, see below. Omitted, the item shows whether it opens here or in a tab |
+
+#### Icons
+
+A bare name is the `solid` style; name the style first for `regular` or `brands`. The `fa-` prefixes are optional, so a class list copied off an icon's page also works:
+
+| You write | You get |
+|---|---|
+| `gauge` | `fa-solid fa-gauge` |
+| `brands github` | `fa-brands fa-github` |
+| `fa-regular fa-star` | `fa-regular fa-star` |
+
+Only the free set is bundled, and names are validated for shape rather than existence: a Pro icon, or the wrong style for a real one (`github` is brands, not solid), passes validation and renders as an empty gap.
 
 Menu items need not be pages you serve. An absolute URL — your documentation, your repository, a hosted dashboard — is just as valid, and opens in a tab unless you say otherwise:
 
 ```js
-{ label: 'Repository', path: 'https://github.com/Freya-Vivariums', target: 'tab' }
+{ label: 'Repository', path: 'https://github.com/Freya-Vivariums', target: 'tab', icon: 'brands github' }
 ```
 
 Paths are yours to choose — `/api` here means *your* `/api`, since everything sits under the prefix. Your last declaration is remembered, so the menu survives a device restart rather than emptying until you declare again.
@@ -209,6 +222,7 @@ Routes are checked one at a time. A bad one is dropped and the reason logged, wh
 | `..` in a path | Dropped — it would climb out of your prefix |
 | Two routes on one path | Dropped; `/x` and `/x/` count as the same |
 | More than 10 routes | The rest are dropped |
+| A malformed `icon` | Only the icon is dropped — the route keeps its default icon and still works |
 
 The manifest is the opposite: it is all-or-nothing, checked when you register, and a failure leaves the previous registration and routing exactly as they were.
 

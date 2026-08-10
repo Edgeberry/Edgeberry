@@ -403,8 +403,8 @@ export default function Network() {
 
   return (
     <>
-      <h1 className="h4 mb-4">Network</h1>
-
+      {/* No page heading: this only ever renders inside a modal whose header
+          already names it. */}
       <ApSection onTransition={setTransition} />
       <Interfaces />
 

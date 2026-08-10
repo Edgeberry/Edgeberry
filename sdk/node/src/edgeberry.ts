@@ -60,6 +60,18 @@ export interface ApplicationRoute {
    * sites refuse to be framed.
    */
   target?: 'iframe' | 'tab';
+  /**
+   * Font Awesome icon for the menu item, from the free set the device bundles.
+   *
+   * The name alone gives the solid style ('gauge'); name a style first to reach
+   * the others ('brands github', 'regular star'). The 'fa-' prefixes are
+   * optional, so 'fa-brands fa-github' works as well. Left out, the item shows
+   * whether it opens in the interface or in a tab.
+   *
+   * An unusable value is dropped by the device with a logged reason and the
+   * item keeps its default icon — the route itself is unaffected.
+   */
+  icon?: string;
 }
 
 /** Application metadata reported to the Device Hub. */

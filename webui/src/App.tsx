@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BrowserRouter, NavLink, Routes, Route } from 'react-router-dom'
 import { Modal } from 'bootstrap'
@@ -130,15 +130,31 @@ function PortalMenu({ trigger, title, buttonStyle, children }: {
 
   useEffect(() => {
     if (!open) return
-    function close(e: MouseEvent) {
+
+    /* pointerdown rather than mousedown so a tap dismisses the menu too. The
+       menu itself stops this event, so only presses outside arrive here. */
+    function closeOnPress(e: PointerEvent) {
       if (btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+
+    /* The application occupies the page as an iframe, and a press inside that
+       document never reaches this one — which left the menu stuck open over
+       most of the screen. Losing window focus is the only signal we get that
+       the press landed in there. It also covers leaving the browser entirely,
+       where dismissing the menu is what you would expect anyway. */
+    function closeOnFocusLoss() { setOpen(false) }
+
+    document.addEventListener('pointerdown', closeOnPress)
+    window.addEventListener('blur', closeOnFocusLoss)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnPress)
+      window.removeEventListener('blur', closeOnFocusLoss)
+    }
   }, [open])
 
   const menu = open ? createPortal(
     <ul
+      className="eb-menu"
       style={{
         position: 'fixed', top: pos.top, right: pos.right, zIndex: 99999,
         listStyle: 'none', margin: 0, padding: '0.25rem 0',
@@ -146,7 +162,7 @@ function PortalMenu({ trigger, title, buttonStyle, children }: {
         borderRadius: '0.375rem', minWidth: 160,
         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
       }}
-      onMouseDown={e => e.stopPropagation()}
+      onPointerDown={e => e.stopPropagation()}
     >
       {children(() => setOpen(false))}
     </ul>,
@@ -170,11 +186,22 @@ function PortalMenu({ trigger, title, buttonStyle, children }: {
   )
 }
 
-const menuItemStyle = { color: 'var(--eb-navbar-fg)' }
-
 /** Where the application view lives for a given declared route. */
 function viewPath( route:ApplicationRoute ):string {
   return `/?view=${encodeURIComponent(route.slug)}`
+}
+
+/**
+ * The menu icon for a route.
+ *
+ * An application may name a Font Awesome icon per route; the device validates
+ * it and hands over a canonical class pair, so it is safe to interpolate here.
+ * Without one, the icon describes what the item does — leaves the device, or
+ * opens a view inside it.
+ */
+function routeIcon( route:ApplicationRoute ):string {
+  if (route.icon) return route.icon
+  return route.target === 'tab' ? 'fa-solid fa-arrow-up-right-from-square' : 'fa-solid fa-window-maximize'
 }
 
 /**
@@ -214,14 +241,14 @@ function ApplicationMenu({ routes, icon }: { routes: ApplicationRoute[]; icon: R
           {route.target === 'tab' ? (
             /* noreferrer alongside noopener: the location is the application's
                to choose and may well be off this device. */
-            <a className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+            <a className="dropdown-item d-flex align-items-center gap-2"
               href={route.url} target="_blank" rel="noopener noreferrer" onClick={close}>
-              <i className="fa-solid fa-arrow-up-right-from-square fa-fw" />{route.label}
+              <i className={`${routeIcon(route)} fa-fw`} />{route.label}
             </a>
           ) : (
-            <NavLink className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+            <NavLink className="dropdown-item d-flex align-items-center gap-2"
               to={viewPath(route)} onClick={close}>
-              <i className="fa-solid fa-window-maximize fa-fw" />{route.label}
+              <i className={`${routeIcon(route)} fa-fw`} />{route.label}
             </NavLink>
           )}
         </li>
@@ -236,21 +263,19 @@ function NavMenu({ onOpenTerminal, onOpenPower }: { onOpenTerminal: () => void; 
       {close => (
         <>
           <li>
-            <button className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+            <button className="dropdown-item d-flex align-items-center gap-2"
               onClick={() => { close(); onOpenTerminal() }}>
               <i className="fa-solid fa-terminal fa-fw" />Terminal
             </button>
           </li>
-          <li><hr className="dropdown-divider" /></li>
           <li>
-            <button className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+            <button className="dropdown-item d-flex align-items-center gap-2"
               onClick={() => { close(); api.system.identify().catch(() => {}) }}>
               <i className="fa-solid fa-location-dot fa-fw" />Identify
             </button>
           </li>
-          <li><hr className="dropdown-divider" /></li>
           <li>
-            <button className="dropdown-item d-flex align-items-center gap-2" style={menuItemStyle}
+            <button className="dropdown-item d-flex align-items-center gap-2"
               onClick={() => { close(); onOpenPower() }}>
               <i className="fa-solid fa-power-off fa-fw" />Power
             </button>
@@ -305,7 +330,7 @@ function NavBar(props: NavBarProps) {
             the middle column open at zero width so the outer 1fr columns keep
             splitting the bar evenly. */}
         <div style={{ gridColumn: 2, justifySelf: 'center', minWidth: 0 }}>
-          <SystemInfoMenu hostname={props.hostname} />
+          <SystemInfoMenu hostname={props.hostname} logo={props.appLogo} />
         </div>
 
         <div className="d-flex align-items-center gap-1" style={{ gridColumn: 3, justifySelf: 'end' }}>
@@ -354,6 +379,7 @@ function ModalShell({ title, icon, onReady, bodyClassName, background, children 
   const [open, setOpen] = useState(false)
   const elementRef  = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<Modal | null>(null)
+  const titleId     = useId()
 
   useEffect(() => {
     const element = elementRef.current
@@ -376,17 +402,23 @@ function ModalShell({ title, icon, onReady, bodyClassName, background, children 
     }
   }, [])
 
+  /* aria-labelledby points at the header title: it is the only place the modal
+     is named now that the pages inside no longer repeat it. */
   return (
-    <div ref={elementRef} className="modal fade" tabIndex={-1} aria-hidden="true">
-      <div className="modal-dialog modal-fullscreen">
-        <div className="modal-content" style={{ background: background ?? 'var(--eb-bg)', border: 'none' }}>
+    <div ref={elementRef} className="modal fade" tabIndex={-1} aria-hidden="true" aria-labelledby={titleId}>
+      {/* Large but windowed, so the device page stays visible behind it. Phones
+          keep the full-screen treatment, where a margin would only waste space. */}
+      <div className="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-sm-down">
+        <div className="modal-content eb-modal-content" style={{ background: background ?? 'var(--eb-bg)', border: 'none' }}>
           <div className="modal-header" style={{ background: 'var(--eb-navbar-bg)', border: 'none', padding: '0.5rem 1rem' }}>
-            <span className="modal-title fw-semibold" style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem' }}>
+            <span className="modal-title fw-semibold" id={titleId} style={{ color: 'var(--eb-navbar-fg)', fontSize: '0.9rem' }}>
               <i className={`fa-solid ${icon} me-2`} style={{ color: 'var(--eb-primary)' }} />{title}
             </span>
             <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" />
           </div>
-          <div className={bodyClassName ?? 'modal-body'} style={{ overflow: 'auto' }}>
+          {/* minHeight:0 lets the body scroll (and the terminal flex) inside the
+              fixed-height content instead of pushing past it. */}
+          <div className={bodyClassName ?? 'modal-body'} style={{ overflow: 'auto', flex: '1 1 auto', minHeight: 0 }}>
             {children(open, () => instanceRef.current?.hide())}
           </div>
         </div>
@@ -636,8 +668,11 @@ function AppShell() {
                 with no network at all, so AP mode must not replace the app with
                 a setup screen — the banner above offers configuration instead. */}
             <Route path="/" element={<ApplicationPage />} />
-            <Route path="/network" element={<div className="p-4"><Network /></div>} />
-            <Route path="/cloud" element={<div className="p-4"><Cloud /></div>} />
+            {/* These pages carry no heading of their own — inside a modal the
+                header already names them. Reached directly by URL there is no
+                header, so the route supplies the heading. */}
+            <Route path="/network" element={<div className="p-4"><h1 className="h4 mb-4">Network</h1><Network /></div>} />
+            <Route path="/cloud" element={<div className="p-4"><h1 className="h4 mb-4">Cloud Connection</h1><Cloud /></div>} />
             <Route path="*" element={<div className="p-4"><ApplicationPage /></div>} />
           </Routes>
         </main>

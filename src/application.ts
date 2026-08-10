@@ -24,6 +24,12 @@ export type ApplicationRoute = {
     default: boolean,
     /** Stable name the interface addresses this view by, derived from the label. */
     slug:    string,
+    /**
+     * Font Awesome classes for the menu icon, canonical and complete
+     * ('fa-solid fa-gauge'). Absent when the application declared none, and the
+     * interface falls back to an icon for the target.
+     */
+    icon?:   string,
 }
 
 /** A view as an application declares it; the device fills in the rest. */
@@ -32,6 +38,7 @@ export type ApplicationRouteInput = {
     path:     string,
     target?:  ApplicationRouteTarget,
     default?: boolean,
+    icon?:    string,
 }
 
 // Mirrors the published SDK contract (sdk/node/src/edgeberry.ts). These fields
@@ -155,6 +162,52 @@ function normalizePath( value:unknown ):{ path:string } | { error:string }{
     }
 }
 
+/*
+ *  Icons
+ *
+ *  The free Font Awesome set the interface bundles ships three styles. An
+ *  application names one of them, or nothing and gets 'solid'.
+ */
+const ICON_STYLES = ['solid', 'regular', 'brands'];
+
+/** Font Awesome names are lowercase words joined by single hyphens. */
+const ICON_NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+const MAX_ICON_LENGTH = 40;
+
+/**
+ * Accept an icon an application declared, as the class pair that renders it.
+ *
+ * This value is written straight into a `class` attribute in the interface, so
+ * it is rebuilt from a validated style and a validated name rather than passed
+ * through — nothing an application writes reaches the DOM verbatim.
+ *
+ * Both spellings are accepted, because both are things people will write: the
+ * bare name from Font Awesome's search ('gauge'), and the class list copied off
+ * the icon's page ('fa-brands fa-github'). The 'fa-' prefixes are optional on
+ * either token.
+ */
+function normalizeIcon( value:unknown ):{ icon:string } | { error:string }{
+    if(typeof value !== 'string' || !value.trim()) return { error:'not a string' };
+    if(value.length > MAX_ICON_LENGTH) return { error:`longer than ${MAX_ICON_LENGTH} characters` };
+
+    const tokens = value.trim().toLowerCase().split(/\s+/).map(token => token.replace(/^fa-/, ''));
+    if(tokens.length > 2) return { error:`'${value}' is not an icon name` };
+
+    // One token is the name alone; two are a style and a name, in that order.
+    const [style, name] = tokens.length === 2 ? tokens : ['solid', tokens[0]];
+
+    if(!ICON_STYLES.includes(style))
+        return { error:`'${style}' is not a Font Awesome style (expected one of ${ICON_STYLES.join(', ')})` };
+    // 'fa-solid' on its own names a style and no icon.
+    if(tokens.length === 1 && ICON_STYLES.includes(name))
+        return { error:`'${value}' names a style but no icon` };
+    if(!ICON_NAME_PATTERN.test(name))
+        return { error:`'${name}' is not a Font Awesome icon name` };
+
+    return { icon:`fa-${style} fa-${name}` };
+}
+
 /** Reduce a label to something addressable in a URL. */
 export function slugify( label:string ):string{
     return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -223,6 +276,19 @@ function normalizeRoutes( value:unknown ):ApplicationRoute[]{
         for(let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
         taken.add(slug);
 
+        /*
+         *  A bad icon costs the route its icon, not its place in the menu:
+         *  it is decoration on a view that otherwise works, and dropping the
+         *  whole entry would take a working page away over a typo. The reason
+         *  is logged like any other rejection.
+         */
+        let icon:string|undefined;
+        if(entry.icon !== undefined && entry.icon !== null){
+            const resolvedIcon = normalizeIcon(entry.icon);
+            if('error' in resolvedIcon) reject(index, `icon ignored: ${resolvedIcon.error}`);
+            else icon = resolvedIcon.icon;
+        }
+
         routes.push({
             label,
             path,
@@ -241,6 +307,7 @@ function normalizeRoutes( value:unknown ):ApplicationRoute[]{
                    :                             'tab',
             default: entry.default === true,
             slug,
+            icon,
         });
     }
 

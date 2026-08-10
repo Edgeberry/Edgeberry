@@ -233,8 +233,8 @@ export default function Cloud() {
 
   return (
     <>
-      <h1 className="h4 mb-4">Cloud Connection</h1>
-
+      {/* No page heading: this only ever renders inside a modal whose header
+          already names it. */}
       <div className="mb-4">
         <SectionLabel>Status</SectionLabel>
         <StatusBadge status={status} />

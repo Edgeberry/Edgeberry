@@ -77,7 +77,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   )
 }
 
-function Panel({ info }: { info: SystemInfo }) {
+function Panel({ info, logo }: { info: SystemInfo; logo: string | null }) {
   const { system, board } = info
 
   const memory = `${bytes(system.memoryTotal)} · ${bytes(system.memoryFree)} free`
@@ -89,7 +89,12 @@ function Panel({ info }: { info: SystemInfo }) {
     <div style={{ fontSize: '0.78rem', color: 'var(--eb-navbar-fg)' }}>
       {/* Identity block: the same three lines GNOME puts under its logo. */}
       <div className="text-center" style={{ padding: '1rem 0.9rem 0.85rem' }}>
-        <img src={edgeberryLogo} alt="" height="26" className="mb-2" style={{ opacity: 0.9 }} />
+        {/* The application's logo displaces Edgeberry's here for the same
+            reason it does in the bar: the device is the platform, the
+            application is the product. Decorative — the hostname below names
+            the device, and the bar already carries the logo's alt text. */}
+        <img src={logo ?? edgeberryLogo} alt="" height="26" className="mb-2"
+             style={{ opacity: 0.9, maxHeight: 26, width: 'auto' }} />
         <div className="fw-semibold text-truncate" style={{ fontSize: '0.95rem' }}>{system.hostname}</div>
         {system.model && (
           <div className="text-truncate" style={{ color: LABEL_COLOR, fontSize: '0.75rem' }}>{system.model}</div>
@@ -141,7 +146,7 @@ function Panel({ info }: { info: SystemInfo }) {
  * (uptime, free memory, free disk) are only meaningful at the moment you look
  * at them, and a closed dropdown has no business polling the device.
  */
-export default function SystemInfoMenu({ hostname }: { hostname: string }) {
+export default function SystemInfoMenu({ hostname, logo }: { hostname: string; logo: string | null }) {
   const [open, setOpen] = useState(false)
   const [info, setInfo] = useState<SystemInfo | null>(null)
   const [failed, setFailed] = useState(false)
@@ -172,7 +177,7 @@ export default function SystemInfoMenu({ hostname }: { hostname: string }) {
   useEffect(() => {
     if (!open) return
 
-    function onMouseDown( event:MouseEvent ) {
+    function onPointerDown( event:PointerEvent ) {
       const target = event.target as Node
       if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return
       setOpen(false)
@@ -180,12 +185,17 @@ export default function SystemInfoMenu({ hostname }: { hostname: string }) {
     function onKeyDown( event:KeyboardEvent ) {
       if (event.key === 'Escape') setOpen(false)
     }
+    /* A press inside the application's iframe never reaches this document, so
+       the panel would sit open over it. Window focus loss is the signal. */
+    function onBlur() { setOpen(false) }
 
-    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)
+    window.addEventListener('blur', onBlur)
     return () => {
-      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('blur', onBlur)
     }
   }, [open])
 
@@ -202,7 +212,7 @@ export default function SystemInfoMenu({ hostname }: { hostname: string }) {
       }}
     >
       {info
-        ? <Panel info={info} />
+        ? <Panel info={info} logo={logo} />
         : (
           <div className="text-center" style={{ padding: '1.25rem 0.9rem', fontSize: '0.78rem', color: LABEL_COLOR }}>
             {failed ? 'Could not read system information.' : 'Reading system information…'}
