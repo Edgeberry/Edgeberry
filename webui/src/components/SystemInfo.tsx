@@ -47,6 +47,11 @@ function duration( seconds:number ):string {
 const LABEL_COLOR = 'rgba(255,255,255,0.55)'
 const RULE_COLOR  = 'rgba(255,255,255,0.12)'
 
+/* The project as a whole, not this device's software — Edgeberry is the
+   hardware, the device software and the SDKs together, and they live side by
+   side under the organisation. */
+const PROJECT_URL = 'https://github.com/Edgeberry'
+
 /** One label/value line. Renders nothing when the device did not report a value. */
 function Row({ label, value, mono = false }: { label: string; value: string | null; mono?: boolean }) {
   if (!value) return null
@@ -142,6 +147,27 @@ function Panel({ info, logo }: { info: SystemInfo; logo: string | null }) {
       <Group title="Software">
         <Row label="Edgeberry" value={system.version ? `v${system.version}` : null} />
       </Group>
+
+      {/* Where the project lives. Deliberately the quietest thing in the panel
+          — smaller and dimmer than a label, at the very bottom — because it is
+          worth being findable, not worth being noticed. */}
+      <div
+        className="text-center"
+        style={{
+          borderTop: `1px solid ${RULE_COLOR}`, padding: '0.5rem 0.9rem',
+          fontSize: '0.68rem', color: LABEL_COLOR,
+        }}
+      >
+        <a
+          href={PROJECT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: '0.15em' }}
+        >
+          Edgeberry
+        </a>
+        {' '}is an open source project
+      </div>
     </div>
   )
 }
