@@ -23,6 +23,7 @@ import {
     syncNginxRoutes,
 } from './applicationManifest';
 import { ApplicationRoute } from './application';
+import { hostname_apply, hostname_claim, hostname_current } from './hostname';
 import {
     settings_deleteApplication,
     settings_getApplication,
@@ -47,6 +48,21 @@ let current:RegisteredApplication|null = null;
  *  that empties out and refills in between looks broken.
  */
 let currentRoutes:ApplicationRoute[] = [];
+
+/**
+ * Make the device name follow the registered application.
+ *
+ * The prefix is read from `current` here rather than passed in by callers, so
+ * there is no call site that can supply the wrong one. Unregistering sets
+ * `current` to null first and gets the device's own 'EDGB' back out of the same
+ * expression, rather than out of a second branch that could disagree with this
+ * one.
+ *
+ * hostname_apply() never throws, so this is safe on the startup path.
+ */
+function applyDeviceName():void{
+    hostname_apply(current?.manifest.hostnamePrefix ?? null);
+}
 
 /** The registered application as last read, or null when none is registered. */
 export function registry_getApplication():RegisteredApplication|null{
@@ -89,6 +105,7 @@ export function registry_register( applicationPath:string ):RegisteredApplicatio
     }
 
     settings_storeApplication(resolved, currentRoutes);
+    applyDeviceName();
     console.log('\x1b[32mRegistered application \''+manifest.name+'\' from '+resolved+'\x1b[37m');
     return application;
 }
@@ -100,7 +117,23 @@ export function registry_unregister():void{
     currentRoutes = [];
     if(syncNginxRoutes(null)) reloadNginx();
     settings_deleteApplication();
+    // Hands the device its own name back, if the name is still Edgeberry's to
+    // give: an application that named the device does not get to keep it.
+    applyDeviceName();
     console.log('\x1b[33mUnregistered application'+(name ? ' \''+name+'\'' : '')+'\x1b[37m');
+}
+
+/**
+ * Take the device name back after somebody renamed the device by hand.
+ *
+ * The only way out of a released record, and deliberately something a person has
+ * to ask for: 'edgeberry --hostname auto' is someone saying the device should be
+ * Edgeberry's to name again. Returns the name that was settled on, which is the
+ * previous one if the claim could not be applied.
+ */
+export function registry_claimDeviceName():string{
+    hostname_claim(current?.manifest.hostnamePrefix ?? null);
+    return hostname_current();
 }
 
 /**
@@ -169,6 +202,7 @@ export function registry_load():void{
         current = null;
         currentRoutes = [];
         if(syncNginxRoutes(null)) reloadNginx();
+        applyDeviceName();
         return;
     }
 
@@ -177,14 +211,30 @@ export function registry_load():void{
     // it happens to re-declare.
     currentRoutes = stored.routes;
 
+    let manifestRead = false;
     try{
         current = { path: stored.path, manifest: readManifest(stored.path) };
+        manifestRead = true;
         console.log('\x1b[32mApplication \''+current.manifest.name+'\' registered from '+stored.path+'\x1b[37m');
     } catch(err:any){
         current = null;
         console.error('\x1b[31mRegistered application at '+stored.path+' is unavailable: '+err.message+'\x1b[37m');
         console.error('\x1b[33mIts routes are withdrawn until it returns; the registration is kept.\x1b[37m');
     }
+
+    /*
+     *  The device name is only re-decided when we know what the application
+     *  calls itself.
+     *
+     *  An unreadable manifest is usually an application mid-update, and the
+     *  prefix would fall back to 'EDGB' — renaming the device out of the
+     *  application's identity over a condition that clears itself on the next
+     *  start. A stale suffix after a base board swap is the lesser wrong answer,
+     *  and it corrects itself as soon as the manifest reads again.
+     */
+    if(manifestRead) applyDeviceName();
+    else console.log('\x1b[33mDevice name left as \''+hostname_current()+
+                     '\' until the application\'s manifest can be read\x1b[37m');
 
     try{
         if(syncNginxRoutes(current)) reloadNginx();

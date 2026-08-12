@@ -96,6 +96,15 @@ function Panel({ info, logo }: { info: SystemInfo; logo: string | null }) {
         <img src={logo ?? edgeberryLogo} alt="" height="26" className="mb-2"
              style={{ opacity: 0.9, maxHeight: 26, width: 'auto' }} />
         <div className="fw-semibold text-truncate" style={{ fontSize: '0.95rem' }}>{system.hostname}</div>
+        {/* Renaming the device by hand makes Edgeberry stop naming it, for good.
+            Said here because it is otherwise invisible: an application declaring
+            a hostnamePrefix would simply appear to be ignored. */}
+        {!system.hostnameManaged && (
+          <div style={{ color: LABEL_COLOR, fontSize: '0.7rem' }}
+               title="Edgeberry does not change a hostname that was set by hand. 'edgeberry --hostname auto' hands it back.">
+            set manually
+          </div>
+        )}
         {system.model && (
           <div className="text-truncate" style={{ color: LABEL_COLOR, fontSize: '0.75rem' }}>{system.model}</div>
         )}

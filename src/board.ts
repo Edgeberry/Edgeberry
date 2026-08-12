@@ -87,6 +87,40 @@ export function board_getUUID(){
         return null;
     }
 }
+
+/*
+ *  What this device is called
+ *
+ *  The device has one name — 'EDGB-a0961b', or 'Freya-a0961b' once a registered
+ *  application claims a prefix — and it is the hostname it answers to as well as
+ *  the network it broadcasts in AP mode. hostname.ts owns that name; this builds
+ *  it, and is also where the access point falls back to when the hostname cannot
+ *  be used as an SSID.
+ *
+ *  Derived rather than stored, so replacing the base board moves the name.
+ */
+
+/** The six characters of the board UUID that identify this device. */
+function shortId( hardwareUUID:string ):string{
+    return hardwareUUID.replace(/-/g, '').substring(0, 6);
+}
+
+/**
+ * A device name: a prefix, a hyphen, and this board's six characters.
+ *
+ * The prefix is 'EDGB' for the device itself, or whatever the registered
+ * application declared — 'Freya' gives 'Freya-a0961b'.
+ */
+export function board_deviceName( prefix:string, hardwareUUID:string ):string{
+    return prefix+'-'+shortId(hardwareUUID);
+}
+
+/** This board's six characters, or null when there is no base board to read. */
+export function board_getShortId():string|null{
+    const uuid = board_getUUID();
+    return uuid ? shortId(uuid) : null;
+}
+
 /*
  *  Hardware
  *  Hardware features connected to the I/O of the Linux system;

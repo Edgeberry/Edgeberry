@@ -72,6 +72,7 @@ case $1 in
       --hardware-id &&Get this device's hardware UUID
       --hardware-version &&Get the device's base board version
       --identify  &&Physically identify this device with indicators
+      --hostname [auto] &&Show the device name, or hand it back to Edgeberry
                   &&
       --register-application <dir> &&Register the application in <dir> (reads its edgeberry.json)
       --unregister-application &&Forget the registered application and its routes
@@ -137,6 +138,34 @@ EOF
       echo "null"
       exit -1;
     fi
+    ;;
+
+  ##
+  #  Device name
+  #
+  #  Edgeberry names the device 'EDGB-<board>', or '<prefix>-<board>' when the
+  #  registered application declares one — and stops the moment somebody renames
+  #  it by hand. 'auto' is the way back from that, and the only one.
+  ##
+  "--hostname")
+    case "$2" in
+      "auto")
+        dbus_application_call ClaimHostname
+        ;;
+      "")
+        hostname
+        # Ownership lives in the Core's settings file. Reading it here is fine;
+        # writing it is not, for the reason given under --register-application.
+        if jq -e '.hostname.released' /opt/$APPNAME/Core/settings.json > /dev/null 2>&1; then
+          echo "Set by hand — Edgeberry does not change it."
+          echo "Run 'edgeberry --hostname auto' to hand it back."
+        fi
+        ;;
+      *)
+        echo "Usage: edgeberry --hostname [auto]"
+        exit 1
+        ;;
+    esac
     ;;
 
   ##

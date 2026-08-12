@@ -161,6 +161,37 @@ export function settings_getApplication():{ path:string, routes:any[] }|null{
     return { path: stored.path, routes: Array.isArray(stored.routes) ? stored.routes : [] };
 }
 
+/*
+ *  The device name, and who owns it.
+ *
+ *  'managed' is the hostname Edgeberry last set and 'uuid' the base board
+ *  suffix it was built from — together they answer 'is the name on this device
+ *  still the name we gave it?', which is the whole of the ownership rule in
+ *  hostname.ts.
+ *
+ *  'released' replaces both the moment someone renames the device by hand, and
+ *  is what makes stepping back permanent. Without a record on disk the next
+ *  start would simply take the name back, which is the behaviour this exists to
+ *  prevent.
+ */
+export type HostnameRecord = {
+    managed?:  string,
+    uuid?:     string,
+    released?: string,
+};
+
+/** Record the device name decision. Null forgets it, so the name is claimed again. */
+export function settings_storeHostname( record:HostnameRecord|null ){
+    if(record) settings.hostname = record;
+    else       delete settings.hostname;
+    saveSettings();
+}
+
+export function settings_getHostname():HostnameRecord|null{
+    const stored = settings?.hostname;
+    return stored && typeof stored === 'object' ? stored as HostnameRecord : null;
+}
+
 function saveSettings(){
     writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2) );
 }

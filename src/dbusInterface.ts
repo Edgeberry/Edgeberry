@@ -19,7 +19,7 @@
 import { StateManager } from './stateManager';
 import { DeviceHubService } from './deviceHub';
 import { app_getApplicationInfo, app_setApplicationInfo, app_setApplicationStatus, ApplicationInfoInput, ApplicationStatus } from './application';
-import { registry_applyRoutes, registry_getApplication, registry_register, registry_unregister } from './applicationRegistry';
+import { registry_applyRoutes, registry_claimDeviceName, registry_getApplication, registry_register, registry_unregister } from './applicationRegistry';
 
 var dbus = require('dbus-native');      // No TypeScript implementation (!)
 
@@ -164,6 +164,24 @@ export function startDbusInterface( deps:DbusDeps ):void{
                 return 'null';
             }
         },
+
+        /*
+         *  Take back the device name after a manual rename.
+         *
+         *  Edgeberry stops naming a device the moment someone renames it by
+         *  hand, and that is permanent by design — this is the way back, and it
+         *  is deliberately something a person asks for from the CLI rather than
+         *  something an application can do to a device it was given.
+         */
+        ClaimHostname:()=>{
+            try{
+                return 'ok:'+registry_claimDeviceName();
+            }
+            catch(err:any){
+                console.error('\x1b[31mClaimHostname failed:', err.message, '\x1b[37m');
+                return 'err:'+err.message;
+            }
+        },
     };
 
     // exportInterface mutates serviceObject; it does not return anything.
@@ -178,6 +196,7 @@ export function startDbusInterface( deps:DbusDeps ):void{
             RegisterApplication:['s','s'],
             UnregisterApplication:['','s'],
             GetApplication:['','s'],
+            ClaimHostname:['','s'],
         },
         signals: {
             CloudMessage: ['s'],   // cloud-to-device message
@@ -221,6 +240,35 @@ export function emitStateUpdate( state:any ):void{
 
 /*
  *  System integration
+ */
+
+/*
+ *  Why the device's hostname is not set from here.
+ *
+ *  systemd exposes org.freedesktop.hostname1, and this module already calls
+ *  another system service over the bus (login1, below). Renaming the device
+ *  through SetStaticHostname/SetHostname would fit here in every respect but
+ *  one: hostname1 owns /etc/hostname, and nothing owns /etc/hosts.
+ *
+ *  Raspberry Pi OS resolves the machine's own name from the '127.0.1.1' line in
+ *  /etc/hosts and from nowhere else — its nsswitch.conf is
+ *  'hosts: files mdns4_minimal [NOTFOUND=return] dns', with no 'myhostname' to
+ *  synthesise an answer the way Ubuntu's does. A device renamed through
+ *  hostname1 alone stops resolving itself: every sudo prints 'unable to resolve
+ *  host', and anything looking up its own name waits for DNS to fail first.
+ *
+ *  So hostname.ts calls 'raspi-config nonint do_hostname' instead. That is not
+ *  the non-D-Bus route — raspi-config runs hostnamectl itself, which is this
+ *  same interface — it is the route that also repairs /etc/hosts. The choice is
+ *  between delegating to the platform's own tool and hand-editing a file that
+ *  leaves the device unresolvable when it is written wrong.
+ *
+ *  Nor do applications set the hostname over this interface. It is declared in
+ *  the manifest ('hostnamePrefix'), because it is a fact settled when the
+ *  application is installed, and because the SDKs re-send SetApplicationInfo
+ *  every time this service restarts — the wrong shape for something that should
+ *  change once. ClaimHostname above is the one exception, and it exists for a
+ *  person running the CLI, not for an application.
  */
 
 function subscribeToShutdown( stateManager:StateManager ):void{

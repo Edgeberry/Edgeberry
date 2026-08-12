@@ -11,6 +11,7 @@ import { settings } from '../settingsStore';
 import { board_getUUID, board_getVendor, board_getProductName,
          board_getProductId, board_getProductVersion } from '../board';
 import { system_restart, system_shutdown, system_getInfo } from '../system';
+import { hostname_isManaged } from '../hostname';
 import { app_getApplicationInfo, app_getApplicationStatus } from '../application';
 import { registry_baseUrl, registry_brandingColors, registry_brandingPath, registry_publicUrl } from '../applicationRegistry';
 
@@ -37,7 +38,7 @@ export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
         state.system = {
             ...state.system,
             hostname: hostname(),
-            apSsid:   uuid ? NetworkManager.apSsidFromUUID(uuid) : null,
+            apSsid:   uuid ? NetworkManager.apSsid(uuid) : null,
         };
         state.connection = {
             ...state.connection,
@@ -106,7 +107,21 @@ export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
      */
     router.get('/system/info', (_req, res) => {
         res.json({
-            system: system_getInfo(),
+            system: {
+                ...system_getInfo(),
+                /*
+                 *  Whether the device name is still Edgeberry's to set.
+                 *
+                 *  Grafted on here rather than held in system.ts, which is about
+                 *  the Linux host — this is about a decision Edgeberry made.
+                 *  Surfacing it is not decoration: renaming a device by hand
+                 *  makes Edgeberry stop naming it, permanently and silently, and
+                 *  without this the only trace is one log line from a boot
+                 *  months ago. It is the answer to 'why didn't my application's
+                 *  name take?'.
+                 */
+                hostnameManaged: hostname_isManaged(),
+            },
             board: {
                 vendor:  board_getVendor(),
                 product: board_getProductName(),

@@ -88,6 +88,8 @@ export type ApplicationRoute = {
 export type SystemInfo = {
   system: {
     hostname:     string
+    /** False once someone has renamed the device by hand; Edgeberry then leaves it alone. */
+    hostnameManaged: boolean
     model:        string | null
     serial:       string | null
     osName:       string | null

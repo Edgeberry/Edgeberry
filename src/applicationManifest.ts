@@ -18,7 +18,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rename
 import { spawnSync } from 'child_process';
 import path from 'path';
 
-import { ApplicationRoute, slugify } from './application';
+import { slugify } from './application';
+import { HOSTNAME_LABEL, MAX_PREFIX_LENGTH } from './hostname';
 
 /** Filename an application publishes inside its own directory. */
 const MANIFEST_FILENAME = 'edgeberry.json';
@@ -89,6 +90,15 @@ export type ApplicationManifest = {
     version?:     string,
     description?: string,
     branding?:    ApplicationBranding,
+    /**
+     * What the device should call itself: this, a hyphen, and the six
+     * characters identifying the base board — 'Freya' gives 'Freya-a0961b'.
+     *
+     * A prefix rather than a whole hostname, for two reasons: two devices
+     * running the same application must not claim the same name, and the
+     * hostname is meant to stay the same string as the access point SSID.
+     */
+    hostnamePrefix?: string,
     ui?: {
         /**
          * Loopback port the application's own web server listens on.
@@ -149,6 +159,9 @@ export function readManifest( applicationPath:string ):ApplicationManifest{
     if(raw.service !== undefined)  manifest.service  = readService(raw.service, file);
     if(raw.branding !== undefined) manifest.branding = readBranding(raw.branding, file, applicationPath);
 
+    if(raw.hostnamePrefix !== undefined)
+        manifest.hostnamePrefix = readHostnamePrefix(raw.hostnamePrefix, file);
+
     return manifest;
 }
 
@@ -201,6 +214,25 @@ function readBranding( branding:any, file:string, applicationPath:string ):Appli
     }
 
     return resolved;
+}
+
+/**
+ * Validate the prefix the device will build its hostname from.
+ *
+ * Checked here so a packager finds out at registration, which is the pattern the
+ * rest of this file follows — and because nothing downstream will catch it:
+ * raspi-config takes what it is given in 'nonint' mode.
+ */
+function readHostnamePrefix( value:any, file:string ):string{
+    const prefix = typeof value === 'string' ? value.trim() : '';
+
+    // A DNS label stops at 63 characters and the device appends a hyphen plus
+    // six of its own, so the prefix has a lower ceiling than the label pattern.
+    if(!HOSTNAME_LABEL.test(prefix) || prefix.length > MAX_PREFIX_LENGTH)
+        throw new Error(`${file}: 'hostnamePrefix' must be letters, digits and hyphens, `+
+                        `not starting or ending with a hyphen, at most ${MAX_PREFIX_LENGTH} characters`);
+
+    return prefix;
 }
 
 function readUi( ui:any, file:string ):ApplicationManifest['ui']{

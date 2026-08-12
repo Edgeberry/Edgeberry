@@ -18,7 +18,7 @@ The installer sets up the service, the web interface and the `edgeberry` CLI. It
 
 ## First run: getting on WiFi
 
-With no WiFi network configured, the device brings up its own open network named **`EDGB-XXXXXX`**. Join it from a phone or laptop and the setup page opens by itself. If it doesn't, browse to **http://10.42.0.1**.
+With no WiFi network configured, the device brings up its own open network, named after itself — **`EDGB-XXXXXX`**, or whatever the device is called. Join it from a phone or laptop and the setup page opens by itself. If it doesn't, browse to **http://10.42.0.1**.
 
 Pick a network, enter the password, and the device joins it and shuts its own network down.
 
@@ -100,7 +100,7 @@ The last four follow the health your application reports through `SetApplication
 sudo edgeberry --help
 ```
 
-Covers setup, version, service control (`--start`, `--stop`, `--restart`, `--enable`, `--disable`), the hardware UUID and base board version, and `--identify` to make a device announce itself physically — useful for finding one device among many.
+Covers setup, version, service control (`--start`, `--stop`, `--restart`, `--enable`, `--disable`), the hardware UUID and base board version, `--hostname` to see what the device calls itself, and `--identify` to make a device announce itself physically — useful for finding one device among many.
 
 ## Building an application
 
@@ -122,7 +122,8 @@ sudo edgeberry --register-application /opt/MyApp
 
   "ui":       { "port": 1880 },
   "service":  { "unit": "myapp.service", "supports": ["restart", "stop", "reload"] },
-  "branding": { "logo": "assets/logo.png", "mark": "assets/favicon.ico" }
+  "branding": { "logo": "assets/logo.png", "mark": "assets/favicon.ico" },
+  "hostnamePrefix": "MyApp"
 }
 ```
 
@@ -130,7 +131,7 @@ The manifest carries what is settled when you install: the port your web server 
 
 Only the path is stored. The manifest stays inside your application and is re-read on every start, so shipping a new version updates what the device knows about you without re-registering. Registration needs the device software running, refuses everything if any part of the manifest is invalid, and exits non-zero with the reason on stderr — so an installer can branch on it.
 
-Three things follow from it.
+Four things follow from it.
 
 **Lifecycle** — the Device Hub can restart, stop, start and reload your application, limited to the actions you list in `supports`.
 
@@ -171,6 +172,21 @@ Most applications need no changes at all: their pages already reference assets r
 Setting `primary` alone already makes the interface yours. Hex may be written with or without the leading `#`; an unknown colour name is an error rather than a silent no-op.
 
 Everything here is optional, and anything you leave out keeps the device's own. Colours apply as soon as the interface polls, without a restart.
+
+**Device name** — `hostnamePrefix` names the device after your application:
+
+```json
+"hostnamePrefix": "MyApp"
+```
+
+The device appends the six characters identifying its base board, so it becomes `MyApp-a0961b`, reachable as `MyApp-a0961b.local`. That is the device's name everywhere — it is also the network it broadcasts in setup mode, so someone looking for it in a WiFi list and someone looking for it on the network find the same name. You declare a prefix rather than a whole hostname so two devices running your application never claim the same name.
+
+Letters, digits and hyphens, not starting or ending with one, up to 25 characters — the limit is the 32-byte cap on network names, so that the two never diverge. Leave it out and the device stays `EDGB-a0961b`; unregistering gives that name back.
+
+> [!NOTE]
+> A device whose hostname was changed by hand is never renamed, whatever you declare — Edgeberry sets the name only while the name is still the one it set. The system information panel shows *set manually* when that has happened, and `edgeberry --hostname auto` hands ownership back.
+
+Everything else follows the device: replacing the base board moves the suffix, and shipping a new manifest with a different prefix moves the prefix, both on the next start.
 
 ### Declaring your pages
 

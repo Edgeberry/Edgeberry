@@ -43,7 +43,7 @@ export class ApModeService {
 
     /** The SSID this device broadcasts, known whether or not the AP is up. */
     public apSsid( boardUUID:string|null ):string|null{
-        return boardUUID ? NetworkManager.apSsidFromUUID(boardUUID) : null;
+        return boardUUID ? NetworkManager.apSsid(boardUUID) : null;
     }
 
     public async enter( boardUUID:string|null ):Promise<void>{

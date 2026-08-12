@@ -13,6 +13,8 @@
  */
 
 import EventEmitter from "events";
+import { board_deviceName } from "./board";
+import { hostname_current } from "./hostname";
 
 var dbus = require('dbus-native');
 
@@ -444,10 +446,27 @@ export class NetworkManager extends EventEmitter {
      *  Access Point Mode
      */
 
-    // Derive the AP SSID from the board UUID: EDGB-XXXXXX (first 6 hex chars).
-    // Static so callers can display the name without the AP being up.
-    public static apSsidFromUUID( hardwareUUID:string ):string{
-        return 'EDGB-' + hardwareUUID.replace(/-/g, '').substring(0, 6);
+    /**
+     * The network name this device broadcasts in AP mode: its hostname.
+     *
+     * The same string, not a parallel derivation from the same parts. A device
+     * has one name, and someone reading a WiFi list and someone reading a
+     * network should be looking at the same one — including when a registered
+     * application has named the device after itself, and when somebody renamed
+     * it by hand.
+     *
+     * Static so callers can show the name without the AP being up.
+     */
+    public static apSsid( hardwareUUID:string ):string{
+        const name = hostname_current();
+
+        // SSIDs stop at 32 bytes where hostnames run to 63, so a hostname set by
+        // hand can be too long to broadcast. Falling back to the board-derived
+        // name keeps the device findable, which matters more here than matching:
+        // AP mode is how someone reaches a device they cannot otherwise reach.
+        if(name && Buffer.byteLength(name) <= 32) return name;
+
+        return board_deviceName('EDGB', hardwareUUID);
     }
 
     // Start an open AP. SSID format: EDGB-XXXXXX (first 6 chars of hardware UUID)
@@ -455,7 +474,7 @@ export class NetworkManager extends EventEmitter {
         const devicePath = await this.getWifiDevicePath();
         const nmIface = await this.getInterface(NM_PATH, NM_IFACE);
 
-        const apSsid = NetworkManager.apSsidFromUUID(hardwareUUID);
+        const apSsid = NetworkManager.apSsid(hardwareUUID);
 
         const connectionSettings = [
             ['connection', [
