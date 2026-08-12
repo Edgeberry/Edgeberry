@@ -163,6 +163,15 @@ mark_step_busy 6
 remote_sudo "mkdir -p '$APPDIR' '$SHAREDIR' && chown -R '$USER': '$APPDIR' '$SHAREDIR'" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 6; else mark_step_failed 6; echo -e "\e[0;33mFailed to prepare app directory\e[0m"; exit 1; fi
 
+# What the device has installed, and what we are about to give it.
+#
+# Read before the rsync overwrites it, because the answer decides whether step 8
+# runs at all. A deploy that changes only code — the common case — needs no npm
+# work, and on a small device 'npm ci' is both the slowest thing this script does
+# and the only one that can take the device down with it.
+INSTALLED_LOCK=$(remote_sudo "sha256sum '$APPDIR/package-lock.json' 2>/dev/null | cut -d' ' -f1" 2>/dev/null | tr -d '[:space:]')
+LOCAL_LOCK=$(sha256sum package-lock.json 2>/dev/null | cut -d' ' -f1 | tr -d '[:space:]')
+
 # Step 7: Copy temp -> appdir
 mark_step_busy 7
 # config/nginx/routes.d/ is excluded from --delete because it does not belong to
@@ -173,19 +182,71 @@ mark_step_busy 7
 # A generated route would come back by itself — the Core rebuilds it from the
 # manifest on start — but a hand-installed one would not, and deleting it
 # silently drops that application's paths to the Device Service's catch-all.
-remote_sudo "rsync -a --delete --exclude 'settings.json' --exclude 'certificates/' --exclude 'share/' --exclude 'config/nginx/routes.d/' '$REMOTE_TEMP/' '$APPDIR/' && if [ -d '$REMOTE_TEMP/share' ]; then rsync -a --delete '$REMOTE_TEMP/share/' '$SHAREDIR/'; fi && rm -rf '$APPDIR/share' '$REMOTE_TEMP'" >/dev/null 2>&1
+#
+# node_modules/ is on the list for the same reason: it is device-owned state,
+# not repository content, so --delete saw it as extraneous and removed the whole
+# installed tree on every single deploy. Rebuilding it then meant compiling
+# node-pty from source under memory pressure — which is how a 512MB device ends
+# up with an OOM-killed install and a Core that cannot start.
+remote_sudo "rsync -a --delete --exclude 'settings.json' --exclude 'certificates/' --exclude 'share/' --exclude 'config/nginx/routes.d/' --exclude 'node_modules/' '$REMOTE_TEMP/' '$APPDIR/' && if [ -d '$REMOTE_TEMP/share' ]; then rsync -a --delete '$REMOTE_TEMP/share/' '$SHAREDIR/'; fi && rm -rf '$APPDIR/share' '$REMOTE_TEMP'" >/dev/null 2>&1
 if [ $? -eq 0 ]; then mark_step_completed 7; else mark_step_failed 7; echo -e "\e[0;33mFailed to copy files into app directory\e[0m"; exit 1; fi
 
 # Step 8: Install dependencies (remote, prod only)
 mark_step_busy 8
-set +e
-remote_sudo "cd '$APPDIR' && timeout 300 sh -c 'if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi'" 2>&1 | grep -v "npm WARN"
-NPM_EXIT=${PIPESTATUS[0]}
-# Was 'set -e'. The script never enabled it globally, so this switched it on for
-# every step below — where a non-zero command would abort the deploy before its
-# own 'if [ $? -eq 0 ]' could report why.
-set +e
-if [ $NPM_EXIT -eq 0 ]; then mark_step_completed 8; elif [ $NPM_EXIT -eq 124 ]; then mark_step_failed 8; echo -e "\e[0;33mNPM install timed out (>300s)\e[0m"; exit 1; else mark_step_failed 8; echo -e "\e[0;33mFailed to install production dependencies on remote\e[0m"; exit 1; fi
+
+# Skipped when the lockfile is unchanged *and* the installed tree is actually
+# usable. Checked rather than trusted, because those are two different
+# questions: an interrupted install leaves a lockfile that matches perfectly
+# and a node-pty whose pty.node was never built. 'npm ls' is happy with that —
+# it counts packages, not compiled artifacts — and the device then fails on its
+# next restart rather than here, where somebody is watching.
+#
+# Loading the native module is the check that catches it, and it makes this
+# step self-healing: a device left half-installed by an earlier failed deploy
+# gets repaired by the next one instead of skipped over.
+DEPS_OK=false
+if [ -n "$LOCAL_LOCK" ] && [ "$INSTALLED_LOCK" = "$LOCAL_LOCK" ]; then
+  if remote_sudo "cd '$APPDIR' && npm ls --omit=dev --depth=0 >/dev/null 2>&1 && node -e 'require(\"node-pty\")' >/dev/null 2>&1" >/dev/null 2>&1; then
+    DEPS_OK=true
+  fi
+fi
+
+if $DEPS_OK; then
+  mark_step_skipped 8
+else
+  set +e
+  # 900s and JOBS=1: node-pty has no prebuilt binary for this platform, so it is
+  # compiled here. The default parallel build is what exhausts memory on a small
+  # device, and an OOM kill does not stop at npm — the last one took dbus-daemon
+  # with it. Slower, but it finishes.
+  remote_sudo "cd '$APPDIR' && timeout 900 env JOBS=1 sh -c 'if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi'" 2>&1 | grep -v "npm WARN"
+  NPM_EXIT=${PIPESTATUS[0]}
+  # Was 'set -e'. The script never enabled it globally, so this switched it on for
+  # every step below — where a non-zero command would abort the deploy before its
+  # own 'if [ $? -eq 0 ]' could report why.
+  set +e
+  if [ $NPM_EXIT -eq 0 ]; then
+    mark_step_completed 8
+  elif [ $NPM_EXIT -eq 124 ]; then
+    mark_step_failed 8
+    echo -e "\e[0;33mNPM install timed out (>900s)\e[0m"
+    exit 1
+  elif [ $NPM_EXIT -eq 137 ]; then
+    # The kernel already wrote down what happened; say so, rather than making
+    # the next person guess from "failed to install dependencies".
+    mark_step_failed 8
+    echo -e "\e[0;33mnpm was killed — almost certainly out of memory.\e[0m"
+    echo -e "\e[0mConfirm with 'dmesg | grep -i \"out of memory\"' on the device. Adding"
+    echo -e "temporary swap and re-running is usually enough on a 512MB board.\e[0m"
+    echo -e "\e[0;31mThe device is now running code it cannot restart into — finish this\e[0m"
+    echo -e "\e[0;31minstall before rebooting it.\e[0m"
+    exit 1
+  else
+    mark_step_failed 8
+    echo -e "\e[0;33mFailed to install production dependencies on remote\e[0m"
+    exit 1
+  fi
+fi
 
 # Step 9: Create CLI symlink
 mark_step_busy 9
