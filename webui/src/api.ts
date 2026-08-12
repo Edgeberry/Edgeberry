@@ -235,3 +235,38 @@ export const api = {
     reset:     () => post<{ ok: true }>('/api/cloud/reset'),
   },
 }
+
+/* ── State stream ───────────────────────────────────────────── */
+
+/**
+ * Subscribe to device state as the device pushes it.
+ *
+ * Delivers the same `DeviceState` as `api.getState()` — the device builds both
+ * from one function — so a caller can feed both into the same setter without
+ * caring which arrived.
+ *
+ * This does not replace polling. The stream carries everything the device holds
+ * as state; an application's name, routes and artwork reach the device by other
+ * means and are only picked up by the poll. Keep both, and treat this as the
+ * thing that makes changes appear immediately rather than as the source.
+ *
+ * Reconnecting is EventSource's own job, which is most of why the device serves
+ * this as server-sent events: disconnects are routine here rather than
+ * exceptional, since entering or leaving AP mode takes the network down under
+ * the browser — exactly when someone is watching.
+ *
+ * @returns an unsubscribe function; call it on unmount.
+ */
+export function subscribeToState( onState:( state:DeviceState ) => void ): () => void {
+  const source = new EventSource('/api/state/stream')
+
+  source.onmessage = (evt) => {
+    try { onState(JSON.parse(evt.data) as DeviceState) }
+    catch { /* a frame we cannot read is not worth closing the stream for */ }
+  }
+
+  // No onerror handler: EventSource retries by itself, and anything written
+  // here would only be re-implementing that.
+
+  return () => source.close()
+}

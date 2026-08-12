@@ -1,100 +1,25 @@
 /*
  *  System API
- *  Device state and power control.
+ *  What the device is, and power control. The device's changing state is
+ *  state.ts.
  */
 
 import { Router } from 'express';
-import { hostname } from 'os';
 import { StateManager } from '../stateManager';
-import { NetworkManager } from '../networkManager';
-import { settings } from '../settingsStore';
 import { board_getUUID, board_getVendor, board_getProductName,
          board_getProductId, board_getProductVersion } from '../board';
 import { system_restart, system_shutdown, system_getInfo } from '../system';
 import { hostname_isManaged } from '../hostname';
-import { app_getApplicationInfo, app_getApplicationStatus } from '../application';
-import { registry_baseUrl, registry_brandingColors, registry_brandingPath, registry_publicUrl } from '../applicationRegistry';
+import { registry_brandingPath } from '../applicationRegistry';
 
+// The StateManager is here for /system/identify alone — the device announcing
+// itself is an indicator interrupt, not a state change.
 export type SystemApiDeps = {
     stateManager: StateManager;
 };
 
 export function buildSystemRouter({ stateManager }:SystemApiDeps ):Router{
     const router = Router();
-
-    /*
-     *  The state the web interface polls.
-     *
-     *  Two fields are derived here rather than held in the StateManager, because
-     *  both are constants of this device rather than changing state, and the
-     *  alternative endpoints are expensive: /api/network/ap enumerates
-     *  NetworkManager profiles over D-Bus, and /api/cloud shells out to openssl.
-     *  The navbar polls this route every 10 seconds.
-     */
-    router.get('/state', (_req, res) => {
-        const state = stateManager.getState() as any;
-        const uuid  = board_getUUID();
-
-        state.system = {
-            ...state.system,
-            hostname: hostname(),
-            apSsid:   uuid ? NetworkManager.apSsid(uuid) : null,
-        };
-        state.connection = {
-            ...state.connection,
-            hubHost: settings?.connection?.hostName ?? settings?.provisioning?.hostName ?? null,
-        };
-
-        /*
-         *  What the application reports about itself, from the two D-Bus calls
-         *  the SDKs make: SetApplicationInfo (name/version/description) and
-         *  SetApplicationStatus (level/message).
-         *
-         *  Both live outside the StateManager — info because it is metadata
-         *  rather than state, the message because the StateManager lowercases
-         *  everything it stores. Grafted on here so the navbar gets them from
-         *  the route it already polls, rather than opening a second request.
-         *
-         *  'version' was declared on the application state but never written by
-         *  anything; the application's own reported version is what it was for.
-         */
-        const appInfo   = app_getApplicationInfo();
-        const appStatus = app_getApplicationStatus();
-        state.application = {
-            ...state.application,
-            name:        appInfo?.name ?? null,
-            description: appInfo?.description ?? null,
-            version:     appInfo?.version ?? null,
-            message:     appStatus?.message ?? null,
-            /*
-             *  The views the application offers, already validated and settled
-             *  by application.ts.
-             *
-             *  Each carries the URL the interface should actually open, which is
-             *  not the path the application declared: an application names its
-             *  own paths, and they are reached from outside under the
-             *  pass-through prefix. Resolving it here keeps that mapping in one
-             *  place rather than in every consumer of this route.
-             */
-            // Where the application is reachable as a whole. Null when none is
-            // registered, which is what the interface's own fallback is for.
-            base:        registry_baseUrl(),
-            /*
-             *  Where to fetch the application's own artwork, or null to leave
-             *  the device's own branding in place. URLs rather than paths: the
-             *  files live in the application's directory, which the browser has
-             *  no way to reach except through the routes below.
-             */
-            branding: {
-                logo: registry_brandingPath('logo') ? '/api/application/logo' : null,
-                mark: registry_brandingPath('mark') ? '/api/application/mark' : null,
-                colors: registry_brandingColors(),
-            },
-            routes:      (appInfo?.routes ?? []).map(route => ({ ...route, url: registry_publicUrl(route) })),
-        };
-
-        res.json(state);
-    });
 
     /*
      *  Everything the device knows about itself.

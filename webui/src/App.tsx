@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BrowserRouter, NavLink, Routes, Route } from 'react-router-dom'
 import { Modal } from 'bootstrap'
-import { api, type AppHealth, type ApplicationRoute, type ConnectionState, type ProvisionState, type WifiState } from './api'
+import { api, subscribeToState, type AppHealth, type ApplicationRoute, type ConnectionState, type DeviceState, type ProvisionState, type WifiState } from './api'
 import Network from './pages/Network'
 import Cloud from './pages/Cloud'
 import TerminalPage from './pages/Terminal'
@@ -10,8 +10,14 @@ import ApplicationPage from './pages/Application'
 import SystemInfoMenu from './components/SystemInfo'
 import edgeberryLogo from './assets/logo.svg'
 
-/* How often the navbar refreshes device state. /api/state is deliberately cheap
-   for this reason — see the note on that route. */
+/* How often the navbar refreshes device state.
+ *
+ *  State also arrives pushed over /api/state/stream, which is what makes a
+ *  change show up immediately; this poll is the floor under it. It covers the
+ *  stream being down — routine while AP mode cycles the network — and the parts
+ *  of the state document that no event announces, namely what an application
+ *  reports about itself over D-Bus. /api/state is cheap for this reason.
+ */
 const POLL_INTERVAL_MS = 10000
 
 /* ── Status icons ───────────────────────────────────────────── */
@@ -563,27 +569,34 @@ function AppShell() {
   useEffect(() => { if (wifiState !== 'ap_mode') setApNoticeDismissed(false) }, [wifiState])
 
   useEffect(() => {
+    // Shared by both sources deliberately: the device builds the polled and the
+    // streamed document from one function, so anything that reads them apart
+    // here would be a difference invented by this component.
+    const applyState = (state: DeviceState) => {
+      setWifiState(state.connection.wifi ?? 'unknown')
+      setNetworkState(state.connection.network ?? 'unknown')
+      setProvisionState(state.connection.provision ?? 'unknown')
+      setConnectionState(state.connection.connection ?? 'unknown')
+      setHubHost(state.connection.hubHost ?? null)
+      setHostname(state.system.hostname ?? '')
+      setApSsid(state.system.apSsid ?? null)
+      setAppHealth(state.application?.health ?? 'unknown')
+      setAppName(state.application?.name ?? null)
+      setAppVersion(state.application?.version ?? null)
+      setAppMessage(state.application?.message ?? null)
+      setAppRoutes(state.application?.routes ?? [])
+      setAppLogo(state.application?.branding?.logo ?? null)
+      setAppMark(state.application?.branding?.mark ?? null)
+      setAppColors(state.application?.branding?.colors ?? null)
+    }
+
     const poll = () => {
       api.getState()
-        .then(state => {
-          setWifiState(state.connection.wifi ?? 'unknown')
-          setNetworkState(state.connection.network ?? 'unknown')
-          setProvisionState(state.connection.provision ?? 'unknown')
-          setConnectionState(state.connection.connection ?? 'unknown')
-          setHubHost(state.connection.hubHost ?? null)
-          setHostname(state.system.hostname ?? '')
-          setApSsid(state.system.apSsid ?? null)
-          setAppHealth(state.application?.health ?? 'unknown')
-          setAppName(state.application?.name ?? null)
-          setAppVersion(state.application?.version ?? null)
-          setAppMessage(state.application?.message ?? null)
-          setAppRoutes(state.application?.routes ?? [])
-          setAppLogo(state.application?.branding?.logo ?? null)
-          setAppMark(state.application?.branding?.mark ?? null)
-          setAppColors(state.application?.branding?.colors ?? null)
-        })
+        .then(applyState)
         .catch(() => {})
 
+      // Not part of the state document: reading the active SSID is a D-Bus
+      // call, kept out of the push path so a state change never pays for it.
       api.network.getActiveSsid()
         .then(({ ssid }) => setActiveSsid(ssid))
         .catch(() => {})
@@ -591,7 +604,12 @@ function AppShell() {
 
     poll()
     const timer = setInterval(poll, POLL_INTERVAL_MS)
-    return () => clearInterval(timer)
+    const unsubscribe = subscribeToState(applyState)
+
+    return () => {
+      clearInterval(timer)
+      unsubscribe()
+    }
   }, [])
 
   return (

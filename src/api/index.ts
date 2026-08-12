@@ -13,6 +13,7 @@ import { StateManager } from '../stateManager';
 import { NetworkManager } from '../networkManager';
 import { ApModeService } from '../apMode';
 import { DeviceHubService } from '../deviceHub';
+import { buildStateRouter } from './state';
 import { buildSystemRouter } from './system';
 import { buildNetworkRouter } from './network';
 import { buildCloudRouter } from './cloud';
@@ -27,9 +28,10 @@ export type ApiDeps = {
 export function buildApiRouter( deps:ApiDeps ):Router{
     const router = Router();
 
-    // The system router owns both /state and /system/*, so it declares its own
-    // paths and mounts at the root. The published URLs are unchanged: /api/state,
-    // /api/system/reboot, /api/network/..., /api/cloud/...
+    // The state and system routers declare their own paths and mount at the
+    // root: /api/state, /api/state/stream, /api/system/reboot — against
+    // /api/network/... and /api/cloud/... which mount under a prefix.
+    router.use('/',        buildStateRouter({ stateManager: deps.stateManager }));
     router.use('/',        buildSystemRouter({ stateManager: deps.stateManager }));
     router.use('/network', buildNetworkRouter({ networkManager: deps.networkManager, apMode: deps.apMode }));
     router.use('/cloud',   buildCloudRouter({ stateManager: deps.stateManager, deviceHub: deps.deviceHub }));
