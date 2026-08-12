@@ -158,15 +158,18 @@ function Panel({ info, logo }: { info: SystemInfo; logo: string | null }) {
           fontSize: '0.68rem', color: LABEL_COLOR,
         }}
       >
+        Edgeberry is an open source initiative.{' '}
+        {/* The link is on the invitation rather than on the name: with both in
+            the sentence, underlining the name too would be two links to the
+            same place. */}
         <a
           href={PROJECT_URL}
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: '0.15em' }}
         >
-          Edgeberry
+          Read more…
         </a>
-        {' '}is an open source project
       </div>
     </div>
   )
