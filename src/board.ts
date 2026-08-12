@@ -333,6 +333,7 @@ export function board_beepBuzzer( status:string ){
  *   showProvisioning  : orange rapid blink (70 ms)    — unchanged
  *   showIdentify   : green/red 40 ms + triple beep    — unchanged
  *   showApError    : red 60 ms + triple beep           — unchanged
+ *   showApSwitch   : fast double beep, LED untouched   — new
  *   showLink       : green fast blink + beep           — unchanged
  */
 
@@ -368,6 +369,14 @@ export function showApError(): void {
 export function showLink(): void {
     board_beepBuzzer('short');
     board_setStatusLed('green', 40);
+}
+/**
+ * Entering or leaving access point mode. Audible only: the LED already tells
+ * which mode the device is in, so the beep marks the moment it changed and
+ * leaves the light to the state manager.
+ */
+export function showApSwitch(): void {
+    board_beepBuzzer('twice');
 }
 
 /*

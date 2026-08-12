@@ -5,7 +5,7 @@
 
 import EventEmitter from "events";
 import { board_beepBuzzer, board_setStatusLed,
-         showIdentify, showApError, showLink } from "./board";
+         showIdentify, showApError, showApSwitch, showLink } from "./board";
 
 // Normalise incoming state values to lowercase at ingress so all downstream
 // comparisons are reliable regardless of what casing the caller uses.
@@ -276,6 +276,9 @@ export class StateManager extends EventEmitter{
                                 break;
             // Error when trying to exit AP mode without saved WiFi
             case 'ap_error':    showApError();
+                                break;
+            // Switched between normal mode and AP mode (either direction)
+            case 'ap_switch':   showApSwitch();
                                 break;
             // When the device announces the procedure to link this
             // device to a user account on the dashboard.

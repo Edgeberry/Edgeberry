@@ -54,6 +54,9 @@ export class ApModeService {
         try{
             await this.networkManager.startAccessPoint(boardUUID);
             this.stateManager.updateConnectionState('wifi', 'ap_mode');
+            // Audible mark of the mode change: the LED pattern says which mode
+            // the device is in, the beep says it just changed.
+            this.stateManager.interruptIndicators('ap_switch');
             console.log('\x1b[33mDevice is in Access Point mode for WiFi provisioning\x1b[37m');
 
             // Redirect unclaimed requests so client devices raise their
@@ -76,6 +79,9 @@ export class ApModeService {
             this.webServer.setCaptivePortalRedirect(false);
             await this.networkManager.stopAccessPoint();
             this.stateManager.updateConnectionState('wifi', 'disconnected');
+            // Beep on the way out too, at the point the access point is actually
+            // down — the reconnect that follows may still take a while or fail.
+            this.stateManager.interruptIndicators('ap_switch');
             console.log('\x1b[33mExited AP mode, reconnecting to WiFi...\x1b[37m');
 
             // The WiFi chip needs time to leave AP mode before it will accept a
