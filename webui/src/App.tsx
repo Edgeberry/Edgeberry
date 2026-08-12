@@ -8,6 +8,7 @@ import Cloud from './pages/Cloud'
 import TerminalPage from './pages/Terminal'
 import ApplicationPage from './pages/Application'
 import SystemInfoMenu from './components/SystemInfo'
+import DeviceBusyOverlay, { type BusyKind } from './components/DeviceBusyOverlay'
 import edgeberryLogo from './assets/logo.svg'
 
 /* How often the navbar refreshes device state.
@@ -19,6 +20,38 @@ import edgeberryLogo from './assets/logo.svg'
  *  reports about itself over D-Bus. /api/state is cheap for this reason.
  */
 const POLL_INTERVAL_MS = 10000
+
+/*
+ *  The device being away, as this interface tracks it.
+ *
+ *  'at' is when the overlay went up, which both timers below are measured from.
+ *  'starting' and 'stalled' are phases rather than separate flags elsewhere, so
+ *  there is one object to reason about and the overlay cannot show two states at
+ *  once.
+ */
+type Unavailable = {
+  kind:     BusyKind
+  at:       number
+  starting: boolean
+  stalled:  boolean
+}
+
+/* How long the device gets to come back before the overlay stops claiming that
+   it is on its way. Generous: this Pi cold-boots in well under a minute, but an
+   update finishing on a tired SD card can take considerably longer, and calling
+   a working device dead is the worse error. */
+const STALLED_MS = 180000
+
+/* A shutdown has nothing to come back, so its limit is simply how long the host
+   needs to halt — after which the overlay says it is safe to unplug. The device
+   answers first and runs `shutdown -h now` 1.5s later; the halt itself is
+   seconds more. */
+const SHUTDOWN_SETTLE_MS = 25000
+
+/* A poll already in flight when the overlay goes up answers with the state from
+   before the reboot was asked for. Ignore 'running' briefly so that stale answer
+   cannot dismiss the overlay it raced. */
+const DISMISS_GRACE_MS = 3000
 
 /* ── Status icons ───────────────────────────────────────────── */
 
@@ -433,7 +466,12 @@ function ModalShell({ title, icon, onReady, bodyClassName, background, children 
   )
 }
 
-function PowerModal({ onReady }: { onReady: (show: () => void) => void }) {
+function PowerModal({ onReady, onAction }: {
+  onReady:  (show: () => void) => void
+  /** Raises the busy overlay. Only called once the device has accepted the
+   *  request — a rejected one means nothing is happening to wait for. */
+  onAction: (kind: 'reboot' | 'shutdown') => void
+}) {
   const elementRef  = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<Modal | null>(null)
   const [busy, setBusy] = useState<'reboot' | 'shutdown' | null>(null)
@@ -449,9 +487,18 @@ function PowerModal({ onReady }: { onReady: (show: () => void) => void }) {
 
   async function trigger( action:'reboot' | 'shutdown' ) {
     setBusy(action)
-    await (action === 'reboot' ? api.system.reboot() : api.system.shutdown()).catch(() => {})
+
+    // The device answers before acting, so this resolving means the request was
+    // accepted — not that anything has happened yet. It goes down about a second
+    // and a half later, which is why the overlay goes up now rather than waiting
+    // for the state that says so.
+    const accepted = await (action === 'reboot' ? api.system.reboot() : api.system.shutdown())
+      .then(() => true)
+      .catch(() => false)
+
     instanceRef.current?.hide()
     setBusy(null)
+    if (accepted) onAction(action)
   }
 
   return (
@@ -507,6 +554,18 @@ function AppShell() {
   const [appMark,         setAppMark]         = useState<string | null>(null)
   const [appColors,       setAppColors]       = useState<Record<string, string> | null>(null)
   const [apNoticeDismissed, setApNoticeDismissed] = useState(false)
+
+  /*
+   *  Kept in a ref as well as in state: the state subscription below is set up
+   *  once and would otherwise close over the value from first render. The ref is
+   *  what it reads, the state is what renders.
+   */
+  const [unavailable, setUnavailable] = useState<Unavailable | null>(null)
+  const unavailableRef = useRef<Unavailable | null>(null)
+  const showUnavailable = ( next:Unavailable | null ) => {
+    unavailableRef.current = next
+    setUnavailable(next)
+  }
 
   useEffect(() => { if (hostname) document.title = hostname }, [hostname])
 
@@ -588,6 +647,55 @@ function AppShell() {
       setAppLogo(state.application?.branding?.logo ?? null)
       setAppMark(state.application?.branding?.mark ?? null)
       setAppColors(state.application?.branding?.colors ?? null)
+      applyAvailability(state.system.state)
+    }
+
+    /*
+     *  Raise and clear the overlay from what the device says about itself.
+     *
+     *  Driven by state rather than by the click that caused it, so a reboot
+     *  started anywhere — the cloud dashboard, the 5-second button press, a
+     *  second browser tab — covers this interface too. The Power modal also
+     *  raises it directly, for the case where the device goes down before the
+     *  state announcing it has reached us.
+     */
+    const applyAvailability = ( systemState:string ) => {
+      const current = unavailableRef.current
+
+      if (!current) {
+        /*
+         *  NOTE: a shutdown reports 'rebooting' as well — the device software
+         *  has no separate state for it (src/system.ts, system_shutdown). So a
+         *  shutdown started from here is known only because the Power modal
+         *  said so, and one started from the cloud looks like a reboot: the
+         *  overlay waits for a device that is never coming back, and gives up
+         *  after STALLED_MS. Fixing that properly means a new SystemState,
+         *  which the D-Bus interface and both SDKs also read.
+         */
+        const kind:BusyKind | null =
+          systemState === 'rebooting'  ? 'reboot'  :
+          systemState === 'restarting' ? 'restart' :
+          systemState === 'updating'   ? 'update'  : null
+
+        if (kind) showUnavailable({ kind, at: Date.now(), starting: false, stalled: false })
+        return
+      }
+
+      // Back on the network, but not usable yet: the device reports 'starting'
+      // as soon as its software runs, well before the interface works. A phase
+      // of the overlay, not the end of it.
+      if (systemState === 'starting' && !current.starting) {
+        showUnavailable({ ...current, starting: true })
+        return
+      }
+
+      if (systemState === 'running' && Date.now() - current.at > DISMISS_GRACE_MS) {
+        // An update replaces the files this page was served from, so the tab is
+        // running a bundle the device no longer has. Reload instead of
+        // dismissing, or the interface stays stale until someone refreshes it.
+        if (current.kind === 'update') { location.reload(); return }
+        showUnavailable(null)
+      }
     }
 
     const poll = () => {
@@ -611,6 +719,24 @@ function AppShell() {
       unsubscribe()
     }
   }, [])
+
+  /*
+   *  Stop waiting once the device's time is up.
+   *
+   *  Measured from when the overlay went up rather than from now, so a re-render
+   *  in the middle does not restart the clock.
+   */
+  useEffect(() => {
+    if (!unavailable || unavailable.stalled) return
+
+    const limit = unavailable.kind === 'shutdown' ? SHUTDOWN_SETTLE_MS : STALLED_MS
+    const timer = setTimeout(() => {
+      const current = unavailableRef.current
+      if (current) showUnavailable({ ...current, stalled: true })
+    }, Math.max(0, limit - (Date.now() - unavailable.at)))
+
+    return () => clearTimeout(timer)
+  }, [unavailable])
 
   return (
     <>
@@ -650,7 +776,20 @@ function AppShell() {
       >
         {(open, close) => open && <TerminalPage onRequestClose={close} />}
       </ModalShell>
-      <PowerModal onReady={fn => { openPower.current = fn }} />
+      <PowerModal
+        onReady={fn => { openPower.current = fn }}
+        onAction={kind => showUnavailable({ kind, at: Date.now(), starting: false, stalled: false })}
+      />
+
+      {/* Covers everything, modals included, while the device is away. */}
+      {unavailable && (
+        <DeviceBusyOverlay
+          kind={unavailable.kind}
+          starting={unavailable.starting}
+          stalled={unavailable.stalled}
+          onDismiss={() => showUnavailable(null)}
+        />
+      )}
 
       <div style={{ height: 'calc(100vh - 56px)' }}>
         <main style={{ overflow: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
