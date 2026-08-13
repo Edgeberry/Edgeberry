@@ -2,6 +2,8 @@
 
 This directory contains SDK integrations and tools for the Edgeberry Device Software.
 
+Everything here is **[MIT licensed](LICENSE.txt)**, unlike the device software itself, which is GPLv3. These libraries are linked into your application, so they are deliberately permissive: an application built on Edgeberry reaches the device over D-Bus, as a separate program, and is yours to license as you please — proprietary included.
+
 ## Python SDK (`python`)
 
 Python SDK for interfacing applications with Edgeberry Device Software via D-Bus. Provides a simple Pythonic API for sending telemetry, managing application state, and interacting with the device.
@@ -29,8 +31,6 @@ edge.set_application_info("MyApp", "1.0.0", "My application")
 **Documentation:**
 - [README.md](./python/README.md) - API reference and examples
 - [example.py](./python/example.py) - Complete usage example
-
-**Version:** 3.1.0 (synced with device software)
 
 ## Node SDK (`node`)
 
@@ -61,8 +61,6 @@ await edge.sendMessage({ temperature: 25.0, humidity: 60 });
 - [README.md](./node/README.md) - API reference
 - [example.ts](./node/example.ts) - Complete usage example
 
-**Version:** 3.5.0 (synced with device software)
-
 ## Node-RED Contribution (`node-red-contrib`)
 
 Node-RED node for interacting with Edgeberry Device Software. Enables sending telemetry data, managing device state, and handling cloud connectivity from Node-RED flows running on Edgeberry devices. Wraps `@edgeberry/device-sdk` behind a drag-and-drop node.
@@ -84,31 +82,26 @@ node-red-restart
 **Documentation:**
 - [README.md](./node-red-contrib/README.md) - Quick start guide
 
-**Version:** 3.5.0 (synced with device software)
-
-> **Important:** The version numbers of `@edgeberry/device-sdk` and `@edgeberry/device-node-red-contrib` are kept in sync with the Edgeberry Device Software version to ensure compatibility. When releasing a new version of the device software, update the version fields in `sdk/node/package.json` and `sdk/node-red-contrib/package.json` accordingly.
-
 ## Versioning Policy
 
-All SDK packages (Python SDK, Node SDK, Node-RED contrib) **must stay in sync** with the Edgeberry Device Software version (root `package.json`).
+All SDK packages (Python SDK, Node SDK, Node-RED contrib) **must stay in sync** with the Edgeberry Device Software version (root `package.json`), so that a device and the library talking to it are never a guess apart. Each package's own manifest is where its version is written down; this page deliberately does not repeat them.
 
 **When releasing device software:**
 1. Update version in root `package.json`
 2. Update version in `sdk/python/setup.py` to match
 3. Update version in `sdk/node/package.json` to match
 4. Update version in `sdk/node-red-contrib/package.json` to match (and its `@edgeberry/device-sdk` dep)
-5. Tag releases:
-   - Python: `git tag python-v3.5.0` (triggers PyPI publish)
-   - Node SDK: `git tag node-sdk-v3.5.0` (triggers npm publish)
-   - Node-RED: `git tag node-red-v3.5.0` (triggers npm publish)
+5. Tag releases, where `<version>` is the version just written into the manifests:
+   - Python: `git tag python-v<version>` (triggers PyPI publish)
+   - Node SDK: `git tag node-sdk-v<version>` (triggers npm publish)
+   - Node-RED: `git tag node-red-v<version>` (triggers npm publish)
 
 ## Publishing
 
-Publishing to npm happens automatically via GitHub Actions when you push a tag:
+Publishing to npm happens automatically via GitHub Actions when you push one of the tags above:
 ```bash
-cd sdk/node-red-contrib
-git tag node-red-v3.1.0
-git push origin node-red-v3.1.0
+git tag node-red-v<version>
+git push origin node-red-v<version>
 ```
 
 Or manually:

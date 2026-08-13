@@ -332,4 +332,6 @@ sudo dbus-send --system --type=method_call --print-reply \
 
 **Copyright© 2024 Sanne 'SpuQ' Santens**. The Edgeberry Device Software is licensed under the **[GNU GPLv3](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Edgeberry/.github/blob/main/brand/Edgeberry_Trademark_Rules_and_Guidelines.md) apply to the usage of the Edgeberry™ brand.
 
+The SDKs in [`sdk/`](sdk/) are licensed under the **[MIT License](sdk/LICENSE.txt)** instead — the Python SDK, the Node SDK and the Node-RED node alike. They are the part that ends up inside your application, and the copyleft of the device software must not reach into it. Applications talk to the device software over D-Bus, as separate programs, so an application built on Edgeberry carries no obligation to be GPL: it may be proprietary, and its licensing is entirely yours to choose.
+
 To contribute: fork the repository, branch from `main`, keep to the existing style, test on a real device, and open a pull request describing the problem your change addresses.

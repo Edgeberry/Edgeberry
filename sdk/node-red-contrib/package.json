@@ -39,7 +39,9 @@
     "button.html",
     "status.js",
     "status.html",
-    "icons"
+    "icons",
+    "README.md",
+    "LICENSE.txt"
   ],
   "engines": {
     "node": ">=16.0.0 || ^18 || ^20"
