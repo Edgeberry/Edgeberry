@@ -1,9 +1,9 @@
 /*
  *  Device API client
  *
- *  One place where the shape of the device's HTTP API is written down. Pages
- *  previously called fetch() directly, which spread URL strings, error handling
- *  and response shapes across every component that needed data.
+ *  One place where the shape of the device's HTTP API is written down, so URL
+ *  strings, error handling and response shapes stay out of the pages that need
+ *  the data. Nothing else calls fetch().
  *
  *  Every call resolves or throws — callers never inspect status codes.
  */

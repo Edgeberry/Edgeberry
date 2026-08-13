@@ -136,21 +136,14 @@ let blinkInterval:ReturnType<typeof setInterval> | null = null;
 /*
  *  In-flight setTimeout handles from blinkTwice/blinkThrice chains.
  *
- *  Cleared at the top of board_setStatusLed so a new command never races
- *  against an orphaned write from the previous pattern — but only handles that
- *  have not yet fired are worth holding. This used to be an array that was
- *  pushed to and never spliced, drained only when board_setStatusLed ran the
- *  clear-down. That clear-down sits behind the idempotency guard below, which
- *  returns early whenever the requested command is unchanged, so a device
- *  parked in one steady state never reached it.
- *
- *  The steady state is the healthy one: showHealthOk() re-runs blinkTwice()
- *  every 1400 ms, pushing three handles a time. A device that was connected and
- *  working therefore retained ~2.1 fired handles per second — about 370,000
- *  objects and 130 MB over two days, which is fatal on a 512 MB board.
- *
- *  Each step now removes its own handle as it fires, so this holds only the one
- *  timer a chain actually has outstanding.
+ *  Cleared at the top of board_setStatusLed so a new command never races against
+ *  an orphaned write from the previous pattern — but only handles that have not
+ *  yet fired are worth holding, so each step removes its own as it fires. That
+ *  matters because the clear-down sits behind the idempotency guard below, which
+ *  returns early whenever the requested command is unchanged: a device parked in
+ *  one steady state never reaches it, and the healthy steady state re-runs
+ *  blinkTwice() every 1400 ms. Retaining fired handles at that rate is hundreds
+ *  of megabytes over a couple of days, which is fatal on a 512 MB board.
  */
 const pendingBlinkTimeouts = new Set<ReturnType<typeof setTimeout>>();
 
@@ -315,26 +308,28 @@ export function board_beepBuzzer( status:string ){
  *  Use these in StateManager and direct-method handlers instead of raw positional
  *  board_setStatusLed(...) calls so intent is readable and patterns stay distinct.
  *
- *  Pattern vocabulary (before → after for changed patterns):
- *   showBooting    : orange slow blink (500 ms)       — was: constant/blink red
- *   showRestarting : orange medium blink (200 ms)     — unchanged
- *   showUpdating   : orange/red rapid alternating     — unchanged
- *   showRebooting  : orange/red blink (400 ms)        — was: constant red (fatal convention inverted)
- *   showFatal      : constant red                     — now reserved for fatal/unrecoverable only
- *   showNetworkDown: red blink 500 ms                 — was: 300 ms (clash with hub-loss)
- *   showHubLost    : red blink 300 ms                 — was: 600 ms (clash with fatal default)
- *   showApMode     : orange triple-blink burst        — unchanged
- *   showConnecting : orange/green rapid alternating   — unchanged
- *   showHealthOk   : green double-blink heartbeat     — unchanged
- *   showHealthWarn : green/orange double-blink        — unchanged
- *   showCritical   : red fast blink 150 ms + beep 1s  — unchanged
- *   showEmergency  : red very fast blink 60 ms + beep 250ms — unchanged
- *   showUnprovisioned : orange slow blink (600 ms)    — was: (no branch, kept previous light)
- *   showProvisioning  : orange rapid blink (70 ms)    — unchanged
- *   showIdentify   : green/red 40 ms + triple beep    — unchanged
- *   showApError    : red 60 ms + triple beep           — unchanged
- *   showApSwitch   : fast double beep, LED untouched   — new
- *   showLink       : green fast blink + beep           — unchanged
+ *  Pattern vocabulary. Constant red is reserved for the fatal/unrecoverable
+ *  case, orange for anything transitional, and the blink rates below are chosen
+ *  to stay distinguishable from each other by eye:
+ *   showBooting    : orange slow blink (500 ms)
+ *   showRestarting : orange medium blink (200 ms)
+ *   showUpdating   : orange/red rapid alternating
+ *   showRebooting  : orange/red blink (400 ms)
+ *   showFatal      : constant red
+ *   showNetworkDown: red blink 500 ms
+ *   showHubLost    : red blink 300 ms
+ *   showApMode     : orange triple-blink burst
+ *   showConnecting : orange/green rapid alternating
+ *   showHealthOk   : green double-blink heartbeat
+ *   showHealthWarn : green/orange double-blink
+ *   showCritical   : red fast blink 150 ms + beep 1s
+ *   showEmergency  : red very fast blink 60 ms + beep 250ms
+ *   showUnprovisioned : orange slow blink (600 ms)
+ *   showProvisioning  : orange rapid blink (70 ms)
+ *   showIdentify   : green/red 40 ms + triple beep
+ *   showApError    : red 60 ms + triple beep
+ *   showApSwitch   : fast double beep, LED untouched
+ *   showLink       : green fast blink + beep
  */
 
 export function showBooting():    void { board_setStatusLed('orange', 500); }
@@ -452,10 +447,9 @@ const gpio: GpioBackend = new PinctrlBackend();
 /**
  * Claim the LED, buzzer and button GPIO lines and start polling the button.
  *
- * Called by the composition root, not on import. Importing this module used to
- * drive GPIO and start a timer as a side effect, which meant nothing here could
- * be loaded — by a test, a script, or another entry point — without touching
- * real hardware.
+ * Called by the composition root rather than run on import, so that loading this
+ * module — from a test, a script, or another entry point — drives no GPIO and
+ * starts no timer.
  *
  * Safe to call more than once; the pin setup is idempotent and the button
  * guards against starting a second poll loop.

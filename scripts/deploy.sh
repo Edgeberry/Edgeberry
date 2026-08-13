@@ -221,9 +221,8 @@ else
   # with it. Slower, but it finishes.
   remote_sudo "cd '$APPDIR' && timeout 900 env JOBS=1 sh -c 'if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi'" 2>&1 | grep -v "npm WARN"
   NPM_EXIT=${PIPESTATUS[0]}
-  # Was 'set -e'. The script never enabled it globally, so this switched it on for
-  # every step below — where a non-zero command would abort the deploy before its
-  # own 'if [ $? -eq 0 ]' could report why.
+  # Errexit stays off: every step below reports its own failure through
+  # 'if [ $? -eq 0 ]', and aborting on the command itself skips the message.
   set +e
   if [ $NPM_EXIT -eq 0 ]; then
     mark_step_completed 8

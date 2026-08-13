@@ -115,7 +115,6 @@ export class StateManager extends EventEmitter{
         // update the local state — normalise to lowercase at ingress so downstream
         // comparisons are reliable regardless of the casing the caller uses.
         if( this.state.system.hasOwnProperty(key)){
-            // P0 fix: was `===` (comparison whose result was discarded); must assign.
             (this.state.system as Record<string, unknown>)[key] = canonical(value);
         }
         this.updateState();
@@ -182,9 +181,9 @@ export class StateManager extends EventEmitter{
         // state, because everything else depends on it.
         if( this.state.system.state !== 'running' ){
             switch( this.state.system.state ){
-                // Boot / startup: transitional orange — not the fatal constant-red.
-                // P0 fix: 'unknown' and 'starting' were previously falling to the
-                // default and showing constant red (the "I died" signal) on every boot.
+                // Boot / startup: transitional orange. Named explicitly so
+                // neither falls through to the constant red that means the
+                // device has died — which is every boot, on an operator's desk.
                 case 'unknown':
                 case 'starting':    board_setStatusLed( 'orange', 500 );
                                     break;

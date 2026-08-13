@@ -17,14 +17,10 @@ import type { SystemState } from "./stateManager";
  *  Reporting system state upwards
  *
  *  Power and update operations change the device's lifecycle state, and the
- *  status LED has to follow. This module used to import the StateManager
- *  singleton from main.ts to do that, which made main.ts depend on this module
- *  and this module depend on main.ts — a cycle that forced other modules into
- *  lazy require() calls to work around it.
- *
- *  The dependency is inverted instead: the composition root supplies a
- *  reporting function. Until it does, reports are discarded, which keeps this
- *  module importable on its own.
+ *  status LED has to follow. The dependency is inverted rather than imported:
+ *  the composition root supplies a reporting function, and until it does,
+ *  reports are discarded. That keeps this module importable on its own, and
+ *  keeps it out of an import cycle with main.ts.
  */
 let reportSystemState: (state: SystemState) => void = () => {};
 
@@ -224,12 +220,10 @@ export async function system_getPlatform(){
 export function system_getApplicationInfo():Promise<string|any>{
     return new Promise<string|any>((resolve, reject)=>{
         try{
-                // Resolve relative to this module rather than an absolute
-                // install path: the previous '/opt/Edgeberry/package.json' is
-                // one directory too high — the file lives in the component
-                // directory (/opt/Edgeberry/Core) — so this always threw and
-                // the device reported its version as 'unknown'. Going through
-                // __dirname also keeps `npm run dev` working from src/.
+                // Resolved relative to this module rather than an absolute
+                // install path: the file lives in the component directory
+                // (/opt/Edgeberry/Core), and going through __dirname also keeps
+                // `npm run dev` working from src/.
                 var packageJson = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json')).toString());
             }
         catch(err){

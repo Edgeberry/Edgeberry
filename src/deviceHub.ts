@@ -4,10 +4,9 @@
  *  the MQTT client's lifecycle, its reconnection behaviour, and the X.509
  *  fleet-provisioning exchange that obtains the device's identity.
  *
- *  This exists so that exactly one object owns the client. It previously lived
- *  in main.ts as an `export let cloud`, reassigned on every reconnect and read
- *  back through `require('./main')` from four other modules — which is why the
- *  import graph had a cycle in it.
+ *  This exists so that exactly one object owns the client: it is replaced on
+ *  every reconnect, and a copy of the reference held anywhere else is a copy
+ *  that goes stale.
  */
 
 import { EventEmitter } from 'events';
@@ -53,7 +52,7 @@ const RECONNECT_MAX_MS  = 60000;    // window ceiling
 export function reconnectDelay( attempt:number ):number{
     const ceiling = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, attempt));
     // Never zero: mqtt.js reads reconnectPeriod 0 as "stop reconnecting", which
-    // is exactly how devices used to stay offline after a hub restart.
+    // leaves the device offline until something restarts the service.
     return Math.round(RECONNECT_MIN_MS + Math.random() * Math.max(0, ceiling - RECONNECT_MIN_MS));
 }
 

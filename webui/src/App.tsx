@@ -53,6 +53,28 @@ const SHUTDOWN_SETTLE_MS = 25000
    cannot dismiss the overlay it raced. */
 const DISMISS_GRACE_MS = 3000
 
+/*
+ *  The application's branding, as the device wrote it into the page.
+ *
+ *  Read before the first render so the interface opens already wearing it —
+ *  waiting for /api/state means a round trip spent showing Edgeberry's logo and
+ *  colours on a device that has neither. See brandingHead() in webServer.ts.
+ *
+ *  Absent under `npm run dev`, where Vite serves the page and the device never
+ *  sees the request; the interface then starts on the defaults, as it did
+ *  before, and corrects itself when the first state arrives.
+ */
+declare global {
+  interface Window {
+    __EB_BRANDING__?: {
+      logo:   string | null
+      mark:   string | null
+      colors: Record<string, string> | null
+    }
+  }
+}
+const injectedBranding = window.__EB_BRANDING__
+
 /* ── Status icons ───────────────────────────────────────────── */
 
 function CloudIcon({ provision, connection, hubHost }: {
@@ -353,9 +375,9 @@ function NavBar(props: NavBarProps) {
     <nav className="navbar navbar-dark" style={{ backgroundColor: 'var(--eb-navbar-bg)' }}>
       {/* Each item is pinned to its column rather than left to auto-placement.
           The device name hides itself below Bootstrap's sm breakpoint, and a
-          display:none item leaves the grid altogether — which used to drop the
-          icons into the middle column, where justifySelf:'end' aligned them to
-          the end of a centred column instead of the right edge of the bar. */}
+          display:none item leaves the grid altogether — which would otherwise
+          drop the icons into the middle column, where justifySelf:'end' aligns
+          them to the end of a centred column rather than the right edge. */}
       <div className="container-fluid" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
         {/* The application's logo displaces Edgeberry's when it supplies one:
             the device is the platform, but the product is the application. */}
@@ -442,7 +464,7 @@ function ModalShell({ title, icon, onReady, bodyClassName, background, children 
   }, [])
 
   /* aria-labelledby points at the header title: it is the only place the modal
-     is named now that the pages inside no longer repeat it. */
+     is named, since the pages inside carry no heading of their own. */
   return (
     <div ref={elementRef} className="modal fade" tabIndex={-1} aria-hidden="true" aria-labelledby={titleId}>
       {/* Large but windowed, so the device page stays visible behind it. Phones
@@ -550,9 +572,11 @@ function AppShell() {
   const [appVersion,      setAppVersion]      = useState<string | null>(null)
   const [appMessage,      setAppMessage]      = useState<string | null>(null)
   const [appRoutes,       setAppRoutes]       = useState<ApplicationRoute[]>([])
-  const [appLogo,         setAppLogo]         = useState<string | null>(null)
-  const [appMark,         setAppMark]         = useState<string | null>(null)
-  const [appColors,       setAppColors]       = useState<Record<string, string> | null>(null)
+  // Seeded from the page rather than from null: these three are the branding,
+  // and starting them empty is exactly the flash the injection exists to remove.
+  const [appLogo,         setAppLogo]         = useState<string | null>(injectedBranding?.logo ?? null)
+  const [appMark,         setAppMark]         = useState<string | null>(injectedBranding?.mark ?? null)
+  const [appColors,       setAppColors]       = useState<Record<string, string> | null>(injectedBranding?.colors ?? null)
   const [apNoticeDismissed, setApNoticeDismissed] = useState(false)
 
   /*
@@ -599,6 +623,16 @@ function AppShell() {
 
     const applied = Object.entries(derived)
     for (const [token, value] of applied) root.style.setProperty(`--eb-${token}`, value)
+
+    /*
+     *  Retire the rule the device wrote into the page, now that the same values
+     *  are set here. Nothing changes on screen — the inline properties outrank
+     *  it either way — but leaving it would let branding survive the
+     *  application it belongs to: deregister one mid-session and this effect
+     *  removes its properties, uncovering a stale :root rule underneath.
+     */
+    document.getElementById('eb-branding')?.remove()
+
     return () => { for (const [token] of applied) root.style.removeProperty(`--eb-${token}`) }
   }, [appColors])
 

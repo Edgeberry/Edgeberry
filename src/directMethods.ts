@@ -116,8 +116,8 @@ export function registerDirectMethods( deviceHub:DeviceHubService, stateManager:
      *  Get system network info
      *
      *  Answered from NetworkManager over D-Bus, the same source the web
-     *  interface reads. This used to shell out to iwgetid and ifconfig, which
-     *  was a second implementation that could disagree with the first.
+     *  interface reads, so the two cannot disagree about what the device is
+     *  connected to.
      */
     cloud.registerDirectMethod('getSystemNetworkInfo', async(req:any, res:any)=>{
         try{

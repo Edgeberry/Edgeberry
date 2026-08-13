@@ -168,9 +168,9 @@ export type StateView = {
  * the parts of it that are not state.
  *
  * Returns a fresh object every call. The StateManager hands out a reference to
- * its own state, so composing in place — which is what this route used to do —
- * wrote these derived fields back into the device's state, and from there into
- * what gets published to the device hub.
+ * its own state, so composing in place would write these derived fields back
+ * into the device's state, and from there into what gets published to the
+ * device hub.
  */
 export function buildStateView( stateManager:StateManager ):StateView{
     const state = stateManager.getState();

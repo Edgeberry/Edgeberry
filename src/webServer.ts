@@ -11,12 +11,65 @@
 
 import express, { Request, Response, NextFunction, Router } from 'express';
 import { Server } from 'http';
+import { readFileSync } from 'fs';
 import path from 'path';
+import { registry_brandingColors, registry_brandingPath } from './applicationRegistry';
 
 const WEB_UI_PORT = 1208;
 
 /** Address the device serves on while running as an access point. */
 const AP_ADDRESS = '10.42.0.1';
+
+/*
+ *  The registered application's branding, as <head> content.
+ *
+ *  Written into the page the device serves so that the interface's first paint
+ *  is already the application's. Fetching the branding instead — which is what
+ *  /api/state does — cannot be first: the answer arrives after the page has
+ *  been painted, so an application-branded device visibly showed Edgeberry's
+ *  logo and colours for the length of a round trip before swapping.
+ *
+ *  Composed per request rather than cached. The registry is in memory, so
+ *  building this is a few string joins, and there is no second copy to
+ *  invalidate when an application registers, changes or goes away.
+ *
+ *  Interpolation is safe by construction: colour tokens and values are checked
+ *  against BRANDING_COLORS and COLOR_PATTERN when the manifest is read
+ *  (applicationManifest.ts), and the two URLs are constants rather than
+ *  anything the manifest supplied.
+ */
+function brandingHead():string{
+    const colors = registry_brandingColors();
+    const logo   = registry_brandingPath('logo') ? '/api/application/logo' : null;
+    const mark   = registry_brandingPath('mark') ? '/api/application/mark' : null;
+
+    let head = '';
+
+    if(colors){
+        // The top bar follows a declared page background, mirroring what the
+        // interface derives for itself — see the colours effect in App.tsx.
+        const derived:Record<string,string> = { ...colors };
+        if(colors.bg) derived['navbar-bg'] = colors.bg;
+        if(colors.fg) derived['navbar-fg'] = colors.fg;
+
+        const tokens = Object.entries(derived).map(([token, value])=>`--eb-${token}:${value}`).join(';');
+        // Identified so the interface can drop it once it holds the same values
+        // itself, rather than leaving a rule behind that outlives its branding.
+        head += `<style id="eb-branding">:root{${tokens}}</style>`;
+    }
+
+    if(logo) head += `<link rel="preload" as="image" href="${logo}">`;
+
+    /*
+     *  The logo cannot travel as CSS: the interface needs the URL before it
+     *  renders the <img>, and an effect runs after the first paint. So it goes
+     *  as data the shell reads synchronously on its way to that first render.
+     */
+    const injected = JSON.stringify({ logo, mark, colors }).replace(/</g, '\\u003c');
+    head += `<script>window.__EB_BRANDING__=${injected}</script>`;
+
+    return head;
+}
 
 export class WebServer {
     private app: express.Application;
@@ -103,8 +156,33 @@ export class WebServer {
     private setupRoutes():void{
         this.setupCaptivePortalRedirect();
 
-        const webUiDir = path.join(__dirname, '..', 'public', 'webui');
-        this.app.use(express.static(webUiDir));
+        const webUiDir  = path.join(__dirname, '..', 'public', 'webui');
+        const indexFile = path.join(webUiDir, 'index.html');
+
+        /*
+         *  The web interface, carrying the application's branding.
+         *
+         *  Read per request: the file is a few hundred bytes, and caching it
+         *  would need invalidating every time a deploy replaces the bundle
+         *  underneath a running device.
+         */
+        const sendInterface = ( res:Response ) => {
+            try{
+                const html = readFileSync(indexFile, 'utf8');
+                res.type('html').send(html.replace('</head>', brandingHead()+'</head>'));
+            } catch(err){
+                // Unreadable as text, or no </head> to speak of. The page
+                // unbranded is worth more than a 500.
+                res.sendFile(indexFile);
+            }
+        };
+
+        // index:false so '/' reaches the route below rather than being answered
+        // with the file straight off disk, which is the one request that most
+        // needs the branding in it.
+        this.app.use(express.static(webUiDir, { index:false }));
+        this.app.get('/', (_req:Request, res:Response)=> sendInterface(res));
+
         this.app.use((_req:Request, res:Response)=>{
             /*
              *  Mark the response as the single-page-app fallback rather than a
@@ -117,9 +195,12 @@ export class WebServer {
              *  fallback apart from a real application it frames itself, and a
              *  missing application looks like the interface repeating inside
              *  itself instead of like an error.
+             *
+             *  '/' is routed separately above so it stays out of this: it is
+             *  the interface itself, not a path standing in for one.
              */
             res.set('X-Edgeberry-Fallback', '1');
-            res.sendFile(path.join(webUiDir, 'index.html'));
+            sendInterface(res);
         });
     }
 }

@@ -43,9 +43,8 @@ let systemBus:any = null;
  * Claim the service name, export the interface, and subscribe to the system
  * signals we care about.
  *
- * Takes its dependencies as arguments. This module previously reached back into
- * main.ts with `require('./main')` at each call site — six of them — purely to
- * dodge the import cycle that created.
+ * Takes its dependencies as arguments rather than importing them: main.ts owns
+ * both objects, and reaching back for them from here is an import cycle.
  */
 export function startDbusInterface( deps:DbusDeps ):void{
     const { stateManager, deviceHub } = deps;

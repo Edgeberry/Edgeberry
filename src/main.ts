@@ -25,11 +25,10 @@
  *  starts them. It holds no behaviour of its own — every rule about how the
  *  device works lives in the module responsible for it.
  *
- *  Nothing imports this file. That is the point: it used to export the shared
- *  singletons (`stateManager`, `cloud`, ...) which four other modules imported
- *  back, two of them statically and one through six lazy require() calls placed
- *  specifically to break the resulting cycle. Dependencies now flow one way,
- *  outward from here.
+ *  Nothing imports this file, and nothing should: dependencies flow one way,
+ *  outward from here. A module that reaches back for a singleton built here is
+ *  an import cycle, and the workarounds for one cost more than passing the
+ *  dependency in.
  */
 
 import { StateManager } from './stateManager';

@@ -247,8 +247,6 @@ fi
 # Step 2: Check for the toolchain node-gyp needs. node-pty is a native module
 # with no prebuilt binaries for this platform, so it is compiled during
 # 'npm ci' and needs a C++ compiler, make and python3.
-# (This step previously installed CMake for the AWS IoT SDK, which the device
-#  software no longer uses — CMake is not required by any current dependency.)
 mark_step_busy 2
 if command -v cc >/dev/null 2>&1 && command -v make >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
     mark_step_skipped 2
