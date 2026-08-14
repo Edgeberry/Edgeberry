@@ -78,10 +78,24 @@ export class ApModeService {
 
             this.webServer.setCaptivePortalRedirect(false);
             await this.networkManager.stopAccessPoint();
-            this.stateManager.updateConnectionState('wifi', 'disconnected');
             // Beep on the way out too, at the point the access point is actually
             // down — the reconnect that follows may still take a while or fail.
             this.stateManager.interruptIndicators('ap_switch');
+
+            // Joining a network from the setup interface has already taken the
+            // access point down: the radio cannot host one and be a station at
+            // the same time, so NetworkManager swapped them when the join was
+            // activated. There is nothing left to reconnect in that case, and
+            // the wait below would never be satisfied — it waits for a device
+            // that is *not yet* activated, and this one already is.
+            if(await this.networkManager.isStationConnected()){
+                this.stateManager.updateConnectionState('wifi', 'connected');
+                console.log('\x1b[32mExited AP mode, already joined to WiFi\x1b[37m');
+                await this.deviceHub.connect();
+                return;
+            }
+
+            this.stateManager.updateConnectionState('wifi', 'disconnected');
             console.log('\x1b[33mExited AP mode, reconnecting to WiFi...\x1b[37m');
 
             // The WiFi chip needs time to leave AP mode before it will accept a

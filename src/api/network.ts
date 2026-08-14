@@ -21,10 +21,6 @@ export type NetworkApiDeps = {
 // A scan needs a moment between asking the radio and reading the results back.
 const SCAN_SETTLE_MS = 2000;
 
-// Grace period before leaving access point mode after a successful join, so the
-// response reaches the client that is still connected to the access point.
-const AP_EXIT_DELAY_MS = 3000;
-
 export function buildNetworkRouter({ networkManager, apMode }:NetworkApiDeps ):Router{
     const router = Router();
 
@@ -60,6 +56,16 @@ export function buildNetworkRouter({ networkManager, apMode }:NetworkApiDeps ):R
      * Answers with `{ success }` rather than an HTTP error on a failed join:
      * a wrong passphrase is an expected outcome the interface reports inline,
      * not a fault in the request.
+     *
+     * A client that submitted this from the setup interface will not see that
+     * answer: the radio cannot host the access point and join a network at the
+     * same time, so NetworkManager drops the access point — and the connection
+     * carrying this request with it — the moment the join activates. Nothing can
+     * be done about that from here; delaying the reply does not help, because
+     * the access point is already gone by the time there is a result to send.
+     * The setup interface currently reports that dropped request as a failed
+     * join, which is wrong — it has to infer success from the device coming up
+     * on the new network instead.
      */
     router.post('/wifi/connect', async (req, res) => {
         const { ssid, passphrase } = req.body ?? {};
@@ -71,11 +77,10 @@ export function buildNetworkRouter({ networkManager, apMode }:NetworkApiDeps ):R
             const success = await networkManager.connectToNetwork(ssid, passphrase || '');
             res.json({ success });
 
-            // Joining a network is how setup finishes. Leave access point mode
-            // once the response has been delivered — tearing the access point
-            // down first would drop the connection carrying the answer.
-            if(success && apMode.isActive())
-                setTimeout(() => apMode.exit(), AP_EXIT_DELAY_MS);
+            // Joining a network is how setup finishes. The access point is
+            // already down by now; this settles the state that tracked it and
+            // brings the hub connection up.
+            if(success && apMode.isActive()) await apMode.exit();
         } catch(_err){
             res.json({ success: false });
         }

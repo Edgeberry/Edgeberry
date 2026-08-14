@@ -46,6 +46,11 @@ const NM_ACTIVE_STATE_DEACTIVATED = 4;
 const NM_DEVICE_STATE_DISCONNECTED = 30;
 const NM_DEVICE_STATE_ACTIVATED    = 100;
 
+// NetworkManager 802.11 modes (subset) — tells an access point we are running
+// apart from a network we have joined, both of which show as ACTIVATED.
+// https://networkmanager.dev/docs/api/latest/nm-dbus-types.html#NM80211Mode
+const NM_802_11_MODE_INFRA = 2;
+
 /**
  * NetworkManager's assessment of internet reachability (NMConnectivityState).
  * Only 'full' means traffic actually reaches the internet.
@@ -543,6 +548,23 @@ export class NetworkManager extends EventEmitter {
     /*
      *  Reconnect to a saved WiFi connection
      */
+
+    /**
+     * Whether the radio is already joined to a network as a station.
+     *
+     * Deliberately not just "device is ACTIVATED": an access point we are
+     * hosting is ACTIVATED too. The mode is what separates the two, so both are
+     * read and both must agree.
+     */
+    public async isStationConnected():Promise<boolean>{
+        try{
+            const devicePath = await this.getWifiDevicePath();
+            const state = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'State');
+            if(state !== NM_DEVICE_STATE_ACTIVATED) return false;
+            const mode = await this.getProperty(devicePath, NM_WIRELESS_IFACE, 'Mode');
+            return mode === NM_802_11_MODE_INFRA;
+        } catch(_e){ return false; }
+    }
 
     // Wait until the WiFi device reaches a connectable state after AP teardown.
     // NM device state 30 (Disconnected) means the chip is back in station mode

@@ -246,19 +246,31 @@ function IpConfigPanel({ ssid, onSaved }: { ssid: string; onSaved: () => void })
 
 /* When the captive portal is active, a successful join also tears down the
    access point on the device side — the same call therefore serves both the
-   setup wizard and an ordinary "switch networks" from the dashboard. */
+   setup wizard and an ordinary "switch networks" from the dashboard.
+
+   That teardown is why a join has three outcomes here rather than two. The
+   radio cannot host the access point and join a network at once, so the moment
+   the join activates, the connection this request was made over disappears and
+   no answer ever arrives. Reporting that as a failed join tells the operator to
+   check a password that was in fact correct — so a request that dies in
+   transport is reported as the unconfirmed success it almost always is, and
+   only a device that answered is allowed to say the join failed. */
 function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void }) {
   const [passphrase, setPassphrase] = useState('')
   const [reveal,     setReveal]     = useState(false)
-  const [state,      setState]      = useState<'idle' | 'connecting' | 'ok' | 'fail'>('idle')
+  const [state,      setState]      = useState<'idle' | 'connecting' | 'ok' | 'fail' | 'unreachable'>('idle')
 
   async function connect() {
     setState('connecting')
     try {
       const { success } = await api.network.join(ap.ssid, ap.secured ? passphrase : '')
       if (success) { setState('ok'); onJoined() } else setState('fail')
-    } catch {
-      setState('fail')
+    } catch (err) {
+      // An ApiError means the device answered, so the link survived and the
+      // verdict is the device's. Anything else is fetch failing to complete —
+      // the device is no longer reachable from here, which is what a successful
+      // join from access point mode looks like from the client's side.
+      setState(err instanceof ApiError ? 'fail' : 'unreachable')
     }
   }
 
@@ -272,6 +284,25 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
         <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>
           If the device was in access point mode it is now leaving it — reconnect your
           computer to your normal network.
+        </div>
+      </div>
+    )
+
+  if (state === 'unreachable')
+    return (
+      <div className="mt-3 p-3" style={{ fontSize: '0.85rem' }}>
+        <span style={{ color: 'var(--eb-ok)' }}>The device has left this network.</span>
+        <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>
+          It stopped answering while joining <strong style={{ fontFamily: 'monospace' }}>{ap.ssid}</strong>,
+          which is what a successful join looks like from here — the access point it
+          was serving this page over is gone. Reconnect your computer to{' '}
+          <strong style={{ fontFamily: 'monospace' }}>{ap.ssid}</strong> and open the
+          device again to confirm. The status LED shows a green heartbeat once it is
+          connected.
+        </div>
+        <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>
+          If it never appears, the password may have been wrong: hold the button for
+          three seconds to bring the access point back and try again.
         </div>
       </div>
     )
