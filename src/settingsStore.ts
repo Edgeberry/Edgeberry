@@ -8,7 +8,7 @@
  *  application from anywhere else will not find the settings.
  */
 
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, unlinkSync, existsSync } from "fs";
 
 const settingsFilePath = 'settings.json';
 const certificatesFolder = 'certificates';
@@ -129,6 +129,23 @@ export function settings_storeProvisioningParameters( params:any ){
     }
 
     // Save the settings to the JSON file
+    saveSettings();
+}
+
+/*
+ *  Erase the provisioning certificate/key from disk once they're no longer
+ *  needed - i.e. once a real device certificate has been issued and stored via
+ *  settings_storeConnectionParameters(). The provisioning cert is shared across
+ *  the whole fleet (see certificates.ts), so leaving a copy of it (and its
+ *  private key) sitting on a device after it has served its one purpose is
+ *  needless exposure if that specific board is later compromised - deleting it
+ *  narrows what a stolen board's storage can be used for.
+ */
+export function settings_deleteProvisioningParameters(){
+    delete settings.provisioning;
+    for(const file of [provisioningCertificateFile, provisioningPrivateKeyFile, provisioningRootCAFile]){
+        try{ if(existsSync(file)) unlinkSync(file); } catch(_err){}
+    }
     saveSettings();
 }
 

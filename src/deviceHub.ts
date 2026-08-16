@@ -10,7 +10,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { readFileSync, writeFileSync, mkdtempSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync, existsSync, mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { spawnSync } from 'child_process';
 import path from 'path';
@@ -22,6 +22,7 @@ import { fetchProvisioningCertificates } from './certificates';
 import {
     settings,
     settings_deleteConnectionParameters,
+    settings_deleteProvisioningParameters,
     settings_storeConnectionParameters,
     settings_storeProvisioningParameters,
 } from './settingsStore';
@@ -379,7 +380,7 @@ export class DeviceHubService extends EventEmitter {
                     console.error('\x1b[31mFailed to subscribe to provisioning topics:', err, '\x1b[37m');
                     return;
                 }
-                this.submitCertificateRequest(deviceId, requestTopic);
+                this.submitClaimRequest(deviceId, requestTopic);
             });
         });
 
@@ -397,6 +398,28 @@ export class DeviceHubService extends EventEmitter {
         });
     }
 
+    /**
+     * Round 1 of provisioning: announce the UUID (proving whitelist
+     * membership) with no CSR yet. The hub replies with an assigned deviceId
+     * that masks the UUID - only after that is known do we generate a
+     * keypair, since the CSR's CN must be the assigned deviceId, not the
+     * UUID we claimed with.
+     */
+    private submitClaimRequest( uuid:string, requestTopic:string ):void{
+        const payload = {
+            meta: {
+                model:     this.stateManager.getState().system.board,
+                firmware:  this.stateManager.getState().system.version,
+                startedAt: new Date().toISOString(),
+                platform:  'edgeberry',
+            },
+        };
+
+        console.log('\x1b[33mSending provisioning claim...\x1b[37m');
+        this.provisioningClient?.publish(requestTopic, JSON.stringify(payload), { qos:1 });
+    }
+
+    /** Round 2: submit a CSR CN'd for the deviceId the hub assigned in round 1. */
     private submitCertificateRequest( deviceId:string, requestTopic:string ):void{
         try{
             const { keyPem, csrPem } = generateKeyAndCsr(deviceId);
@@ -404,11 +427,11 @@ export class DeviceHubService extends EventEmitter {
             // Keep the private key: the certificate the hub returns is useless
             // without the key that the CSR was built from.
             writeFileSync(PENDING_DEVICE_KEY_PATH, keyPem);
-            console.log('\x1b[32mGenerated device key and CSR\x1b[37m');
+            console.log('\x1b[32mGenerated device key and CSR for assigned deviceId '+deviceId+'\x1b[37m');
 
             const payload = {
+                deviceId,
                 csrPem,
-                name: `Edgeberry Device ${deviceId}`,
                 meta: {
                     model:     this.stateManager.getState().system.board,
                     firmware:  this.stateManager.getState().system.version,
@@ -417,7 +440,7 @@ export class DeviceHubService extends EventEmitter {
                 },
             };
 
-            console.log('\x1b[33mSending provisioning request...\x1b[37m');
+            console.log('\x1b[33mSubmitting certificate request...\x1b[37m');
             this.provisioningClient?.publish(requestTopic, JSON.stringify(payload), { qos:1 });
         } catch(error){
             console.error('\x1b[31mFailed to generate CSR:', error, '\x1b[37m');
@@ -428,12 +451,25 @@ export class DeviceHubService extends EventEmitter {
     private onProvisioningAccepted( message:Buffer ):void{
         try{
             const response = JSON.parse(message.toString());
-            console.log('\x1b[32mProvisioning accepted! Received certificates\x1b[37m');
 
             if(!response.certPem){
-                console.error('\x1b[31mMissing certificate in provisioning response\x1b[37m');
+                // Round 1 accepted: the hub assigned us a deviceId that masks
+                // our UUID. Generate our real keypair/CSR for THAT identity -
+                // not the UUID we claimed with - and submit round 2 over this
+                // same provisioning connection.
+                if(!response.deviceId){
+                    console.error('\x1b[31mProvisioning claim response missing deviceId\x1b[37m');
+                    this.stateManager.updateConnectionState('provision', 'not provisioned');
+                    return;
+                }
+                console.log('\x1b[32mClaim accepted! Assigned deviceId: '+response.deviceId+'\x1b[37m');
+                const uuid        = settings.provisioning!.clientId;
+                const requestTopic = `$devicehub/devices/${uuid}/provision/request`;
+                this.submitCertificateRequest(response.deviceId, requestTopic);
                 return;
             }
+
+            console.log('\x1b[32mProvisioning accepted! Received certificates\x1b[37m');
 
             settings_storeConnectionParameters({
                 deviceId:           response.deviceId || settings.provisioning.clientId,
@@ -446,6 +482,15 @@ export class DeviceHubService extends EventEmitter {
                                             ? readFileSync(settings.provisioning.rootCertificateFile, 'utf8')
                                             : undefined),
             });
+
+            // The device's own identity is now on disk - the fleet-shared
+            // provisioning certificate and its key have served their one
+            // purpose and are only exposure risk from here on (see
+            // settings_deleteProvisioningParameters). The plaintext key
+            // staged for the CSR is a duplicate of what was just written into
+            // the connection certificate store above, so it goes too.
+            settings_deleteProvisioningParameters();
+            try{ if(existsSync(PENDING_DEVICE_KEY_PATH)) unlinkSync(PENDING_DEVICE_KEY_PATH); } catch(_err){}
 
             console.log('\x1b[32mDevice provisioned successfully! Connecting to Device Hub...\x1b[37m');
             this.stateManager.updateConnectionState('provision', 'provisioned');
