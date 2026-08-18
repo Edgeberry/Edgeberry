@@ -10,12 +10,8 @@
  */
 
 import { EventEmitter } from 'events';
-import { readFileSync, writeFileSync, unlinkSync, existsSync, mkdtempSync } from 'fs';
-import { tmpdir } from 'os';
-import { spawnSync } from 'child_process';
-import path from 'path';
-import { connect, MqttClient, IClientOptions } from 'mqtt';
-import { EdgeberryDeviceHubClient } from '@edgeberry/devicehub-device-client';
+import { readFileSync } from 'fs';
+import { EdgeberryDeviceHubClient, provisionDevice } from '@edgeberry/devicehub-device-client';
 
 import { StateManager } from './stateManager';
 import { fetchProvisioningCertificates } from './certificates';
@@ -28,34 +24,14 @@ import {
 } from './settingsStore';
 
 /*
- *  Reconnection policy — exponential backoff with full jitter.
+ *  Reconnection is the library's concern, not this file's.
  *
- *  mqtt.js retries on a fixed interval. That is fine for one device and bad for
- *  a fleet: every device dropped by the same hub restart comes back in lockstep
- *  and hits the hub with a synchronised burst of mTLS handshakes, which can push
- *  it over again and re-synchronise everyone into a retry storm.
- *
- *  Each retry therefore waits a random delay from a window that doubles per
- *  consecutive failure. Randomising from the very first retry spreads the fleet
- *  immediately; doubling decays the offered load over a long outage; the cap
- *  keeps recovery timely.
- *
- *  No custom retry loop is needed: mqtt.js re-reads options.reconnectPeriod
- *  every time it reschedules (_cleanUp calls _clearReconnect then
- *  _setupReconnect), so varying that value between attempts is enough. Retries
- *  then happen on the *existing* client instance, which is what keeps a second
- *  client off the same clientId.
+ *  It applies exponential backoff with full jitter (see reconnectDelay() in
+ *  @edgeberry/devicehub-device-client) so that a fleet dropped by one hub
+ *  restart does not come back in lockstep and re-synchronise into a retry
+ *  storm. The constants below were tuned here first and now live in the
+ *  library as its defaults; this service only listens to what it reports.
  */
-const RECONNECT_MIN_MS  = 1000;     // floor; also keeps the value above zero
-const RECONNECT_BASE_MS = 5000;     // first window: 1–5 s
-const RECONNECT_MAX_MS  = 60000;    // window ceiling
-
-export function reconnectDelay( attempt:number ):number{
-    const ceiling = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, attempt));
-    // Never zero: mqtt.js reads reconnectPeriod 0 as "stop reconnecting", which
-    // leaves the device offline until something restarts the service.
-    return Math.round(RECONNECT_MIN_MS + Math.random() * Math.max(0, ceiling - RECONNECT_MIN_MS));
-}
 
 export type DeviceHubStatus = {
     hostName:        string | null;
@@ -71,9 +47,7 @@ export type DeviceHubStatus = {
  */
 export class DeviceHubService extends EventEmitter {
     private client: EdgeberryDeviceHubClient | null = null;
-    private provisioningClient: MqttClient | null = null;
     private connectInProgress = false;
-    private policyAttached = false;
 
     constructor( private readonly stateManager:StateManager ){
         super();
@@ -135,6 +109,14 @@ export class DeviceHubService extends EventEmitter {
                 console.log('\x1b[33mStarting device provisioning...\x1b[37m');
                 this.stateManager.updateConnectionState('provision', 'provisioning');
                 await this.runProvisioningExchange();
+
+                // Provisioning has stored connection parameters, so bring the
+                // identity connection up in this same pass. It has to be
+                // connectWithIdentity() and not connect(): we are already
+                // inside connect()'s in-progress guard, and re-entering it
+                // returns immediately, leaving the device provisioned but
+                // offline until something else triggers a connect.
+                if(settings.connection) await this.connectWithIdentity();
             } catch(err){
                 console.error('Provisioning failed:', err);
                 this.stateManager.updateConnectionState('provision', 'not provisioned');
@@ -146,7 +128,7 @@ export class DeviceHubService extends EventEmitter {
         // An existing client is already managing its own reconnection — nudge it
         // rather than building a second one on the same clientId.
         if(this.client){
-            (this.client as any).client?.reconnect();
+            this.client.reconnect();
             return;
         }
 
@@ -157,18 +139,8 @@ export class DeviceHubService extends EventEmitter {
                 cert:     readFileSync(settings.connection.certificateFile).toString(),
                 key:      readFileSync(settings.connection.privateKeyFile).toString(),
                 ca:       readFileSync(settings.connection.rootCertificateFile).toString(),
-                // Must stay above zero — see reconnectDelay(). The policy
-                // attached below takes over the value from the first retry on.
-                reconnectPeriod: RECONNECT_BASE_MS,
             });
 
-            // The library's own scheduleReconnect() calls connect(), which builds
-            // a brand-new mqtt client without ending the previous one. Two clients
-            // sharing a clientId make the broker kick them alternately, forever.
-            // Reconnection is mqtt.js's job here, governed by reconnectPeriod.
-            (this.client as any).scheduleReconnect = () => {};
-
-            this.policyAttached = false;
             this.wireClientEvents();
 
             // The client exists but is not connected yet. Direct methods are
@@ -178,13 +150,7 @@ export class DeviceHubService extends EventEmitter {
 
             this.stateManager.updateConnectionState('provision', 'disabled');
 
-            // The underlying mqtt client is created synchronously inside
-            // connect(), so the policy can be attached before awaiting. The first
-            // attempt can fail too (hub down while the device boots) and that
-            // retry needs jittering just as much as any later one.
-            const connecting = this.client.connect();
-            this.attachReconnectPolicy();
-            await connecting;
+            await this.client.connect();
         } catch(err){
             console.error('Cloud connect failed:', err);
             this.discardClientUnlessRetrying();
@@ -192,29 +158,28 @@ export class DeviceHubService extends EventEmitter {
     }
 
     /**
-     * Keep a client that mqtt.js is still retrying; drop one that is inert.
+     * Keep a client that is still retrying; drop one that is inert.
      *
      * Dropping a retrying client would leave it reconnecting in the background
-     * while the next connect() built a second client on the same clientId — the
-     * duplicate-connection fault described above. A client whose certificates
-     * failed to load never got an mqtt client at all and is safe to discard.
+     * while the next connect() built a second client on the same clientId, and
+     * the broker would then kick the two alternately, forever. A client whose
+     * certificates failed to load never got that far and is safe to discard.
      */
     private discardClientUnlessRetrying():void{
-        const mqttClient = (this.client as any)?.client;
-        if(mqttClient && !mqttClient.disconnecting){
+        if(this.client?.isRetrying()){
             console.log('\x1b[90mCloud Connection: retrying in the background\x1b[37m');
             return;
         }
-        try{ mqttClient?.end(true); } catch(_err){}
-        this.client = null;
-        this.policyAttached = false;
+        if(this.client){
+            this.client.disconnect().catch(()=>{});
+            this.client = null;
+        }
     }
 
     private wireClientEvents():void{
         if(!this.client) return;
 
         this.client.on('connected', ()=>{
-            this.attachReconnectPolicy();
             this.stateManager.interruptIndicators('beep');
             this.stateManager.updateConnectionState('connection', 'connected');
             console.log('\x1b[32mCloud Connection: connected with device \x1b[37m');
@@ -233,42 +198,18 @@ export class DeviceHubService extends EventEmitter {
             console.log('\x1b[36mReceived cloud-to-device message:\x1b[37m', message);
             this.emit('cloudMessage', message);
         });
-    }
 
-    /**
-     * Apply the backoff policy to the underlying mqtt client, and log its
-     * reconnection activity.
-     *
-     * The library reports only 'connected'/'disconnected', so a device that had
-     * stopped retrying looked identical in the log to one retrying and failing:
-     * silence either way. That ambiguity hid a fleet-wide outage bug.
-     */
-    private attachReconnectPolicy():void{
-        if(this.policyAttached) return;
-        const mqttClient = (this.client as any)?.client;
-        if(!mqttClient) return;
-        this.policyAttached = true;
-
-        let attempt = 0;
-
-        mqttClient.on('connect', ()=>{
-            attempt = 0;
-            mqttClient.options.reconnectPeriod = reconnectDelay(0);
-        });
-
-        mqttClient.on('reconnect', ()=>{
-            attempt++;
-            mqttClient.options.reconnectPeriod = reconnectDelay(attempt);
+        // Without these, a device that had stopped retrying looked identical in
+        // the log to one retrying and failing: silence either way. That
+        // ambiguity hid a fleet-wide outage bug once already.
+        this.client.on('reconnecting', ({ attempt, delayMs }:{attempt:number, delayMs:number})=>{
             console.log('\x1b[90mCloud Connection: reconnecting (attempt '+attempt+
-                        ', next in ~'+Math.round(mqttClient.options.reconnectPeriod/1000)+'s)\x1b[37m');
+                        ', next in ~'+Math.round(delayMs/1000)+'s)\x1b[37m');
         });
 
-        mqttClient.on('offline', ()=>{
+        this.client.on('offline', ()=>{
             console.log('\x1b[33mCloud Connection: offline\x1b[37m');
         });
-
-        // Seed the first window so even the initial retry is jittered.
-        mqttClient.options.reconnectPeriod = reconnectDelay(0);
     }
 
     /*
@@ -331,211 +272,63 @@ export class DeviceHubService extends EventEmitter {
         if(this.client){
             try{ await this.client.disconnect(); } catch(_err){}
             this.client = null;
-            this.policyAttached = false;
         }
         this.stateManager.updateConnectionState('connection', 'disconnected');
         this.stateManager.updateConnectionState('provision', 'not provisioned');
     }
 
     /*
-     *  X.509 fleet provisioning over MQTT
+     *  X.509 fleet provisioning
      *
-     *  The device authenticates with the fleet-wide provisioning certificate,
-     *  submits a CSR, and receives a certificate of its own in return.
+     *  The exchange itself - the two round trips, the CSR, the topics - belongs
+     *  to the client library. This method's job is only the parts that are this
+     *  device's business: what metadata to announce, and what to do with the
+     *  identity once it has one.
      */
 
     private async runProvisioningExchange():Promise<void>{
         if(!settings.provisioning) return;
 
-        const deviceId     = settings.provisioning.clientId;
-        const requestTopic  = `$devicehub/devices/${deviceId}/provision/request`;
-        const acceptedTopic = `$devicehub/devices/${deviceId}/provision/accepted`;
-        const rejectedTopic = `$devicehub/devices/${deviceId}/provision/rejected`;
+        console.log('\x1b[33mProvisioning against '+settings.provisioning.hostName+'...\x1b[37m');
 
-        console.log('\x1b[33mConnecting to MQTT for provisioning...\x1b[37m');
-
-        const options:IClientOptions = {
-            host:       settings.provisioning.hostName,
-            port:       8883,
-            protocol:   'mqtts',
-            clientId:   deviceId,
-            cert:       readFileSync(settings.provisioning.certificateFile),
-            key:        readFileSync(settings.provisioning.privateKeyFile),
-            ca:         settings.provisioning.rootCertificateFile
-                            ? readFileSync(settings.provisioning.rootCertificateFile)
-                            : undefined,
-            rejectUnauthorized: true,
-            // One-shot exchange: a retry loop here would race the connect()
-            // that follows a successful provisioning.
-            reconnectPeriod: 0,
-            clean: true,
-        };
-
-        this.provisioningClient = connect(options);
-
-        this.provisioningClient.on('connect', ()=>{
-            console.log('\x1b[32mProvisioning MQTT connected\x1b[37m');
-            this.provisioningClient?.subscribe([acceptedTopic, rejectedTopic], { qos:1 }, (err)=>{
-                if(err){
-                    console.error('\x1b[31mFailed to subscribe to provisioning topics:', err, '\x1b[37m');
-                    return;
-                }
-                this.submitClaimRequest(deviceId, requestTopic);
-            });
-        });
-
-        this.provisioningClient.on('message', (topic, message)=>{
-            if(topic === acceptedTopic) this.onProvisioningAccepted(message);
-            else if(topic === rejectedTopic){
-                console.error('\x1b[31mProvisioning rejected:', message.toString(), '\x1b[37m');
-                this.stateManager.updateConnectionState('provision', 'not provisioned');
-            }
-        });
-
-        this.provisioningClient.on('error', (error)=>{
-            console.error('\x1b[31mProvisioning MQTT error:', error, '\x1b[37m');
-            this.stateManager.updateConnectionState('provision', 'not provisioned');
-        });
-    }
-
-    /**
-     * Round 1 of provisioning: announce the UUID (proving whitelist
-     * membership) with no CSR yet. The hub replies with an assigned deviceId
-     * that masks the UUID - only after that is known do we generate a
-     * keypair, since the CSR's CN must be the assigned deviceId, not the
-     * UUID we claimed with.
-     */
-    private submitClaimRequest( uuid:string, requestTopic:string ):void{
-        const payload = {
+        const issued = await provisionDevice({
+            host: settings.provisioning.hostName,
+            uuid: settings.provisioning.clientId,
+            cert: readFileSync(settings.provisioning.certificateFile),
+            key:  readFileSync(settings.provisioning.privateKeyFile),
+            ca:   settings.provisioning.rootCertificateFile
+                      ? readFileSync(settings.provisioning.rootCertificateFile)
+                      : undefined,
             meta: {
                 model:     this.stateManager.getState().system.board,
                 firmware:  this.stateManager.getState().system.version,
                 startedAt: new Date().toISOString(),
                 platform:  'edgeberry',
             },
-        };
+        });
 
-        console.log('\x1b[33mSending provisioning claim...\x1b[37m');
-        this.provisioningClient?.publish(requestTopic, JSON.stringify(payload), { qos:1 });
+        console.log('\x1b[32mProvisioning accepted! Assigned deviceId: '+issued.deviceId+'\x1b[37m');
+
+        settings_storeConnectionParameters({
+            deviceId:           issued.deviceId,
+            hostName:           settings.provisioning.hostName,
+            authenticationType: 'X.509',
+            certificate:        issued.certPem,
+            privateKey:         issued.privateKeyPem,
+            rootCertificate:    issued.caChainPem
+                                    || (settings.provisioning.rootCertificateFile
+                                        ? readFileSync(settings.provisioning.rootCertificateFile, 'utf8')
+                                        : undefined),
+        });
+
+        // The device's own identity is now on disk - the fleet-shared
+        // provisioning certificate and its key have served their one purpose
+        // and are only exposure risk from here on.
+        settings_deleteProvisioningParameters();
+
+        console.log('\x1b[32mDevice provisioned successfully! Connecting to Device Hub...\x1b[37m');
+        this.stateManager.updateConnectionState('provision', 'provisioned');
+
+        await this.connect();
     }
-
-    /** Round 2: submit a CSR CN'd for the deviceId the hub assigned in round 1. */
-    private submitCertificateRequest( deviceId:string, requestTopic:string ):void{
-        try{
-            const { keyPem, csrPem } = generateKeyAndCsr(deviceId);
-
-            // Keep the private key: the certificate the hub returns is useless
-            // without the key that the CSR was built from.
-            writeFileSync(PENDING_DEVICE_KEY_PATH, keyPem);
-            console.log('\x1b[32mGenerated device key and CSR for assigned deviceId '+deviceId+'\x1b[37m');
-
-            const payload = {
-                deviceId,
-                csrPem,
-                meta: {
-                    model:     this.stateManager.getState().system.board,
-                    firmware:  this.stateManager.getState().system.version,
-                    startedAt: new Date().toISOString(),
-                    platform:  'edgeberry',
-                },
-            };
-
-            console.log('\x1b[33mSubmitting certificate request...\x1b[37m');
-            this.provisioningClient?.publish(requestTopic, JSON.stringify(payload), { qos:1 });
-        } catch(error){
-            console.error('\x1b[31mFailed to generate CSR:', error, '\x1b[37m');
-            this.stateManager.updateConnectionState('provision', 'not provisioned');
-        }
-    }
-
-    private onProvisioningAccepted( message:Buffer ):void{
-        try{
-            const response = JSON.parse(message.toString());
-
-            if(!response.certPem){
-                // Round 1 accepted: the hub assigned us a deviceId that masks
-                // our UUID. Generate our real keypair/CSR for THAT identity -
-                // not the UUID we claimed with - and submit round 2 over this
-                // same provisioning connection.
-                if(!response.deviceId){
-                    console.error('\x1b[31mProvisioning claim response missing deviceId\x1b[37m');
-                    this.stateManager.updateConnectionState('provision', 'not provisioned');
-                    return;
-                }
-                console.log('\x1b[32mClaim accepted! Assigned deviceId: '+response.deviceId+'\x1b[37m');
-                const uuid        = settings.provisioning!.clientId;
-                const requestTopic = `$devicehub/devices/${uuid}/provision/request`;
-                this.submitCertificateRequest(response.deviceId, requestTopic);
-                return;
-            }
-
-            console.log('\x1b[32mProvisioning accepted! Received certificates\x1b[37m');
-
-            settings_storeConnectionParameters({
-                deviceId:           response.deviceId || settings.provisioning.clientId,
-                hostName:           settings.provisioning.hostName,
-                authenticationType: 'X.509',
-                certificate:        response.certPem,
-                privateKey:         readFileSync(PENDING_DEVICE_KEY_PATH, 'utf8'),
-                rootCertificate:    response.caChainPem
-                                        || (settings.provisioning.rootCertificateFile
-                                            ? readFileSync(settings.provisioning.rootCertificateFile, 'utf8')
-                                            : undefined),
-            });
-
-            // The device's own identity is now on disk - the fleet-shared
-            // provisioning certificate and its key have served their one
-            // purpose and are only exposure risk from here on (see
-            // settings_deleteProvisioningParameters). The plaintext key
-            // staged for the CSR is a duplicate of what was just written into
-            // the connection certificate store above, so it goes too.
-            settings_deleteProvisioningParameters();
-            try{ if(existsSync(PENDING_DEVICE_KEY_PATH)) unlinkSync(PENDING_DEVICE_KEY_PATH); } catch(_err){}
-
-            console.log('\x1b[32mDevice provisioned successfully! Connecting to Device Hub...\x1b[37m');
-            this.stateManager.updateConnectionState('provision', 'provisioned');
-
-            // Close the provisioning session before opening the real one: both
-            // use the same clientId, and the broker will not tolerate two.
-            this.provisioningClient?.end(false, {}, ()=>{
-                this.provisioningClient = null;
-                this.connect().catch((err)=>{
-                    console.error('\x1b[31mFailed to connect after provisioning:', err, '\x1b[37m');
-                });
-            });
-        } catch(error){
-            console.error('\x1b[31mFailed to process provisioning response:', error, '\x1b[37m');
-            this.stateManager.updateConnectionState('provision', 'not provisioned');
-        }
-    }
-}
-
-/*
- *  Certificate signing request helpers
- */
-
-// Where the private key waits between generating the CSR and the hub accepting
-// it. Relative to the working directory, like the rest of the certificate store.
-const PENDING_DEVICE_KEY_PATH = './certificates/device_key.pem';
-
-function openssl( args:string[], input?:string ):{ code:number, out:string, err:string }{
-    const result = spawnSync('openssl', args, { input, encoding:'utf8' });
-    return { code: result.status ?? 1, out: result.stdout || '', err: result.stderr || '' };
-}
-
-function generateKeyAndCsr( deviceId:string ):{ keyPem:string; csrPem:string }{
-    const dir     = mkdtempSync(path.join(tmpdir(), 'edgeberry-device-'));
-    const keyPath = path.join(dir, `${deviceId}.key`);
-    const csrPath = path.join(dir, `${deviceId}.csr`);
-
-    let result = openssl(['genrsa', '-out', keyPath, '2048']);
-    if(result.code !== 0) throw new Error(`openssl genrsa failed: ${result.err || result.out}`);
-
-    result = openssl(['req', '-new', '-key', keyPath, '-subj', `/CN=${deviceId}`, '-out', csrPath]);
-    if(result.code !== 0) throw new Error(`openssl req -new failed: ${result.err || result.out}`);
-
-    return {
-        keyPem: readFileSync(keyPath, 'utf8'),
-        csrPem: readFileSync(csrPath, 'utf8'),
-    };
 }
