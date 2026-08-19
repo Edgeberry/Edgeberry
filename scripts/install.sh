@@ -550,9 +550,15 @@ esac
 #   Finish installation
 ##
 
-# Step 16: Start the application for the first time
+# Step 16: Start the application
+#
+# 'restart', not 'start': this script is the upgrade path as well as the first
+# install, and 'start' is a no-op against a unit that is already running. That
+# left an upgraded device with the new release unpacked on disk and the old
+# process still serving from memory - reporting success either way, and only
+# picking up the new version at the next reboot.
 mark_step_busy 16
-systemctl start io.edgeberry.core
+systemctl restart io.edgeberry.core
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
     mark_step_completed 16

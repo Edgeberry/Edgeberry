@@ -122,7 +122,10 @@ EOF
 
   "--hardware-id")
     if [ -f /proc/device-tree/hat/uuid ]; then
-      cat /proc/device-tree/hat/uuid
+      # Device-tree properties are NUL-terminated. Emitting that byte makes
+      # every caller using $(edgeberry --hardware-id) warn about a null byte in
+      # the command substitution - as --hardware-version below already avoids.
+      tr -d '\0' < /proc/device-tree/hat/uuid
       echo ""
     else
       echo "null"
