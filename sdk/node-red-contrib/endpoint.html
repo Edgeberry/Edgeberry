@@ -1,0 +1,105 @@
+<script type="text/javascript">
+  RED.nodes.registerType('edgeberry_device_from_cloud', {
+    category: 'Edgeberry Device',
+    color: '#FDFDFD',
+    defaults: {
+      name:  { value: "" },
+      topic: { value: "", required: true }
+    },
+    inputs: 0,
+    outputs: 1,
+    icon: 'Edgeberry_logo.png',
+    label: function () { return this.name || (this.topic ? `from cloud: ${this.topic}` : 'from cloud'); },
+    labelStyle: function () { return this.name ? "node_label_italic" : ""; },
+    paletteLabel: 'from cloud',
+    align: 'left'
+  });
+
+  RED.nodes.registerType('edgeberry_device_to_cloud', {
+    category: 'Edgeberry Device',
+    color: '#FDFDFD',
+    defaults: {
+      name:  { value: "" },
+      topic: { value: "", required: true }
+    },
+    inputs: 1,
+    outputs: 0,
+    align: 'right',
+    icon: 'Edgeberry_logo.png',
+    label: function () { return this.name || (this.topic ? `to cloud: ${this.topic}` : 'to cloud'); },
+    labelStyle: function () { return this.name ? "node_label_italic" : ""; },
+    paletteLabel: 'to cloud'
+  });
+</script>
+
+<script type="text/html" data-template-name="edgeberry_device_from_cloud">
+  <div class="form-row">
+    <label for="node-input-topic"><i class="fa fa-tag"></i> Topic</label>
+    <input type="text" id="node-input-topic" placeholder="setpoint">
+  </div>
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+</script>
+
+<script type="text/html" data-help-name="edgeberry_device_from_cloud">
+  <p>Receives messages sent by a cloud <code>to device</code> endpoint under a
+     matching topic.</p>
+
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>Exactly the topic the cloud flow sent under.</dd>
+    <dt>payload <span class="property-type">any JSON</span></dt>
+    <dd>Exactly what the cloud flow sent — objects, arrays, strings, numbers,
+        booleans and <code>null</code> all arrive unchanged.</dd>
+    <dt>timestamp <span class="property-type">string</span></dt>
+    <dd>ISO 8601, stamped when the cloud flow sent it. Not the time it arrived.</dd>
+  </dl>
+
+  <h3>Topic matching</h3>
+  <p>Exact by default. <code>*</code> receives every topic, and a trailing
+     <code>*</code> matches a prefix (<code>cmd/*</code>) — useful for a single
+     debugging node.</p>
+
+  <h3>Delivery</h3>
+  <p>Best effort. Nothing is queued: a message sent while this device was
+     offline is lost, not delivered late.</p>
+</script>
+
+<script type="text/html" data-template-name="edgeberry_device_to_cloud">
+  <div class="form-row">
+    <label for="node-input-topic"><i class="fa fa-tag"></i> Topic</label>
+    <input type="text" id="node-input-topic" placeholder="doorState">
+  </div>
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+</script>
+
+<script type="text/html" data-help-name="edgeberry_device_to_cloud">
+  <p>Sends a message to the cloud, arriving at the <code>from device</code>
+     endpoint configured with the same topic.</p>
+
+  <h3>Inputs</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">any JSON</span></dt>
+    <dd>Sent through unchanged. Must be JSON-serialisable — Buffers are not
+        supported.</dd>
+    <dt class="optional">timestamp <span class="property-type">string</span></dt>
+    <dd>ISO 8601. Added automatically when absent, and never rewritten
+        afterwards.</dd>
+  </dl>
+
+  <h3>Topic</h3>
+  <p>Set on the node, not the message. This node is the endpoint, so its topic
+     is authoritative: a message arriving with a different <code>msg.topic</code>
+     is sent under the node's topic and a warning is logged. Wildcards are for
+     receiving only.</p>
+
+  <h3>Delivery</h3>
+  <p>Best effort. If the device has no connection the message is dropped, not
+     queued — the node reports an error rather than failing silently.</p>
+</script>

@@ -1,6 +1,6 @@
 {
   "name": "@edgeberry/device-node-red-contrib",
-  "version": "3.8.3",
+  "version": "3.8.6",
   "description": "Node-RED node to interact with the Edgeberry Device Software over DBus",
   "license": "MIT",
   "public": true,
@@ -29,7 +29,8 @@
     "nodes": {
       "edgeberry_device_device": "device.js",
       "edgeberry_device_button": "button.js",
-      "edgeberry_device_status": "status.js"
+      "edgeberry_device_status": "status.js",
+      "edgeberry_device_endpoints": "endpoint.js"
     }
   },
   "files": [
@@ -39,6 +40,8 @@
     "button.html",
     "status.js",
     "status.html",
+    "endpoint.html",
+    "endpoint.js",
     "icons",
     "README.md",
     "LICENSE.txt"
