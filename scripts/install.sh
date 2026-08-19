@@ -491,7 +491,11 @@ ln -sf /etc/nginx/sites-available/edgeberry /etc/nginx/sites-enabled/edgeberry
 # 13h: validate config; on failure revert and abort
 if nginx -t > /dev/null 2>&1; then
     systemctl enable nginx > /dev/null 2>&1
-    systemctl reload nginx > /dev/null 2>&1
+    # 'reload-or-restart', not 'reload': reload fails outright against a unit
+    # that is not running ("Unit cannot be reloaded because it is inactive"),
+    # which aborted the whole install on any machine where nginx happened to be
+    # stopped - before the application was ever started.
+    systemctl reload-or-restart nginx > /dev/null 2>&1
     if [ $? -eq 0 ]; then
         mark_step_completed 13
     else
