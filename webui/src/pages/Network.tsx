@@ -256,14 +256,19 @@ function IpConfigPanel({ ssid, onSaved }: { ssid: string; onSaved: () => void })
    transport is reported as the unconfirmed success it almost always is, and
    only a device that answered is allowed to say the join failed. */
 function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void }) {
+  // A hidden network is not in the list to be picked, so its name is typed
+  // here; for a scanned one the field is fixed and the row already named it.
+  const [ssid,       setSsid]       = useState(ap.ssid)
   const [passphrase, setPassphrase] = useState('')
   const [reveal,     setReveal]     = useState(false)
   const [state,      setState]      = useState<'idle' | 'connecting' | 'ok' | 'fail' | 'unreachable'>('idle')
 
+  const name = ssid || 'the network'
+
   async function connect() {
     setState('connecting')
     try {
-      const { success } = await api.network.join(ap.ssid, ap.secured ? passphrase : '')
+      const { success } = await api.network.join(ssid, ap.secured ? passphrase : '', ap.hidden === true)
       if (success) { setState('ok'); onJoined() } else setState('fail')
     } catch (err) {
       // An ApiError means the device answered, so the link survived and the
@@ -275,12 +280,12 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
   }
 
   if (state === 'connecting')
-    return <div className="mt-3 p-3 text-muted" style={{ fontSize: '0.85rem' }}>Connecting to {ap.ssid}…</div>
+    return <div className="mt-3 p-3 text-muted" style={{ fontSize: '0.85rem' }}>Connecting to {name}…</div>
 
   if (state === 'ok')
     return (
       <div className="mt-3 p-3" style={{ fontSize: '0.85rem' }}>
-        <span className="text-success">Connected to {ap.ssid}.</span>
+        <span className="text-success">Connected to {name}.</span>
         <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>
           If the device was in access point mode it is now leaving it — reconnect your
           computer to your normal network.
@@ -293,10 +298,10 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
       <div className="mt-3 p-3" style={{ fontSize: '0.85rem' }}>
         <span style={{ color: 'var(--eb-ok)' }}>The device has left this network.</span>
         <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>
-          It stopped answering while joining <strong style={{ fontFamily: 'monospace' }}>{ap.ssid}</strong>,
+          It stopped answering while joining <strong style={{ fontFamily: 'monospace' }}>{name}</strong>,
           which is what a successful join looks like from here — the access point it
           was serving this page over is gone. Reconnect your computer to{' '}
-          <strong style={{ fontFamily: 'monospace' }}>{ap.ssid}</strong> and open the
+          <strong style={{ fontFamily: 'monospace' }}>{name}</strong> and open the
           device again to confirm. The status LED shows a green heartbeat once it is
           connected.
         </div>
@@ -310,6 +315,19 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
   return (
     <InsetPanel>
       <SectionLabel>Join network</SectionLabel>
+      {ap.hidden && (
+        <input
+          className="form-control form-control-sm mb-2"
+          style={{ fontFamily: 'monospace' }}
+          type="text"
+          value={ssid}
+          placeholder="Network name (SSID)"
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          onChange={e => setSsid(e.target.value)}
+        />
+      )}
       {ap.secured ? (
         <div className="input-group input-group-sm mb-2">
           <input
@@ -320,7 +338,7 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
             placeholder="Password"
             autoComplete="off"
             onChange={e => setPassphrase(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') connect() }}
+            onKeyDown={e => { if (e.key === 'Enter' && ssid) connect() }}
           />
           <button className="btn btn-outline-secondary" onClick={() => setReveal(v => !v)} type="button">
             {reveal ? 'Hide' : 'Show'}
@@ -330,12 +348,17 @@ function WifiJoinPanel({ ap, onJoined }: { ap: AccessPoint; onJoined: () => void
         <p className="text-muted" style={{ fontSize: '0.8rem' }}>This is an open network.</p>
       )}
       <div className="d-flex align-items-center gap-3">
-        <button className="btn btn-sm btn-primary" onClick={connect} disabled={ap.secured && !passphrase}>
+        <button
+          className="btn btn-sm btn-primary"
+          onClick={connect}
+          disabled={!ssid || (ap.secured && !passphrase)}
+        >
           Connect
         </button>
         {state === 'fail' && (
           <span className="text-danger" style={{ fontSize: '0.8rem' }}>
-            Could not connect. Check the password and try again.
+            Could not connect. Check the {ap.hidden ? 'network name and password' : 'password'} and
+            try again.
           </span>
         )}
       </div>
@@ -380,6 +403,37 @@ function WifiRow({ ap, isSaved, isActive, onRefresh }: {
       {open && (isSaved
         ? <IpConfigPanel ssid={ap.ssid} onSaved={onRefresh} />
         : <WifiJoinPanel ap={ap} onJoined={onRefresh} />)}
+    </div>
+  )
+}
+
+/* The counterpart to the list: a network with SSID broadcast disabled is
+   missing from every scan, so the only way to reach one is to say it exists.
+   It sits under the scan results as a row of the same shape, because from the
+   operator's side it is the same act — pick a network, give the password. */
+function HiddenNetworkRow({ onRefresh }: { onRefresh: () => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--eb-line)' }}>
+      <div
+        className="d-flex align-items-center gap-2 py-2 px-1"
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="flex-grow-1" style={{ fontSize: '0.9rem', color: 'var(--eb-muted, #888)' }}>
+          Join a hidden network…
+        </span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--eb-line)' }}>{open ? '▲' : '▼'}</span>
+      </div>
+
+      {open && (
+        <WifiJoinPanel
+          // Remounted on close so a half-typed name does not linger.
+          ap={{ ssid: '', strength: 0, frequency: 0, secured: true, hidden: true }}
+          onJoined={onRefresh}
+        />
+      )}
     </div>
   )
 }
@@ -448,7 +502,10 @@ export default function Network() {
 
       {error && <p className="text-danger" style={{ fontSize: '0.875rem' }}>{error}</p>}
       {wifi && wifi.available.length === 0 && (
-        <p className="text-muted" style={{ fontSize: '0.875rem' }}>No networks found.</p>
+        <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          No networks found. A network that does not broadcast its name can still be
+          joined below.
+        </p>
       )}
 
       {wifi?.available.map(ap => (
@@ -460,6 +517,8 @@ export default function Network() {
           onRefresh={load}
         />
       ))}
+
+      <HiddenNetworkRow onRefresh={load} />
 
       {transition && <TransitionOverlay t={transition} onClose={() => setTransition(null)} />}
     </>

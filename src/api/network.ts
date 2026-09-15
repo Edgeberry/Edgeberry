@@ -68,13 +68,17 @@ export function buildNetworkRouter({ networkManager, apMode }:NetworkApiDeps ):R
      * on the new network instead.
      */
     router.post('/wifi/connect', async (req, res) => {
-        const { ssid, passphrase } = req.body ?? {};
+        const { ssid, passphrase, hidden } = req.body ?? {};
         if(typeof ssid !== 'string' || !ssid){
             res.status(400).json({ success: false, error: 'ssid required' });
             return;
         }
         try{
-            const success = await networkManager.connectToNetwork(ssid, passphrase || '');
+            // `hidden` comes from the interface because nothing here can infer
+            // it: a network that withholds its SSID is absent from the scan
+            // rather than marked in it, so only the operator typing the name
+            // knows that is what this is.
+            const success = await networkManager.connectToNetwork(ssid, passphrase || '', hidden === true);
             res.json({ success });
 
             // Joining a network is how setup finishes. The access point is

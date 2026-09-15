@@ -113,7 +113,9 @@ export type SystemInfo = {
   }
 }
 
-export type AccessPoint  = { ssid: string; strength: number; frequency: number; secured: boolean }
+/** `hidden` marks an entry the operator is typing by hand rather than one the
+ *  scan returned — a network that withholds its SSID cannot appear in a scan. */
+export type AccessPoint  = { ssid: string; strength: number; frequency: number; secured: boolean; hidden?: boolean }
 export type SavedNetwork = { ssid: string; autoconnect: boolean }
 export type WifiData     = { available: AccessPoint[]; saved: SavedNetwork[]; active: string | null }
 
@@ -224,8 +226,8 @@ export const api = {
      * If the device is in access point mode, a successful join also ends it,
      * which drops the connection this call was made over.
      */
-    join: ( ssid:string, passphrase:string ) =>
-            post<{ success: boolean }>('/api/network/wifi/connect', { ssid, passphrase }),
+    join: ( ssid:string, passphrase:string, hidden:boolean = false ) =>
+            post<{ success: boolean }>('/api/network/wifi/connect', { ssid, passphrase, hidden }),
   },
 
   cloud: {

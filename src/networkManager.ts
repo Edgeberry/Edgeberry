@@ -689,7 +689,14 @@ export class NetworkManager extends EventEmitter {
     // Connect to a given SSID + passphrase using WPA-PSK, with autoconnect: true.
     // Polls the active connection state until Activated or Deactivated/Failed.
     // On failure, cleans up the saved connection profile.
-    public async connectToNetwork( ssid:string, passphrase:string, timeoutMs:number = 30000 ):Promise<boolean>{
+    //
+    // `hidden` marks the network as one that does not broadcast its SSID. It is
+    // not a cosmetic flag: an access point with SSID broadcast disabled never
+    // appears in a passive scan, so without it NetworkManager has no BSS to
+    // match the profile against and the activation fails on a network that is
+    // in range and whose passphrase is correct. Set, NM probes for the SSID by
+    // name instead, which is the only way such a network can be joined.
+    public async connectToNetwork( ssid:string, passphrase:string, hidden:boolean = false, timeoutMs:number = 30000 ):Promise<boolean>{
         const devicePath = await this.getWifiDevicePath();
         const nmIface = await this.getInterface(NM_PATH, NM_IFACE);
 
@@ -699,8 +706,9 @@ export class NetworkManager extends EventEmitter {
                 ['autoconnect', ['b', true]]
             ]],
             ['802-11-wireless', [
-                ['ssid', ['ay', [...Buffer.from(ssid)]]],
-                ['mode', ['s', 'infrastructure']]
+                ['ssid',   ['ay', [...Buffer.from(ssid)]]],
+                ['mode',   ['s', 'infrastructure']],
+                ['hidden', ['b', hidden]]
             ]],
             ['ipv4', [
                 ['method', ['s', 'auto']]
