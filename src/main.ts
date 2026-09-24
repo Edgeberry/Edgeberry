@@ -31,8 +31,9 @@
  *  dependency in.
  */
 
-import { StateManager } from './stateManager';
+import { StateManager, deviceState } from './stateManager';
 import { NetworkManager } from './networkManager';
+import { NetworkReporter } from './networkReporter';
 import { WebServer } from './webServer';
 import { DeviceHubService } from './deviceHub';
 import { ApModeService } from './apMode';
@@ -65,11 +66,12 @@ import {
 
 settings_load();
 
-const stateManager   = new StateManager();
-const networkManager = new NetworkManager();
-const webServer      = new WebServer();
-const deviceHub      = new DeviceHubService(stateManager);
-const apMode         = new ApModeService(stateManager, networkManager, webServer, deviceHub);
+const stateManager    = new StateManager();
+const networkManager  = new NetworkManager();
+const webServer       = new WebServer();
+const deviceHub       = new DeviceHubService(stateManager);
+const apMode          = new ApModeService(stateManager, networkManager, webServer, deviceHub);
+const networkReporter = new NetworkReporter(networkManager, deviceHub);
 
 stateManager.updateSystemState('state', 'starting');
 
@@ -84,21 +86,99 @@ webServer.use('/api', buildApiRouter({ stateManager, networkManager, apMode, dev
 // Direct methods are registered against each newly created hub client, before
 // its connection is established — the library subscribes to their topics on
 // connect, so registering afterwards would miss the subscription.
-deviceHub.on('clientReady', () => registerDirectMethods(deviceHub, stateManager, networkManager));
+deviceHub.on('clientReady', () => registerDirectMethods(deviceHub, stateManager, networkReporter));
 
 // Bridge cloud-to-device messages onto D-Bus for local applications.
 deviceHub.on('cloudMessage', (message) => emitCloudMessage(message));
 
 /*
+ *  Report the network into the shadow as soon as there is a hub to report it
+ *  to, and again on every reconnect.
+ *
+ *  publishState() drops what it cannot send rather than queueing it, so
+ *  without this a device that booted onto a network and then stayed on it
+ *  would carry no network document in its twin at all — there would be no
+ *  change to trigger one, possibly for the life of the deployment.
+ */
+deviceHub.on('connected', () => {
+    /*
+     *  The state document too, for the same reason and one more.
+     *
+     *  publishStates() drops what it cannot send, and since the StateManager
+     *  now emits only on an actual change, a device whose state was already
+     *  settled before it reconnected would have nothing to trigger a publish
+     *  with — leaving the shadow showing whatever it held before the
+     *  disconnection, indefinitely.
+     */
+    deviceHub.publishStates(shadowPatch(stateManager.getState()));
+    networkReporter.publishNow();
+});
+
+/*
  *  Broadcast state changes.
  *
- *  TODO: this reports the whole state object on every change to reduce chatter
- *  with the device shadow. Reporting each field independently would be better.
+ *  One D-Bus signal for local applications, one shadow update for the hub.
+ *  Both carry the whole document rather than the field that moved: the
+ *  StateManager now emits only when a value actually changed, so the thing
+ *  this used to guard against — a broadcast per no-op write — is gone at the
+ *  source.
  */
 stateManager.on('state', (state) => {
     emitStateUpdate(state);
-    deviceHub.publishState('system', state);
+    deviceHub.publishStates(shadowPatch(state));
 });
+
+/*
+ *  Shadow document layout.
+ *
+ *  Each section of the device state is its own top-level key, alongside the
+ *  'network' key the NetworkReporter owns:
+ *
+ *      system       platform, state, version, board, board_version, uuid
+ *      connection   provision, connection, network, wifi
+ *      application  state, health, connection, version
+ *      network      medium, interface, mac, ipv4, wifi, ...
+ *
+ *  Top-level keys are the unit the hub merges by — its setTwinDoc() replaces
+ *  one key at a time — so a section is the natural thing to put there. It also
+ *  makes 'network' a peer of the other sections instead of a sibling of a
+ *  container holding everything else.
+ *
+ *  All of it goes in a single publish. Four keys through publishState() would
+ *  be four MQTT messages and four merges into the twin database; publishStates()
+ *  is one of each.
+ *
+ *  The deprecated nesting
+ *  ----------------------
+ *  This used to publish the entire state document under the single key
+ *  'system', so the real values sat at doc.system.system.version and
+ *  doc.system.connection.wifi — a key named after one of the three sections it
+ *  contained.
+ *
+ *  The two shapes cannot sit side by side, because the legacy key and the new
+ *  system key are the same key. So for one release the sections are *also*
+ *  nested inside doc.system, which is purely additive: doc.system.version (new)
+ *  and doc.system.system.version (old) both resolve.
+ *
+ *  Nothing in this repository or in the hub reads these names — every internal
+ *  consumer passes the document through whole — so the duplication is there
+ *  only for applications reading the twin through the hub's application API,
+ *  which we cannot enumerate. Delete the three nested keys, and this note, once
+ *  the fleet's applications have moved to the flat ones.
+ */
+function shadowPatch( state:deviceState ):Record<string, any>{
+    return {
+        system: {
+            ...state.system,
+            // DEPRECATED, remove after one release — see above.
+            system:      state.system,
+            connection:  state.connection,
+            application: state.application,
+        },
+        connection:  state.connection,
+        application: state.application,
+    };
+}
 
 /*
  *  Hardware button.
@@ -160,6 +240,10 @@ async function start():Promise<void>{
     // an access point as 'disconnected' from a station point of view.
     networkManager.subscribeToWifiState((state) => {
         if(!apMode.isActive()) stateManager.updateConnectionState('wifi', state);
+        // Associating, losing the link, or an AP-mode transition all change
+        // what there is to report. The reporter decides whether anything
+        // actually differs; this only tells it to look.
+        networkReporter.nudge();
     }).catch(() => {});
 
     // Track whether traffic actually reaches the internet — associated with an
@@ -170,8 +254,16 @@ async function start():Promise<void>{
     networkManager.subscribeToConnectivity((connectivity) => {
         const online = connectivity === 'full';
         stateManager.updateConnectionState('network', online ? 'connected' : 'disconnected');
+        // The reporter carries the assessment rather than probing for its own:
+        // CheckConnectivity is an active probe, and a second one would answer
+        // about a different moment.
+        networkReporter.onConnectivityChange(connectivity);
         if(online && !deviceHub.isConnected()) deviceHub.connect();
     }).catch(() => {});
+
+    // Begin sampling. Publishing only starts once the hub connection is up —
+    // the reporter checks for itself rather than being started from there.
+    networkReporter.start();
 
     // Decide between setup and normal operation.
     //

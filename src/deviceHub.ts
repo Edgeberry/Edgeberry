@@ -44,6 +44,13 @@ export type DeviceHubStatus = {
 /**
  * Emits:
  *   'cloudMessage' (payload)  — cloud-to-device message, for the D-Bus bridge
+ *   'clientReady' (client)    — a client exists but has not connected yet; the
+ *                               moment to register direct methods against it
+ *   'connected'               — the connection is up. Anything that mirrors
+ *                               state into the shadow has to republish here:
+ *                               publishState() drops what it cannot send, so a
+ *                               value that changed while offline is otherwise
+ *                               lost rather than queued.
  */
 export class DeviceHubService extends EventEmitter {
     private client: EdgeberryDeviceHubClient | null = null;
@@ -183,6 +190,10 @@ export class DeviceHubService extends EventEmitter {
             this.stateManager.interruptIndicators('beep');
             this.stateManager.updateConnectionState('connection', 'connected');
             console.log('\x1b[32mCloud Connection: connected with device \x1b[37m');
+            // Re-emitted rather than having callers reach for the client: the
+            // client is replaced on reconnect, so a listener attached to one
+            // stops hearing from the next.
+            this.emit('connected');
         });
 
         this.client.on('disconnected', ()=>{
@@ -230,6 +241,24 @@ export class DeviceHubService extends EventEmitter {
     public publishState( key:string, value:any ):void{
         if(!this.client || !this.isConnected()) return;
         this.client.updateState(key, value).catch(()=>{});
+    }
+
+    /**
+     * Mirror several top-level shadow keys in one message.
+     *
+     * Not a loop over publishState(): that is one MQTT publish per key, and the
+     * hub merges and version-bumps the reported document once per publish. A
+     * state change touching three sections would therefore be three round trips
+     * and three writes to the twin database, on a service whose SQLite is
+     * synchronous and single-threaded. This is one of each.
+     *
+     * Same connected-only rule as publishState(), and the same swallowing of
+     * failures: the library throws rather than rejecting here.
+     */
+    public publishStates( patch:Record<string, any> ):void{
+        if(!this.client || !this.isConnected()) return;
+        try{ this.client.updateTwinReported(patch); }
+        catch(_err){}
     }
 
     /*
@@ -299,6 +328,25 @@ export class DeviceHubService extends EventEmitter {
             ca:   settings.provisioning.rootCertificateFile
                       ? readFileSync(settings.provisioning.rootCertificateFile)
                       : undefined,
+            /*
+             *  The enrollment record.
+             *
+             *  Stored on the hub's registry row once, at provisioning, and
+             *  never updated. Nothing on the hub reads it: it informs no
+             *  decision there, and for a device that has reported a twin, the
+             *  twin is both live and more accurate.
+             *
+             *  Its one job is the case the twin cannot cover - a device that
+             *  provisioned and never reported has no twin, and this is then the
+             *  only record of what it claimed to be. Send what identifies the
+             *  hardware and the software it enrolled with; live state belongs
+             *  in the shadow, not here.
+             *
+             *  'platform' is a constant naming the platform family, NOT the
+             *  hardware: the machine's actual model goes to the shadow as
+             *  system.platform. They share a name and mean different things, so
+             *  comparing the two reports a conflict on every device forever.
+             */
             meta: {
                 model:     this.stateManager.getState().system.board,
                 firmware:  this.stateManager.getState().system.version,

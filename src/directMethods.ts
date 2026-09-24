@@ -5,7 +5,7 @@
  */
 
 import { StateManager } from "./stateManager";
-import { NetworkManager } from "./networkManager";
+import { NetworkReporter } from "./networkReporter";
 import { DeviceHubService } from "./deviceHub";
 import { app_getApplicationInfo } from "./application";
 import { board_button } from "./board";
@@ -18,7 +18,7 @@ import { LifecycleAction } from "./applicationManifest";
  *  Connectivity Direct API
  *  All features involving device-to-cloud connectivity
  */
-export function registerDirectMethods( deviceHub:DeviceHubService, stateManager:StateManager, networkManager:NetworkManager ){
+export function registerDirectMethods( deviceHub:DeviceHubService, stateManager:StateManager, networkReporter:NetworkReporter ){
     const cloud = deviceHub.getClient();
     if (!cloud) {
         console.log('Cloud client not initialized, skipping direct method registration');
@@ -115,17 +115,25 @@ export function registerDirectMethods( deviceHub:DeviceHubService, stateManager:
     /*
      *  Get system network info
      *
-     *  Answered from NetworkManager over D-Bus, the same source the web
-     *  interface reads, so the two cannot disagree about what the device is
-     *  connected to.
+     *  Answered by the NetworkReporter — the same object, the same D-Bus reads
+     *  and the same shape that goes into the device's shadow under 'network'.
+     *  Pulling and pushing the same facts two different ways is how they end up
+     *  disagreeing, and this method used to gather its own pair.
      */
     cloud.registerDirectMethod('getSystemNetworkInfo', async(req:any, res:any)=>{
         try{
-            const [ssid, ipAddress] = await Promise.all([
-                networkManager.getActiveWifiSsid(),
-                networkManager.getWifiAddress(),
-            ]);
-            return res.send({ ssid, ipAddress });
+            const report = await networkReporter.report();
+            return res.send({
+                ...report,
+                /*
+                 *  This method's original two fields, kept because they are its
+                 *  published answer and something out there reads them. They are
+                 *  the same facts the report above carries, under the names that
+                 *  were promised.
+                 */
+                ssid:      report.wifi?.ssid ?? null,
+                ipAddress: report.ipv4.address,
+            });
         }
         catch( err ){
             return res.status(500).send({message:err});
