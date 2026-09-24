@@ -34,8 +34,23 @@ const NM_ACTIVE_CONN_IFACE   = 'org.freedesktop.NetworkManager.Connection.Active
 const NM_IP4CONFIG_IFACE     = 'org.freedesktop.NetworkManager.IP4Config';
 const DBUS_PROPS_IFACE       = 'org.freedesktop.DBus.Properties';
 
-// NetworkManager device type for WiFi
-const NM_DEVICE_TYPE_WIFI = 2;
+// NetworkManager device types (subset)
+const NM_DEVICE_TYPE_ETHERNET = 1;
+const NM_DEVICE_TYPE_WIFI     = 2;
+
+/*
+ *  NM80211ApSecurityFlags (subset) - which key management an access point
+ *  offers. Read from RsnFlags/WpaFlags to name the security in use, where
+ *  getAccessPoints() only needs the "is it locked" boolean.
+ *  https://networkmanager.dev/docs/api/latest/nm-dbus-types.html#NM80211ApSecurityFlags
+ */
+const NM_802_11_AP_SEC_KEY_MGMT_PSK   = 0x100;
+const NM_802_11_AP_SEC_KEY_MGMT_802_1X = 0x200;
+const NM_802_11_AP_SEC_KEY_MGMT_SAE   = 0x400;   // WPA3-Personal
+const NM_802_11_AP_SEC_KEY_MGMT_OWE   = 0x800;   // Enhanced Open
+
+// NM80211ApFlags: the access point requires a key of some kind.
+const NM_802_11_AP_FLAGS_PRIVACY = 0x1;
 
 // NetworkManager active connection states
 const NM_ACTIVE_STATE_ACTIVATED   = 2;
@@ -69,6 +84,80 @@ export type AccessPointInfo = {
     strength: number;
     frequency: number;
     secured: boolean;
+}
+
+/** Which kind of link is carrying the device's traffic. */
+export type NetworkMedium = 'wifi' | 'ethernet' | 'other' | 'none';
+
+/** The IPv4 configuration in force on an interface, as NetworkManager has it. */
+export type Ip4Details = {
+    address: string|null;
+    prefix:  number|null;
+    gateway: string|null;
+    dns:     string[];
+};
+
+/** What an interface is, independent of what it is connected to. */
+export type LinkDetails = {
+    interface: string|null;
+    mac:       string|null;
+};
+
+/**
+ * The access point this device is currently associated with.
+ *
+ * Distinct from AccessPointInfo, which describes a *candidate* found by a scan:
+ * this is the one in use, and it carries the facts that only exist once
+ * associated - the negotiated bitrate, and the BSSID of the particular radio
+ * we landed on where several share an SSID.
+ */
+export type ActiveAccessPointInfo = {
+    ssid:      string|null;
+    bssid:     string|null;
+    frequency: number|null;                        // MHz
+    channel:   number|null;
+    band:      '2.4GHz'|'5GHz'|'6GHz'|null;
+    strength:  number|null;                        // 0-100, NetworkManager's own scale
+    bitrate:   number|null;                        // kb/s, as negotiated
+    security:  'open'|'owe'|'wep'|'wpa'|'wpa2'|'wpa2-enterprise'|'wpa3'|null;
+};
+
+/**
+ * The channel number for a frequency in MHz, or null outside the bands we name.
+ *
+ * Reported alongside the frequency because a channel is what somebody standing
+ * at a router reads, and what they would change to move off a busy one.
+ */
+function channelFromFrequency( mhz:number ):number|null{
+    if(mhz === 2484) return 14;                          // the one that breaks the formula
+    if(mhz >= 2412 && mhz <= 2472) return (mhz - 2407) / 5;
+    if(mhz >= 5160 && mhz <= 5885) return (mhz - 5000) / 5;
+    if(mhz >= 5955 && mhz <= 7115) return (mhz - 5950) / 5;
+    return null;
+}
+
+function bandFromFrequency( mhz:number ):'2.4GHz'|'5GHz'|'6GHz'|null{
+    if(mhz >= 2400 && mhz < 2500) return '2.4GHz';
+    if(mhz >= 4900 && mhz < 5925) return '5GHz';
+    if(mhz >= 5925 && mhz < 7125) return '6GHz';
+    return null;
+}
+
+/**
+ * Name the security an access point offers, strongest key management first.
+ *
+ * RsnFlags is WPA2/WPA3's advertisement and WpaFlags the original WPA's, so a
+ * network offering both reads as the better of the two - which is what a client
+ * that supports both will actually negotiate.
+ */
+function securityFromFlags( flags:number, wpaFlags:number, rsnFlags:number ):ActiveAccessPointInfo['security']{
+    if(rsnFlags & NM_802_11_AP_SEC_KEY_MGMT_SAE)    return 'wpa3';
+    if(rsnFlags & NM_802_11_AP_SEC_KEY_MGMT_802_1X) return 'wpa2-enterprise';
+    if(rsnFlags & NM_802_11_AP_SEC_KEY_MGMT_PSK)    return 'wpa2';
+    if(wpaFlags !== 0)                              return 'wpa';
+    if(rsnFlags & NM_802_11_AP_SEC_KEY_MGMT_OWE)    return 'owe';
+    if(flags & NM_802_11_AP_FLAGS_PRIVACY)          return 'wep';
+    return 'open';
 }
 
 export class NetworkManager extends EventEmitter {
@@ -292,23 +381,15 @@ export class NetworkManager extends EventEmitter {
      * Read from NetworkManager rather than by parsing `ifconfig`: net-tools is
      * not installed by default on current Raspberry Pi OS, and the interface is
      * not reliably named wlan0.
+     *
+     * Narrowed to getIp4Details(), which reads the same Ip4Config object for
+     * the whole configuration rather than the address alone. Kept as its own
+     * method because "the WiFi address" is asked for by name often enough to be
+     * worth one, but there is only one implementation of the reading.
      */
     public async getWifiAddress():Promise<string|null>{
         try{
-            const devicePath = await this.getWifiDevicePath();
-            const ip4ConfigPath = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'Ip4Config');
-            if(!ip4ConfigPath || ip4ConfigPath === '/') return null;
-
-            // AddressData is an array of dictionaries, primary address first.
-            // dbus-native hands each dictionary back as an array of
-            // [key, variant] pairs rather than as an object.
-            const addressData = await this.getProperty(ip4ConfigPath, NM_IP4CONFIG_IFACE, 'AddressData');
-            if(!Array.isArray(addressData) || addressData.length === 0) return null;
-
-            const entry = addressData[0];
-            if(!Array.isArray(entry)) return null;
-            const address = entry.find((pair:any)=> Array.isArray(pair) && pair[0] === 'address');
-            return address ? String(this.unwrapVariant(address[1])) : null;
+            return (await this.getIp4Details(await this.getWifiDevicePath())).address;
         } catch(_e){ return null; }
     }
 
@@ -383,6 +464,179 @@ export class NetworkManager extends EventEmitter {
         }
 
         throw new Error('No WiFi device found');
+    }
+
+    /*
+     *  Network inspection
+     *
+     *  Read-only views of what the device is connected to, for reporting rather
+     *  than for provisioning. Everything here answers from NetworkManager, so it
+     *  cannot drift from what the provisioning paths above see.
+     *
+     *  These take a device path rather than finding one themselves: a caller
+     *  building one report wants every field to describe the *same* interface,
+     *  and resolving separately per field would let an ethernet IP address be
+     *  reported next to a WiFi SSID.
+     */
+
+    /**
+     * The device carrying the default route, and what kind of link it is.
+     *
+     * getWifiDevicePath() only ever finds DeviceType 2, so it cannot answer for
+     * an Edgeberry on ethernet. NetworkManager already knows which connection is
+     * primary; asking it is both correct for a wired device and correct for a
+     * device with both, where guessing would not be.
+     *
+     * Falls back to the WiFi device when nothing is primary. A radio that is
+     * associated without a route - a network with no internet behind it, or our
+     * own access point while in AP mode - is worth reporting as what it is,
+     * rather than as no network at all.
+     */
+    public async getPrimaryDevice():Promise<{ path:string|null; medium:NetworkMedium }>{
+        try{
+            const primary = await this.getProperty(NM_PATH, NM_IFACE, 'PrimaryConnection');
+            if(primary && primary !== '/'){
+                const devices = await this.getProperty(primary, NM_ACTIVE_CONN_IFACE, 'Devices');
+                const path = Array.isArray(devices) ? devices[0] : null;
+                if(path) return { path, medium: await this.getDeviceMedium(path) };
+            }
+        } catch(_e){}
+
+        try{
+            return { path: await this.getWifiDevicePath(), medium: 'wifi' };
+        } catch(_e){}
+
+        return { path: null, medium: 'none' };
+    }
+
+    /** Classify a device by its NMDeviceType. */
+    public async getDeviceMedium( devicePath:string ):Promise<NetworkMedium>{
+        try{
+            const type = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'DeviceType');
+            if(type === NM_DEVICE_TYPE_WIFI)     return 'wifi';
+            if(type === NM_DEVICE_TYPE_ETHERNET) return 'ethernet';
+            return 'other';
+        } catch(_e){ return 'none'; }
+    }
+
+    /** The kernel name and hardware address of an interface. */
+    public async getLinkDetails( devicePath:string ):Promise<LinkDetails>{
+        const read = async ( property:string ):Promise<string|null> => {
+            try{
+                const value = await this.getProperty(devicePath, NM_DEVICE_IFACE, property);
+                return value ? String(value) : null;
+            } catch(_e){ return null; }
+        };
+        return {
+            interface: await read('Interface'),
+            // Device.HwAddress is NetworkManager 1.24 and later. Older releases
+            // carry it only on the Wired/Wireless sub-interface; this reports
+            // null there rather than growing a second code path for a version
+            // predating every currently supported Raspberry Pi OS.
+            mac:       await read('HwAddress'),
+        };
+    }
+
+    /**
+     * The full IPv4 configuration of an interface.
+     *
+     * Widens getWifiAddress() - same Ip4Config object, same AddressData
+     * unwrapping - to the rest of what somebody diagnosing a device asks for
+     * next: which gateway, which resolvers, and whether the prefix is what they
+     * configured.
+     */
+    public async getIp4Details( devicePath:string ):Promise<Ip4Details>{
+        const empty:Ip4Details = { address: null, prefix: null, gateway: null, dns: [] };
+        try{
+            const ip4ConfigPath = await this.getProperty(devicePath, NM_DEVICE_IFACE, 'Ip4Config');
+            if(!ip4ConfigPath || ip4ConfigPath === '/') return empty;
+
+            const result:Ip4Details = { ...empty };
+
+            // AddressData is an array of dictionaries, primary address first,
+            // each handed back by dbus-native as [key, variant] pairs.
+            try{
+                const addressData = await this.getProperty(ip4ConfigPath, NM_IP4CONFIG_IFACE, 'AddressData');
+                const entry = Array.isArray(addressData) ? addressData[0] : null;
+                if(Array.isArray(entry)){
+                    const pick = ( key:string ) => {
+                        const pair = entry.find((p:any)=> Array.isArray(p) && p[0] === key);
+                        return pair ? this.unwrapVariant(pair[1]) : null;
+                    };
+                    const address = pick('address');
+                    const prefix  = pick('prefix');
+                    result.address = address !== null ? String(address) : null;
+                    result.prefix  = prefix  !== null ? Number(prefix)  : null;
+                }
+            } catch(_e){}
+
+            try{
+                const gateway = await this.getProperty(ip4ConfigPath, NM_IP4CONFIG_IFACE, 'Gateway');
+                result.gateway = gateway ? String(gateway) : null;
+            } catch(_e){}
+
+            // NameserverData rather than Nameservers: the latter is an array of
+            // network-byte-order integers that would have to be unpacked, and
+            // this one is already the dotted string.
+            try{
+                const nameservers = await this.getProperty(ip4ConfigPath, NM_IP4CONFIG_IFACE, 'NameserverData');
+                if(Array.isArray(nameservers)){
+                    for(const entry of nameservers){
+                        if(!Array.isArray(entry)) continue;
+                        const pair = entry.find((p:any)=> Array.isArray(p) && p[0] === 'address');
+                        if(pair) result.dns.push(String(this.unwrapVariant(pair[1])));
+                    }
+                }
+            } catch(_e){}
+
+            return result;
+        } catch(_e){ return empty; }
+    }
+
+    /**
+     * The access point a WiFi device is associated with, or null when it is not
+     * associated with one (including while it *is* one, in AP mode).
+     *
+     * This is where signal strength comes from. The same AccessPoint properties
+     * getAccessPoints() reads for scan results, on the one object NetworkManager
+     * points at as active, plus the device's own negotiated bitrate.
+     */
+    public async getActiveAccessPointInfo( devicePath:string ):Promise<ActiveAccessPointInfo|null>{
+        try{
+            const apPath = await this.getProperty(devicePath, NM_WIRELESS_IFACE, 'ActiveAccessPoint');
+            if(!apPath || apPath === '/') return null;
+
+            const props = await this.getAllProperties(apPath, NM_AP_IFACE);
+
+            // An SSID is a byte string, not text, and a hidden network's is
+            // empty - null is the honest answer rather than ''.
+            let ssid:string|null = null;
+            try{
+                const decoded = Buffer.from(props.Ssid).toString('utf-8');
+                ssid = decoded.length > 0 ? decoded : null;
+            } catch(_e){}
+
+            const frequency = typeof props.Frequency === 'number' ? props.Frequency : null;
+
+            // Bitrate lives on the device, not the access point: it is what this
+            // radio pair settled on, not what the access point advertises.
+            let bitrate:number|null = null;
+            try{
+                const value = await this.getProperty(devicePath, NM_WIRELESS_IFACE, 'Bitrate');
+                bitrate = typeof value === 'number' ? value : null;
+            } catch(_e){}
+
+            return {
+                ssid,
+                bssid:     props.HwAddress ? String(props.HwAddress) : null,
+                frequency,
+                channel:   frequency !== null ? channelFromFrequency(frequency) : null,
+                band:      frequency !== null ? bandFromFrequency(frequency)    : null,
+                strength:  typeof props.Strength === 'number' ? props.Strength : null,
+                bitrate,
+                security:  securityFromFlags(props.Flags || 0, props.WpaFlags || 0, props.RsnFlags || 0),
+            };
+        } catch(_e){ return null; }
     }
 
     /*
