@@ -108,34 +108,62 @@ export class StateManager extends EventEmitter{
 
     /*
      *  State updaters
+     *
+     *  Each writes one field and reports only if that field actually moved.
+     *
+     *  These used to emit unconditionally, which made every repeated call a
+     *  full state broadcast: a D-Bus message to every local application, and a
+     *  republish of the entire state document into the device shadow. Nothing
+     *  calling these knows whether it is saying something new — the
+     *  NetworkManager subscriptions in main.ts re-report the current value on
+     *  every signal, by design — so the deduplication has to live here.
+     *
+     *  Measured on a production device before this guard: ~6 twin writes a
+     *  minute at rest, ~285k a month, against a fleet peer's ~1 a day. The
+     *  state was identical on essentially all of them.
+     *
+     *  Skipping the emit is safe for the indicators too: updateStatusIndication()
+     *  is a pure function of the state below, so if no field changed there is
+     *  nothing it could decide differently. The one caller that needs a refresh
+     *  without a state change — interruptIndicators() returning to normal —
+     *  calls updateState() directly and is unaffected.
      */
+
+    /** Write one field, and report only if it changed. */
+    private setField<S extends keyof deviceState>(
+        section: S,
+        key:     keyof deviceState[S],
+        value:   string|number|boolean|null,
+    ):void{
+        const target = this.state[section] as Record<string, unknown>;
+
+        // An unknown key is not part of the state, so there is nothing to
+        // change and nothing to announce.
+        if( !Object.prototype.hasOwnProperty.call(target, key) ) return;
+
+        // Normalise to lowercase at ingress so downstream comparisons are
+        // reliable regardless of the casing the caller uses — and so this
+        // comparison sees the same form that would have been stored.
+        const next = canonical(value);
+        if( target[key as string] === next ) return;
+
+        target[key as string] = next;
+        this.updateState();
+    }
 
     // Update the system state
     public updateSystemState( key: keyof deviceState['system'], value:string|number|boolean|null ):void{
-        // update the local state — normalise to lowercase at ingress so downstream
-        // comparisons are reliable regardless of the casing the caller uses.
-        if( this.state.system.hasOwnProperty(key)){
-            (this.state.system as Record<string, unknown>)[key] = canonical(value);
-        }
-        this.updateState();
+        this.setField('system', key, value);
     }
 
     // Update the connection
     public updateConnectionState( key: keyof deviceState['connection'], value:string|number|boolean ):void{
-        // update the local state
-        if( this.state.connection.hasOwnProperty(key)){
-            (this.state.connection as Record<string, unknown>)[key] = canonical(value);
-        }
-        this.updateState();
+        this.setField('connection', key, value);
     }
 
     // Update the application state
     public updateApplicationState( key: keyof deviceState['application'], value:string|number|boolean ):void{
-        // update the local state
-        if( this.state.application.hasOwnProperty(key)){
-            (this.state.application as Record<string, unknown>)[key] = canonical(value);
-        }
-        this.updateState();
+        this.setField('application', key, value);
     }
 
     /*
